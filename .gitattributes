@@ -1,0 +1,3 @@
+# the committed page ships without the embedded song (copyright); the local copy keeps it.
+# needs the local filter: git config filter.stripsong.clean "sed -E 's/^const SONG_DATA = \"data:[^\"]*\";$/const SONG_DATA = null;/'"
+chess-move-studio.html filter=stripsong

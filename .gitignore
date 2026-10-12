@@ -1,0 +1,6 @@
+# renders, test videos and music stay local
+frames/
+*.mp4
+*.mp3
+!sounds/*.mp3
+*.backup.html
