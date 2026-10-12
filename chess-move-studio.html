@@ -1892,13 +1892,33 @@ if (typeof define !== 'undefined')
 <script>
 const PIECES = {"wpawn": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PHBhdGggZD0iTTIyLjUgOWMtMi4yMSAwLTQgMS43OS00IDQgMCAuODkuMjkgMS43MS43OCAyLjM4QzE3LjMzIDE2LjUgMTYgMTguNTkgMTYgMjFjMCAyLjAzLjk0IDMuODQgMi40MSA1LjAzLTMgMS4wNi03LjQxIDUuNTUtNy40MSAxMy40N2gyM2MwLTcuOTItNC40MS0xMi40MS03LjQxLTEzLjQ3IDEuNDctMS4xOSAyLjQxLTMgMi40MS01LjAzIDAtMi40MS0xLjMzLTQuNS0zLjI4LTUuNjIuNDktLjY3Ljc4LTEuNDkuNzgtMi4zOCAwLTIuMjEtMS43OS00LTQtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==", "wbishop": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxnIGZpbGw9IiNmZmYiIHN0cm9rZS1saW5lY2FwPSJidXR0Ij48cGF0aCBkPSJNOSAzNmMzLjM5LS45NyAxMC4xMS40MyAxMy41LTIgMy4zOSAyLjQzIDEwLjExIDEuMDMgMTMuNSAyIDAgMCAxLjY1LjU0IDMgMi0uNjguOTctMS42NS45OS0zIC41LTMuMzktLjk3LTEwLjExLjQ2LTEzLjUtMS0zLjM5IDEuNDYtMTAuMTEuMDMtMTMuNSAxLTEuMzU0LjQ5LTIuMzIzLjQ3LTMtLjUgMS4zNTQtMS45NCAzLTIgMy0yeiIvPjxwYXRoIGQ9Ik0xNSAzMmMyLjUgMi41IDEyLjUgMi41IDE1IDAgLjUtMS41IDAtMiAwLTIgMC0yLjUtMi41LTQtMi41LTQgNS41LTEuNSA2LTExLjUtNS0xNS41LTExIDQtMTAuNSAxNC01IDE1LjUgMCAwLTIuNSAxLjUtMi41IDQgMCAwLS41LjUgMCAyeiIvPjxwYXRoIGQ9Ik0yNSA4YTIuNSAyLjUgMCAxIDEtNSAwIDIuNSAyLjUgMCAxIDEgNSAweiIvPjwvZz48cGF0aCBkPSJNMTcuNSAyNmgxME0xNSAzMGgxNW0tNy41LTE0LjV2NU0yMCAxOGg1IiBzdHJva2UtbGluZWpvaW49Im1pdGVyIi8+PC9nPjwvc3ZnPg==", "wknight": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMiAxMGMxMC41IDEgMTYuNSA4IDE2IDI5SDE1YzAtOSAxMC02LjUgOC0yMSIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0yNCAxOGMuMzggMi45MS01LjU1IDcuMzctOCA5LTMgMi0yLjgyIDQuMzQtNSA0LTEuMDQyLS45NCAxLjQxLTMuMDQgMC0zLTEgMCAuMTkgMS4yMy0xIDItMSAwLTQuMDAzIDEtNC00IDAtMiA2LTEyIDYtMTJzMS44OS0xLjkgMi0zLjVjLS43My0uOTk0LS41LTItLjUtMyAxLTEgMyAyLjUgMyAyLjVoMnMuNzgtMS45OTIgMi41LTNjMSAwIDEgMyAxIDMiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNOS41IDI1LjVhLjUuNSAwIDEgMS0xIDAgLjUuNSAwIDEgMSAxIDB6bTUuNDMzLTkuNzVhLjUgMS41IDMwIDEgMS0uODY2LS41LjUgMS41IDMwIDEgMSAuODY2LjV6IiBmaWxsPSIjMDAwIi8+PC9nPjwvc3ZnPg==", "wrook": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0iI2ZmZiIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik05IDM5aDI3di0zSDl2M3ptMy0zdi00aDIxdjRIMTJ6bS0xLTIyVjloNHYyaDVWOWg1djJoNVY5aDR2NSIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNMzQgMTRsLTMgM0gxNGwtMy0zIi8+PHBhdGggZD0iTTMxIDE3djEyLjVIMTRWMTciIHN0cm9rZS1saW5lY2FwPSJidXR0IiBzdHJva2UtbGluZWpvaW49Im1pdGVyIi8+PHBhdGggZD0iTTMxIDI5LjVsMS41IDIuNWgtMjBsMS41LTIuNSIvPjxwYXRoIGQ9Ik0xMSAxNGgyMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIvPjwvZz48L3N2Zz4=", "wqueen": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0iI2ZmZiIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik04IDEyYTIgMiAwIDEgMS00IDAgMiAyIDAgMSAxIDQgMHptMTYuNS00LjVhMiAyIDAgMSAxLTQgMCAyIDIgMCAxIDEgNCAwek00MSAxMmEyIDIgMCAxIDEtNCAwIDIgMiAwIDEgMSA0IDB6TTE2IDguNWEyIDIgMCAxIDEtNCAwIDIgMiAwIDEgMSA0IDB6TTMzIDlhMiAyIDAgMSAxLTQgMCAyIDIgMCAxIDEgNCAweiIvPjxwYXRoIGQ9Ik05IDI2YzguNS0xLjUgMjEtMS41IDI3IDBsMi0xMi03IDExVjExbC01LjUgMTMuNS0zLTE1LTMgMTUtNS41LTE0VjI1TDcgMTRsMiAxMnoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTkgMjZjMCAyIDEuNSAyIDIuNSA0IDEgMS41IDEgMSAuNSAzLjUtMS41IDEtMS41IDIuNS0xLjUgMi41LTEuNSAxLjUuNSAyLjUuNSAyLjUgNi41IDEgMTYuNSAxIDIzIDAgMCAwIDEuNS0xIDAtMi41IDAgMCAuNS0xLjUtMS0yLjUtLjUtMi41LS41LTIgLjUtMy41IDEtMiAyLjUtMiAyLjUtNC04LjUtMS41LTE4LjUtMS41LTI3IDB6IiBzdHJva2UtbGluZWNhcD0iYnV0dCIvPjxwYXRoIGQ9Ik0xMS41IDMwYzMuNS0xIDE4LjUtMSAyMiAwTTEyIDMzLjVjNi0xIDE1LTEgMjEgMCIgZmlsbD0ibm9uZSIvPjwvZz48L3N2Zz4=", "wking": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMi41IDExLjYzVjZNMjAgOGg1IiBzdHJva2UtbGluZWpvaW49Im1pdGVyIi8+PHBhdGggZD0iTTIyLjUgMjVzNC41LTcuNSAzLTEwLjVjMCAwLTEtMi41LTMtMi41cy0zIDIuNS0zIDIuNWMtMS41IDMgMyAxMC41IDMgMTAuNSIgZmlsbD0iI2ZmZiIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48cGF0aCBkPSJNMTEuNSAzN2M1LjUgMy41IDE1LjUgMy41IDIxIDB2LTdzOS00LjUgNi0xMC41Yy00LTYuNS0xMy41LTMuNS0xNiA0VjI3di0zLjVjLTMuNS03LjUtMTMtMTAuNS0xNi00LTMgNiA1IDEwIDUgMTBWMzd6IiBmaWxsPSIjZmZmIi8+PHBhdGggZD0iTTExLjUgMzBjNS41LTMgMTUuNS0zIDIxIDBtLTIxIDMuNWM1LjUtMyAxNS41LTMgMjEgMG0tMjEgMy41YzUuNS0zIDE1LjUtMyAyMSAwIi8+PC9nPjwvc3ZnPg==", "bpawn": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PHBhdGggZD0iTTIyLjUgOWMtMi4yMSAwLTQgMS43OS00IDQgMCAuODkuMjkgMS43MS43OCAyLjM4QzE3LjMzIDE2LjUgMTYgMTguNTkgMTYgMjFjMCAyLjAzLjk0IDMuODQgMi40MSA1LjAzLTMgMS4wNi03LjQxIDUuNTUtNy40MSAxMy40N2gyM2MwLTcuOTItNC40MS0xMi40MS03LjQxLTEzLjQ3IDEuNDctMS4xOSAyLjQxLTMgMi40MS01LjAzIDAtMi40MS0xLjMzLTQuNS0zLjI4LTUuNjIuNDktLjY3Ljc4LTEuNDkuNzgtMi4zOCAwLTIuMjEtMS43OS00LTQtNHoiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==", "bbishop": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxnIGZpbGw9IiMwMDAiIHN0cm9rZS1saW5lY2FwPSJidXR0Ij48cGF0aCBkPSJNOSAzNmMzLjM5LS45NyAxMC4xMS40MyAxMy41LTIgMy4zOSAyLjQzIDEwLjExIDEuMDMgMTMuNSAyIDAgMCAxLjY1LjU0IDMgMi0uNjguOTctMS42NS45OS0zIC41LTMuMzktLjk3LTEwLjExLjQ2LTEzLjUtMS0zLjM5IDEuNDYtMTAuMTEuMDMtMTMuNSAxLTEuMzU0LjQ5LTIuMzIzLjQ3LTMtLjUgMS4zNTQtMS45NCAzLTIgMy0yeiIvPjxwYXRoIGQ9Ik0xNSAzMmMyLjUgMi41IDEyLjUgMi41IDE1IDAgLjUtMS41IDAtMiAwLTIgMC0yLjUtMi41LTQtMi41LTQgNS41LTEuNSA2LTExLjUtNS0xNS41LTExIDQtMTAuNSAxNC01IDE1LjUgMCAwLTIuNSAxLjUtMi41IDQgMCAwLS41LjUgMCAyeiIvPjxwYXRoIGQ9Ik0yNSA4YTIuNSAyLjUgMCAxIDEtNSAwIDIuNSAyLjUgMCAxIDEgNSAweiIvPjwvZz48cGF0aCBkPSJNMTcuNSAyNmgxME0xNSAzMGgxNW0tNy41LTE0LjV2NU0yMCAxOGg1IiBzdHJva2U9IiNlY2VjZWMiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48L2c+PC9zdmc+", "bknight": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMiAxMGMxMC41IDEgMTYuNSA4IDE2IDI5SDE1YzAtOSAxMC02LjUgOC0yMSIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik0yNCAxOGMuMzggMi45MS01LjU1IDcuMzctOCA5LTMgMi0yLjgyIDQuMzQtNSA0LTEuMDQyLS45NCAxLjQxLTMuMDQgMC0zLTEgMCAuMTkgMS4yMy0xIDItMSAwLTQuMDAzIDEtNC00IDAtMiA2LTEyIDYtMTJzMS44OS0xLjkgMi0zLjVjLS43My0uOTk0LS41LTItLjUtMyAxLTEgMyAyLjUgMyAyLjVoMnMuNzgtMS45OTIgMi41LTNjMSAwIDEgMyAxIDMiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNOS41IDI1LjVhLjUuNSAwIDEgMS0xIDAgLjUuNSAwIDEgMSAxIDB6bTUuNDMzLTkuNzVhLjUgMS41IDMwIDEgMS0uODY2LS41LjUgMS41IDMwIDEgMSAuODY2LjV6IiBmaWxsPSIjZWNlY2VjIiBzdHJva2U9IiNlY2VjZWMiLz48cGF0aCBkPSJNMjQuNTUgMTAuNGwtLjQ1IDEuNDUuNS4xNWMzLjE1IDEgNS42NSAyLjQ5IDcuOSA2Ljc1UzM1Ljc1IDI5LjA2IDM1LjI1IDM5bC0uMDUuNWgyLjI1bC4wNS0uNWMuNS0xMC4wNi0uODgtMTYuODUtMy4yNS0yMS4zNC0yLjM3LTQuNDktNS43OS02LjY0LTkuMTktNy4xNmwtLjUxLS4xeiIgZmlsbD0iI2VjZWNlYyIgc3Ryb2tlPSJub25lIi8+PC9nPjwvc3ZnPg==", "brook": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik05IDM5aDI3di0zSDl2M3ptMy41LTdsMS41LTIuNWgxN2wxLjUgMi41aC0yMHptLS41IDR2LTRoMjF2NEgxMnoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTE0IDI5LjV2LTEzaDE3djEzSDE0eiIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48cGF0aCBkPSJNMTQgMTYuNUwxMSAxNGgyM2wtMyAyLjVIMTR6TTExIDE0VjloNHYyaDVWOWg1djJoNVY5aDR2NUgxMXoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTEyIDM1LjVoMjFtLTIwLTRoMTltLTE4LTJoMTdtLTE3LTEzaDE3TTExIDE0aDIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNlY2VjZWMiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIvPjwvZz48L3N2Zz4=", "bqueen": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxnIHN0cm9rZT0ibm9uZSI+PGNpcmNsZSBjeD0iNiIgY3k9IjEyIiByPSIyLjc1Ii8+PGNpcmNsZSBjeD0iMTQiIGN5PSI5IiByPSIyLjc1Ii8+PGNpcmNsZSBjeD0iMjIuNSIgY3k9IjgiIHI9IjIuNzUiLz48Y2lyY2xlIGN4PSIzMSIgY3k9IjkiIHI9IjIuNzUiLz48Y2lyY2xlIGN4PSIzOSIgY3k9IjEyIiByPSIyLjc1Ii8+PC9nPjxwYXRoIGQ9Ik05IDI2YzguNS0xLjUgMjEtMS41IDI3IDBsMi41LTEyLjVMMzEgMjVsLS4zLTE0LjEtNS4yIDEzLjYtMy0xNC41LTMgMTQuNS01LjItMTMuNkwxNCAyNSA2LjUgMTMuNSA5IDI2eiIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNOSAyNmMwIDIgMS41IDIgMi41IDQgMSAxLjUgMSAxIC41IDMuNS0xLjUgMS0xLjUgMi41LTEuNSAyLjUtMS41IDEuNS41IDIuNS41IDIuNSA2LjUgMSAxNi41IDEgMjMgMCAwIDAgMS41LTEgMC0yLjUgMCAwIC41LTEuNS0xLTIuNS0uNS0yLjUtLjUtMiAuNS0zLjUgMS0yIDIuNS0yIDIuNS00LTguNS0xLjUtMTguNS0xLjUtMjcgMHoiIHN0cm9rZS1saW5lY2FwPSJidXR0Ii8+PHBhdGggZD0iTTExIDM4LjVhMzUgMzUgMSAwIDAgMjMgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNMTEgMjlhMzUgMzUgMSAwIDEgMjMgMG0tMjEuNSAyLjVoMjBtLTIxIDNhMzUgMzUgMSAwIDAgMjIgMG0tMjMgM2EzNSAzNSAxIDAgMCAyNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlY2VjZWMiLz48L2c+PC9zdmc+", "bking": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NSIgaGVpZ2h0PSI0NSI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMi41IDExLjYzVjYiIHN0cm9rZS1saW5lam9pbj0ibWl0ZXIiLz48cGF0aCBkPSJNMjIuNSAyNXM0LjUtNy41IDMtMTAuNWMwIDAtMS0yLjUtMy0yLjVzLTMgMi41LTMgMi41Yy0xLjUgMyAzIDEwLjUgMyAxMC41IiBmaWxsPSIjMDAwIiBzdHJva2UtbGluZWNhcD0iYnV0dCIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIvPjxwYXRoIGQ9Ik0xMS41IDM3YzUuNSAzLjUgMTUuNSAzLjUgMjEgMHYtN3M5LTQuNSA2LTEwLjVjLTQtNi41LTEzLjUtMy41LTE2IDRWMjd2LTMuNWMtMy41LTcuNS0xMy0xMC41LTE2LTQtMyA2IDUgMTAgNSAxMFYzN3oiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNMjAgOGg1IiBzdHJva2UtbGluZWpvaW49Im1pdGVyIi8+PHBhdGggZD0iTTMyIDI5LjVzOC41LTQgNi4wMy05LjY1QzM0LjE1IDE0IDI1IDE4IDIyLjUgMjQuNWwuMDEgMi4xLS4wMS0yLjFDMjAgMTggOS45MDYgMTQgNi45OTcgMTkuODVjLTIuNDk3IDUuNjUgNC44NTMgOSA0Ljg1MyA5IiBzdHJva2U9IiNlY2VjZWMiLz48cGF0aCBkPSJNMTEuNSAzMGM1LjUtMyAxNS41LTMgMjEgMG0tMjEgMy41YzUuNS0zIDE1LjUtMyAyMSAwbS0yMSAzLjVjNS41LTMgMTUuNS0zIDIxIDAiIHN0cm9rZT0iI2VjZWNlYyIvPjwvZz48L3N2Zz4="};
 // output frame per aspect ratio; top/bottom = distance of the title / channel name from the frame edge
-// (9:16 keeps clear of the TikTok / Reels buttons)
+// (9:16 keeps clear of the TikTok / Reels buttons). side: width of a left column that holds the title and
+// channel name instead of a top / bottom band, so the board gets the full height
 const ASPECTS = {
   '9:16': {w: 1080, h: 1920, top: 170, bottom: 300, css: 720},
   '4:5':  {w: 1080, h: 1350, top: 60,  bottom: 70,  css: 600},
   '1:1':  {w: 1080, h: 1080, top: 50,  bottom: 60,  css: 500},
-  '16:9': {w: 1920, h: 1080, top: 50,  bottom: 60,  css: 380},
+  '16:9': {w: 1920, h: 1080, top: 50,  bottom: 60,  css: 380, side: 470},
 };
+
+// ---------- motion settings (stage 1) ----------
+// 'spring': camera follows critically damped springs inside the safe area; 'legacy': the v1 camera (eased
+// pans over the whole frame), kept for comparison
+const CAMERA_MODE = 'spring';
+// short effect durations in beats of the song (BPM from the music sync; MOTION.bpm without music), divided by
+// the speed slider. the big rhythm of a move (flight, hold) stays in seconds: the landings already sit on the beat
+const MOTION = {bpm: 120, beats: {tick: 1/8, short: 1/4, med: 1/2, long: 1}};
+// anticipation: the piece squashes for one tick before it lifts off (stronger for spin and !! moves);
+// arc: flight height (squares) = base + perSquare * distance, capped at max; the piece grows by grow * height
+// at the top of the arc, capped at growMax (v1 used a fixed 0.22 height and +20%)
+const ANTIC = {sx: 1.05, sy: .9, sxSpin: 1.1, sySpin: .82};
+const ARC = {base: .08, perSquare: .05, max: .38, grow: .9, growMax: .26};
+// camera springs: w = stiffness (1/s); a spring covers ~95% of the way in 4.74 / w seconds. zoom springs run
+// faster when pulling out than when pushing in. deadZone: a move whose two squares already sit in this central
+// share of the view does not move the camera
+const CAM = {zoomOut: 1.35, zoomIn: .8, deadZone: .7, maxW: 40,
+             // the safe area keeps this margin from the title, the channel name and the frame edge (px)
+             safePad: 16};
 let FRAME = ASPECTS['9:16'], W = FRAME.w, H = FRAME.h;
 function applyAspect() {
   const f = ASPECTS[$('aspect').value] || ASPECTS['9:16'];
@@ -1941,6 +1961,24 @@ const lerp = (a,b,t) => a + (b-a)*t;
 const eio = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
 const eout = t => 1 - Math.pow(1-t,3);
 const eback = t => { const c1=1.9, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); };
+// the four shared curves: snap for UI and badges, travel for pieces in flight, pop for things that bounce in,
+// settle for a damped wobble after an impact (1 at contact, dies out by s = 1)
+const EASE = {
+  snap: t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  travel: eio,
+  pop: eback,
+  settle: s => Math.exp(-6 * s) * Math.cos(14 * s),
+};
+// critically damped spring in closed form: position x0 with velocity v0 heading for goal g, dt seconds later
+function springAt(x0, v0, g, w, dt) {
+  const d = x0 - g, c = v0 + w * d, e = Math.exp(-w * dt);
+  return [g + (d + c * dt) * e, (v0 - c * w * dt) * e];
+}
+// effect durations in seconds for this clip (see MOTION)
+function motionSeconds(sync, sp) {
+  const beat = 60 / (sync ? sync.bpm : MOTION.bpm) / sp;
+  return Object.fromEntries(Object.entries(MOTION.beats).map(([k, b]) => [k, b * beat]));
+}
 
 // ---------- build the clip from settings ----------
 let clip = null;
@@ -2032,10 +2070,10 @@ function lanePath(type, from, to) {
 }
 
 // ---------- attack lanes ----------
-// delay: after landing (captures wait for the taken piece to vanish); step: delay between squares lighting up;
-// fade: how long each square takes to appear; cam: camera pull-back; out: fade when the next move begins;
-// hop: the target's two hops (big, then small)
-const LANE = {col: '#E24B4A', delay: .1, delayCapture: .25, step: .1, fade: .18, cam: .8, out: .25, hop: .56, max: 2};
+// timing comes from the motion tokens: the lane starts a short beat after landing (a med beat on a capture,
+// once the taken piece has faded), squares light up a short beat apart and fade in over a short beat, the lane
+// fades out over a med beat when the next move begins. cam: camera pull-back time (seconds); max: lanes per move
+const LANE = {col: '#E24B4A', cam: .8, max: 2};
 const LANE_VAL = {k: 100, q: 9, r: 5, b: 3, n: 3, p: 1};
 // which lanes a move shows, as [attacker, target] square pairs on the board after the move:
 //   a) targets written in braces after the move, from the moved piece (empty braces = none)
@@ -2078,6 +2116,10 @@ function layout(boost = 1, dropAt = null) {
   // music sync: before the "!!" every landing sits on the beat grid; the BRILLIANT title hit sits on the drop
   const sync = musicSync();
   if (sync && dropAt != null) sync.drop = dropAt;
+  const M = motionSeconds(sync, sp);
+  // the target's two hops when a lane reaches it: up and down, squash, a small hop, a small squash
+  const HOP = {up: M.med, squash: M.tick, small: M.short, settle: M.tick};
+  HOP.total = HOP.up + HOP.squash + HOP.small + HOP.settle;
   let anchor = null;   // video time of a grid line; all snapped events are anchor + k * period
   const snap = (v, step = sync && sync.period) => {
     if (!sync) return 0;
@@ -2127,8 +2169,8 @@ function layout(boost = 1, dropAt = null) {
       p.card.end = p.card.out + CARD.out;
       t = p.card.out;
     }
-    // moves before the "!!" land on a beat; sped-up moves may land on half beats
-    if (!afterBrilliant) t += snap(t + p.pan + p.dur, sync && (p.speed > 8 ? sync.period / 8 : p.speed > 3 ? sync.period / 4 : p.speed > 1.5 ? sync.period / 2 : sync.period));
+    // every landing sits on a beat (before and after the "!!"); sped-up moves may land on half beats
+    t += snap(t + p.pan + p.dur, sync && (p.speed > 8 ? sync.period / 8 : p.speed > 3 ? sync.period / 4 : p.speed > 1.5 ? sync.period / 2 : sync.period));
     p.start = t; p.moveStart = t + p.pan; p.arrive = p.moveStart + p.dur;
     if (p.brilliant && slamHit == null) slamHit = p.arrive;   // the first !! carries the music drop
     p.end = p.arrive + (p.brilliant ? IMP.hold : (p.badge ? T.holdBadge : T.hold) / p.speed);
@@ -2148,16 +2190,17 @@ function layout(boost = 1, dropAt = null) {
       const lanes = pickLanes(boards[pi + 1], mv, p.targets, warn).map(l => l.map(sqxy));
       if (lanes.length) {
         const fork = lanes.length > 1, longest = Math.max(...lanes.map(l => l.length - 1));
-        const start = mv.captured ? LANE.delayCapture : LANE.delay, reach = start + longest * LANE.step;
+        // lanes start a short beat after landing, or once the taken piece has faded on a capture
+        const start = mv.captured ? M.med : M.short, reach = start + longest * M.short;
         // in a fork every lane starts together and reaches its target at the same moment, so the targets hop together
-        const steps = lanes.map(l => fork ? longest * LANE.step / (l.length - 1) : LANE.step);
+        const steps = lanes.map(l => fork ? longest * M.short / (l.length - 1) : M.short);
         // whole lanes plus a one-square margin on every side (and room for FORK! above the attacker)
         const pts = [...lanes.flat(), ...(fork && forkOn ? [[p.to[0], p.to[1] - .9]] : [])], m = Math.min(W, H);
         const x0 = Math.min(...pts.map(q => q[0])) - 1, x1 = Math.max(...pts.map(q => q[0])) + 2;
         const y0 = Math.min(...pts.map(q => q[1])) - 1, y1 = Math.max(...pts.map(q => q[1])) + 2;
         p.lane = {lanes, steps, start, reach, fork, text: fork && forkOn, hop: bounceOn,
                   c: [(x0 + x1) / 2, (y0 + y1) / 2], V: Math.min(10, Math.max(view, (x1 - x0) * m / W, (y1 - y0) * m / H))};
-        p.end = Math.max(p.end, p.arrive + Math.max(start + LANE.cam, reach + LANE.hop) + .4);
+        p.end = Math.max(p.end, p.arrive + Math.max(start + LANE.cam, reach + HOP.total) + .4);
       }
     }
     p.mate = null;
@@ -2168,7 +2211,7 @@ function layout(boost = 1, dropAt = null) {
         const pc = b[r][f];
         if (pc && pc.type === 'k' && pc.color !== mv.color) p.mate = {sq: sqxy('abcdefgh'[f] + (8 - r)),
           // the king only starts to fall once the lane has reached it and its hops are over
-          fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.reach + LANE.hop + .05 : 0)};
+          fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.reach + HOP.total + M.tick : 0)};
       }
       // after the brilliant scene the checkmate landing is nudged onto the next strong beat (bar line)
       if (sync && afterBrilliant && !p.brilliant && slamHit != null) {
@@ -2177,7 +2220,7 @@ function layout(boost = 1, dropAt = null) {
         if (shift > 0 && shift < bar) { p.start += shift; p.moveStart += shift; p.arrive += shift; p.end += shift; p.mate.fall += shift; }
       }
       if (p.mate) {
-        p.mate.hit = p.mate.fall + .42;
+        p.mate.hit = p.mate.fall + M.long;
         p.mate.dir = p.mate.sq[0] >= p.to[0] ? 1 : -1;
         p.cam = [(p.to[0] + p.mate.sq[0]) / 2 + .5, (p.to[1] + p.mate.sq[1]) / 2 + .5];
         p.end = Math.max(p.end, p.mate.hit + 1.0);
@@ -2213,7 +2256,7 @@ function layout(boost = 1, dropAt = null) {
   // when the song should start (song seconds at video time 0); negative = video runs first
   let musicStart = null;
   if (sync) musicStart = sync.drop - (slamHit != null ? slamHit : (anchor != null ? anchor : 0));
-  clip = {plies, boards, T, flip, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
+  clip = {plies, boards, T, M, HOP, flip, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
           view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim()};
   // optionally drop the stretches with no music: before the song comes in, and after it runs out
   clip.from = 0; clip.to = clip.dur;
@@ -2222,6 +2265,7 @@ function layout(boost = 1, dropAt = null) {
     if (musicStart < 0) clip.from = Math.min(-musicStart, Math.max(0, plies[0].start - .4));
     if (songBuf) clip.to = Math.min(clip.dur, songBuf.duration - musicStart);
   }
+  clip.camTrack = CAMERA_MODE === 'spring' ? buildCamTrack() : null;
   $('scrub').min = clip.from.toFixed(2);
   $('scrub').max = clip.to.toFixed(2);
   $('tdur').textContent = clip.to.toFixed(1) + 's';
@@ -2260,7 +2304,150 @@ function fullView() {
   const s = Math.min(m / RV.view, (bottom - top) / 8);
   return {V: m / s, c: [4, 4 - ((top + bottom) / 2 - H / 2) / s]};
 }
+// ---------- title, channel name and the safe area ----------
+// how the title is laid out: one line in a pill at the top, or wrapped into a box in the left column (side frames)
+function titleLayout() {
+  if (!clip.title) return null;
+  if (FRAME.side) {
+    const size = 54, lh = 66, boxW = FRAME.side - 80, maxW = boxW - 48;
+    ctx.font = `800 ${size}px "Be Vietnam Pro", system-ui, sans-serif`;
+    const lines = [];
+    for (const word of clip.title.split(/\s+/)) {
+      const joined = lines.length ? lines[lines.length - 1] + ' ' + word : null;
+      if (joined && ctx.measureText(joined).width <= maxW) lines[lines.length - 1] = joined; else lines.push(word);
+    }
+    return {font: ctx.font, lines, lh, box: [40, FRAME.top, boxW, 40 + lines.length * lh], radius: 28};
+  }
+  ctx.font = '800 66px "Be Vietnam Pro", system-ui, sans-serif';
+  const tw = Math.min(ctx.measureText(clip.title).width + 80, W - 80);
+  return {font: ctx.font, lines: [clip.title], lh: 112, box: [W/2 - tw/2, FRAME.top, tw, 112], radius: 56};
+}
+// screen rectangles [x0, y0, x1, y1] covered by the title and the channel name
+function overlayRects() {
+  const out = [], tl = titleLayout();
+  if (tl) out.push([tl.box[0], tl.box[1], tl.box[0] + tl.box[2], tl.box[1] + tl.box[3]]);
+  if (clip.handle) {
+    ctx.font = '700 40px "Be Vietnam Pro", system-ui, sans-serif';
+    out.push([54, H - FRAME.bottom - 32, 54 + ctx.measureText(clip.handle).width, H - FRAME.bottom + 10]);
+  }
+  return out;
+}
+window.overlayRects = overlayRects;
+// the part of the frame the spring camera frames the board into: below the title band and above the channel
+// name, or right of the title column in side frames
+function safeRect() {
+  const pad = CAM.safePad;
+  if (FRAME.side) return {x0: clip.title || clip.handle ? FRAME.side : pad, y0: pad, x1: W - pad, y1: H - pad};
+  return {x0: 0, y0: clip.title ? FRAME.top + 112 + pad : 0, x1: W, y1: clip.handle ? H - FRAME.bottom - 34 - pad : H};
+}
+
+// ---------- camera, spring mode ----------
+// a framing is {c: board-space point at the centre of the safe area, V: squares across the frame's short side}.
+// keep it on the board: along an axis where the safe area shows less than the board, stop at the board edge;
+// where it shows the whole board, centre the board
+function clampFrame(c, V) {
+  const R = safeRect(), s = Math.min(W, H) / V, vw = (R.x1 - R.x0) / s, vh = (R.y1 - R.y0) / s;
+  return {c: [vw < 8 ? clamp(c[0], vw / 2, 8 - vw / 2) : 4, vh < 8 ? clamp(c[1], vh / 2, 8 - vh / 2) : 4], V};
+}
+// the framing that shows every square in sqs (plus pad squares around them) inside the safe area, zoomed in no
+// further than minV, with its centre as close to `prefer` as possible
+function frameSquares(sqs, pad, minV, prefer) {
+  const R = safeRect(), m = Math.min(W, H), SW = R.x1 - R.x0, SH = R.y1 - R.y0;
+  const xs = sqs.map(q => q[0]), ys = sqs.map(q => q[1]);
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + 1 + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + 1 + pad;
+  const V = Math.max(minV, (x1 - x0) * m / SW, (y1 - y0) * m / SH), s = m / V, hw = SW / s / 2, hh = SH / s / 2;
+  const c = prefer || [(x0 + x1) / 2, (y0 + y1) / 2];
+  return clampFrame([clamp(c[0], x1 - hw, x0 + hw), clamp(c[1], y1 - hh, y0 + hh)], V);
+}
+// does camera state st = [cx, cy, log V] show these squares inside the central `share` of the safe area?
+function camSees(st, sqs, share = 1) {
+  const R = safeRect(), s = Math.min(W, H) / Math.exp(st[2]), ox = (R.x0 + R.x1) / 2, oy = (R.y0 + R.y1) / 2;
+  const hw = (R.x1 - R.x0) / 2 * share + 1, hh = (R.y1 - R.y0) / 2 * share + 1, inset = .1;
+  return sqs.every(([x, y]) => Math.abs((x + inset - st[0]) * s) <= hw && Math.abs((x + 1 - inset - st[0]) * s) <= hw &&
+                               Math.abs((y + inset - st[1]) * s) <= hh && Math.abs((y + 1 - inset - st[1]) * s) <= hh);
+}
+// the camera path as a list of spring segments {t, x, v, g, w} over [cx, cy, log V], built once per layout: every
+// time the camera gets a new goal, the position and velocity at that moment are stored, so camera(t) only has to
+// find its segment and evaluate the spring (deterministic, and velocity carries over between moves)
+function buildCamTrack() {
+  const {plies, T} = clip, view = clip.view, me = clip.flip ? 'b' : 'w', mode = $('oppcam').value;
+  const toX = f => [f.c[0], f.c[1], Math.log(f.V)];
+  const full = frameSquares([[0, 0], [7, 7]], .2, 0);
+  const segs = [{t: 0, x: toX(full), v: [0, 0, 0], g: toX(full), w: [5, 5, 5]}];
+  const evalSeg = (sg, t) => [0, 1, 2].map(k => springAt(sg.x[k], sg.v[k], sg.g[k], sg.w[k], Math.max(0, t - sg.t)));
+  const stateAt = t => { let sg = segs[0]; for (const q of segs) if (q.t <= t) sg = q; return evalSeg(sg, t); };
+  // new goal from time t, ~95% there after `settle` seconds; `check(pos)` (pos: t -> [cx, cy, log V]) must hold,
+  // otherwise the spring is stiffened until it does
+  const go = (t, f, settle, check) => {
+    const st = stateAt(t), x = st.map(q => q[0]), v = st.map(q => q[1]), g = toX(f);
+    while (segs.length > 1 && segs[segs.length - 1].t >= t) segs.pop();
+    let w = 4.74 / Math.max(.05, settle);
+    for (let k = 0; ; k++) {
+      const sg = {t, x, v, g, w: [w, w, w * (g[2] > x[2] ? CAM.zoomOut : CAM.zoomIn)]};
+      if (!check || k >= 12 || w >= CAM.maxW || check(tt => evalSeg(sg, tt).map(q => q[0]))) { segs.push(sg); return sg; }
+      w = Math.min(CAM.maxW, w * 1.3);
+    }
+  };
+  const goalAt = t => { let sg = segs[0]; for (const q of segs) if (q.t <= t) sg = q; return sg.g; };
+  if (!plies[0].brilliant) go(T.introHold, frameSquares([plies[0].from, plies[0].to], .25, view, plies[0].cam), T.intro - T.introHold);
+  plies.forEach((p, i) => {
+    const flight = p.pan + p.dur * .75, sqs = [p.from, p.to];
+    // both squares must be in view by the time the piece lifts off, and the landing square when it lands
+    const mine = pos => camSees(pos(p.moveStart), sqs) && camSees(pos(p.arrive), [p.to]);
+    const theirs = pos => camSees(pos(p.moveStart), sqs);
+    if (p.reveal) go(p.reveal.start, full, RV.zoom);
+    const opp = p.mv.color !== me && !p.brilliant && !p.mate && i > 0;
+    if (p.mate) go(p.start, frameSquares([p.from, p.to, p.mate.sq], .25, view, p.cam), flight, mine);
+    else if (opp && mode === 'wide') go(p.start, full, p.pan, theirs);
+    else if (opp && mode === 'still') go(p.start, clampFrame(p.cam, view), flight);
+    else {
+      const now = stateAt(p.start).map(q => q[0]);
+      // dead zone: at the normal zoom, a move whose squares already sit in the middle of the view keeps the camera
+      const calm = !p.reveal && Math.abs(goalAt(p.start)[2] - Math.log(view)) < .05 && camSees(now, sqs, CAM.deadZone);
+      if (!calm) {
+        if (opp) go(p.start, frameSquares(sqs, .6, view, [now[0], now[1]]), p.pan, theirs);
+        else go(p.start, frameSquares(sqs, .25, view, p.cam), flight, mine);
+      }
+    }
+    if (p.lane) {
+      // every lane plus a square of margin (and room for FORK! above the attacker); the targets must be in view
+      // by the time their lanes reach them
+      const lane = p.lane.lanes.flat(), targets = p.lane.lanes.map(l => l[l.length - 1]);
+      if (p.lane.text) lane.push([p.to[0], p.to[1] - 1]);
+      go(p.arrive + p.lane.start, frameSquares(lane, 1, view), LANE.cam, pos => camSees(pos(p.arrive + p.lane.reach), targets));
+    }
+  });
+  // outro: ease back by 1.4 squares, halfway towards the board's centre column
+  const last = plies[plies.length - 1], g = goalAt(last.end);
+  go(last.end, clampFrame([lerp(g[0], 4, .5), g[1]], Math.min(9, Math.exp(g[2]) + 1.4)), T.outro * .8);
+  return segs;
+}
+function cameraSpring(t) {
+  const tr = clip.camTrack, m = Math.min(W, H), R = safeRect();
+  let lo = 0, hi = tr.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (tr[mid].t <= t) lo = mid; else hi = mid - 1; }
+  const sg = tr[lo], x = [0, 1, 2].map(k => springAt(sg.x[k], sg.v[k], sg.g[k], sg.w[k], Math.max(0, t - sg.t))[0]);
+  let V = Math.exp(x[2]);
+  // the landing punch-in and the brilliant's impact zoom ride on top of the spring. they zoom about the landing
+  // square, which stays put on screen, so the zoom cannot push it under the title
+  let p = null; for (const q of clip.plies) if (t >= q.start) p = q;
+  if (p) {
+    const d = t - p.arrive, L = clip.M.long;
+    let f = 1;
+    if (p.brilliant && d > 0 && d < IMP.hold) f = lerp(.78, 1, eio(d / IMP.hold));
+    else if (d > 0 && d < L && !p.still && !p.camT) f = 1 - .045 * Math.sin(Math.PI * d / L);
+    if (f !== 1) {
+      const P = [p.to[0] + .5, p.to[1] + .5];
+      V *= f; x[0] = P[0] - (P[0] - x[0]) * f; x[1] = P[1] - (P[1] - x[1]) * f;
+    }
+  }
+  return {cx: x[0], cy: x[1], s: m / V, roll: 0, ox: (R.x0 + R.x1) / 2, oy: (R.y0 + R.y1) / 2};
+}
 function camera(t) {
+  return CAMERA_MODE === 'spring' && clip.camTrack ? cameraSpring(t) : cameraLegacy(t);
+}
+// v1 camera: eased pans, framed on the whole frame
+function cameraLegacy(t) {
   const {plies, T} = clip;
   let V = clip.view, roll = 0;
   let c = plies[0].cam;
@@ -2313,7 +2500,7 @@ function camera(t) {
   const s = Math.min(W, H) / V, vw = W / s, vh = H / s;
   if (vw < 8) c[0] = clamp(c[0], vw/2, 8 - vw/2); else if (W > H) c[0] = clamp(c[0], 3.2, 4.8);
   if (vh < 8) c[1] = clamp(c[1], vh/2, 8 - vh/2); else if (H > W) c[1] = clamp(c[1], 3.2, 4.8);
-  return {cx: c[0], cy: c[1], s, roll};
+  return {cx: c[0], cy: c[1], s, roll, ox: W/2, oy: H/2};
 }
 
 // ---------- drawing ----------
@@ -2354,22 +2541,25 @@ function render(t) {
   const bp = clip.plies.find(p => p.card && t >= p.card.start && t < p.card.end);
   // hard landing: brief screen shake right after the brilliant piece hits
   // hard landing / title slam: brief screen shake
-  const hit = clip.plies.find(p => p.brilliant && t >= p.arrive && t < p.arrive + .3);
-  const th = clip.titleHit != null && t >= clip.titleHit && t < clip.titleHit + .3;
-  if (hit || th) { const k = (t - (hit ? hit.arrive : clip.titleHit)) / .3, a = 22 * (1 - k) * (1 - k); shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)]; }
+  const sh = clip.M.med;
+  const hit = clip.plies.find(p => p.brilliant && t >= p.arrive && t < p.arrive + sh);
+  const th = clip.titleHit != null && t >= clip.titleHit && t < clip.titleHit + sh;
+  if (hit || th) { const k = (t - (hit ? hit.arrive : clip.titleHit)) / sh, a = 22 * (1 - k) * (1 - k); shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)]; }
   else shk = [0, 0];
   // the board holds still while the teaser card is up
   renderBoard(bp && t < bp.start ? bp.start : t);
   for (const p of clip.plies) if (p.brilliant && t >= p.start && t < p.end + .2) drawImpact(p, t);
   if (bp) drawCard(bp, t);
 }
+// the camera centre (cx, cy) lands on the screen point (ox, oy): the frame centre for the legacy camera,
+// the centre of the safe area for the spring camera
 function boardTf(cam) {
-  ctx.setTransform(1,0,0,1, W/2 + shk[0], H/2 + shk[1]);
+  ctx.setTransform(1,0,0,1, cam.ox + shk[0], cam.oy + shk[1]);
   ctx.rotate(cam.roll); ctx.scale(cam.s, cam.s); ctx.translate(-cam.cx, -cam.cy);
 }
 function toScreen(cam, x, y) {
   const dx = (x - cam.cx) * cam.s, dy = (y - cam.cy) * cam.s, c = Math.cos(cam.roll), sn = Math.sin(cam.roll);
-  return [W/2 + dx*c - dy*sn, H/2 + dx*sn + dy*c];
+  return [cam.ox + dx*c - dy*sn, cam.oy + dx*sn + dy*c];
 }
 function renderBoard(t) {
   const {plies, boards, theme} = clip;
@@ -2392,18 +2582,19 @@ function renderBoard(t) {
     ctx.fillRect(x, y, 1.002, 1.002);
   }
 
+  const M = clip.M;
   // fading highlight of the previous ply
   if (idx > 0) {
-    const q = plies[idx-1], a = 1 - clamp((t - p.start) / .3);
+    const q = plies[idx-1], a = 1 - clamp((t - p.start) / M.med);
     if (a > 0) { ctx.fillStyle = hexA(q.glow, .45*a); ctx.fillRect(q.to[0], q.to[1], 1, 1); ctx.fillStyle = hexA(q.glow, .25*a); ctx.fillRect(q.from[0], q.from[1], 1, 1); }
   }
   // highlights of the active ply
   if (p && t >= p.moveStart) {
-    const a = clamp((t - p.moveStart) / .15);
+    const a = EASE.snap(clamp((t - p.moveStart) / M.short));
     ctx.fillStyle = hexA(p.glow, .28*a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
     if (arrived) {
       const d = t - p.arrive, [tx, ty] = p.to, cx = tx + .5, cy = ty + .5;
-      const ga = clamp(d / .12);
+      const ga = EASE.snap(clamp(d / M.short));
       const g = ctx.createRadialGradient(cx, cy, .1, cx, cy, 1.45);
       g.addColorStop(0, hexA(p.glow, .55*ga)); g.addColorStop(.45, hexA(p.glow, .28*ga)); g.addColorStop(1, hexA(p.glow, 0));
       ctx.fillStyle = g; ctx.fillRect(cx-1.5, cy-1.5, 3, 3);
@@ -2412,7 +2603,7 @@ function renderBoard(t) {
   }
 
   if (p && p.brilliant && t >= p.moveStart && !arrived) {
-    ctx.fillStyle = hexA(p.glow, .32 * clamp((t - p.moveStart) / .2)); ctx.fillRect(p.to[0], p.to[1], 1, 1);
+    ctx.fillStyle = hexA(p.glow, .32 * clamp((t - p.moveStart) / M.med)); ctx.fillRect(p.to[0], p.to[1], 1, 1);
   }
 
   // check lanes sit on the squares, under the pieces; the previous move's lane fades out
@@ -2421,7 +2612,7 @@ function renderBoard(t) {
   // checkmate: the losing king's square turns red as the king starts to tip
   const mate = p && arrived && p.mate ? p.mate : null;
   if (mate) {
-    const a = clamp((t - mate.fall) / .25);
+    const a = clamp((t - mate.fall) / M.med);
     ctx.fillStyle = hexA('#E5392B', .7*a); ctx.fillRect(mate.sq[0], mate.sq[1], 1, 1);
   }
 
@@ -2443,26 +2634,32 @@ function renderBoard(t) {
       // captured piece waits on its square
       if (p.capSq) { const cp = boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]]; if (cp) drawPiece(cp, p.capSq[0], p.capSq[1]); }
       if (p.rook) { const ru = eio(clamp((u-.15)/.85)); const rk = boards[idx][7 - (clip.flip ? p.rook.from[1] : 7 - p.rook.from[1])][clip.flip ? 7 - p.rook.from[0] : p.rook.from[0]]; drawPiece(rk, lerp(p.rook.from[0], p.rook.to[0], ru), lerp(p.rook.from[1], p.rook.to[1], ru)); }
-      const k = eio(u), arc = Math.sin(Math.PI * u);
+      const k = EASE.travel(u), arc = Math.sin(Math.PI * u);
       const dx = p.to[0] - p.from[0];
       const x = lerp(p.from[0], p.to[0], k), y = lerp(p.from[1], p.to[1], k);
+      // anticipation: squash on the square for one tick before lifting off (inside the pan, so the landing time
+      // does not move), released the moment the piece leaves the board
+      const ant = clamp(1 - (p.moveStart - t) / Math.min(M.tick, p.pan * .6));
+      const sq = t < p.moveStart && ant > 0 ? EASE.snap(ant) : 0;
       if (p.fx) {
         const f = spinPose(p, u);
-        drawPiece(mover, f.x, f.y, {sx: f.sc, sy: f.sc, rot: f.rot, shadow: true});
+        drawPiece(mover, f.x, f.y, {sx: f.sc * lerp(1, ANTIC.sxSpin, sq), sy: f.sc * lerp(1, ANTIC.sySpin, sq), rot: f.rot, shadow: true});
       } else {
-        const sc = 1 + .2 * arc;
-        drawPiece(mover, x, y, {sx: sc, sy: sc, rot: (dx === 0 ? .12 : Math.sign(dx)) * .26 * arc, lift: .22*arc, shadow: u > 0 && u < 1});
+        // flight height grows with the distance travelled: short hops stay low, long moves arc high
+        const h = Math.min(ARC.max, ARC.base + ARC.perSquare * Math.hypot(dx, p.to[1] - p.from[1]));
+        const sc = 1 + Math.min(ARC.growMax, ARC.grow * h) * arc;
+        drawPiece(mover, x, y, {sx: sc * lerp(1, ANTIC.sx, sq), sy: sc * lerp(1, ANTIC.sy, sq), rot: (dx === 0 ? .12 : Math.sign(dx)) * .26 * arc, lift: h * arc, shadow: u > 0 && u < 1});
       }
     } else {
       const d = t - p.arrive;
       if (p.capSq) {
-        const ca = 1 - clamp(d / .22);
+        const ca = 1 - clamp(d / M.med);
         if (ca > 0) { const cp = boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]]; if (cp) drawPiece(cp, p.capSq[0], p.capSq[1], {alpha: ca, sx: .6+.4*ca, sy: .6+.4*ca}); }
       }
       if (p.rook) { const rk = sqAt(p.rook.to[0], p.rook.to[1]); if (rk) drawPiece(rk, p.rook.to[0], p.rook.to[1]); }
       // landing squash with a little spring (harder after a spin)
-      const s = clamp(d / .32), hard = p.fx ? 1.8 : 1;
-      const wob = Math.exp(-6*s) * Math.cos(14*s);
+      const s = clamp(d / M.med), hard = p.fx ? 1.8 : 1;
+      const wob = EASE.settle(s);
       drawPiece(landed, p.to[0], p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
     }
     if (mate) {
@@ -2479,22 +2676,24 @@ function renderBoard(t) {
     }
     // badge
     const prevBadge = idx > 0 ? plies[idx-1] : null;
-    if (prevBadge && prevBadge.badge) { const a = 1 - clamp((t - p.start)/.25); if (a > 0) drawBadge(prevBadge, 1, a); }
-    if (p.brilliant && t >= p.moveStart && !arrived) drawBadge(p, .75, .75 * clamp((t - p.moveStart) / .2));
-    if (p.badge && t > p.arrive + .06) drawBadge(p, eback(clamp((t - p.arrive - .06) / .38)), 1);
+    if (prevBadge && prevBadge.badge) { const a = 1 - clamp((t - p.start) / M.med); if (a > 0) drawBadge(prevBadge, 1, a); }
+    if (p.brilliant && t >= p.moveStart && !arrived) drawBadge(p, .75, .75 * clamp((t - p.moveStart) / M.med));
+    if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
   }
 
   // overlays in screen space
   ctx.setTransform(1,0,0,1,shk[0],shk[1]);
   for (const i of [idx - 1, idx]) drawFork(i, t);
   const fadeIn = clamp(t / .5);
-  if (clip.title) {
+  const tl = titleLayout();
+  if (tl) {
+    const [bx, by, bw, bh] = tl.box;
     ctx.globalAlpha = fadeIn;
-    ctx.font = '800 66px "Be Vietnam Pro", system-ui, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const tw = Math.min(ctx.measureText(clip.title).width + 80, W - 80);
-    ctx.fillStyle = 'rgba(20,20,18,.82)'; rr(W/2 - tw/2, FRAME.top, tw, 112, 56); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(clip.title, W/2, FRAME.top + 58, W - 140);
+    ctx.fillStyle = 'rgba(20,20,18,.82)'; rr(bx, by, bw, bh, tl.radius); ctx.fill();
+    ctx.font = tl.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+    // one line centred in the pill (+2px optical offset), or wrapped lines in the side box
+    if (tl.lines.length === 1 && !FRAME.side) ctx.fillText(tl.lines[0], bx + bw / 2, by + 58, W - 140);
+    else tl.lines.forEach((ln, i) => ctx.fillText(ln, bx + bw / 2, by + 20 + tl.lh * (i + .5), bw - 40));
     ctx.globalAlpha = 1;
   }
   if (clip.handle) {
@@ -2510,7 +2709,7 @@ function renderBoard(t) {
 function laneAlpha(i, t) {
   const q = clip.plies[i], n = clip.plies[i + 1];
   if (!q || !q.lane || t < q.arrive + q.lane.start) return 0;
-  return n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / LANE.out) : 1;
+  return n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / clip.M.med) : 1;
 }
 // board space, under the pieces: squares light up one by one from the attacker to the target, light at the
 // attacker, medium in between, strongest on the target, which keeps pulsing
@@ -2521,8 +2720,9 @@ function drawLane(i, t) {
   q.lane.lanes.forEach((l, li) => l.forEach((sq, j) => {
     const since = t - t0 - j * q.lane.steps[li], last = j === l.length - 1;
     if (since <= 0) return;
-    let a = (j === 0 ? .3 : last ? .85 : .5) * eout(clamp(since / LANE.fade));
-    if (last && since > LANE.fade) a *= .8 + .2 * Math.cos((since - LANE.fade) * Math.PI * 3.2);
+    const fade = clip.M.short;
+    let a = (j === 0 ? .3 : last ? .85 : .5) * EASE.snap(clamp(since / fade));
+    if (last && since > fade) a *= .8 + .2 * Math.cos((since - fade) * Math.PI * 3.2);
     const key = sq[0] + ',' + sq[1];
     lit.set(key, Math.max(lit.get(key) || 0, a));
   }));
@@ -2531,24 +2731,26 @@ function drawLane(i, t) {
     ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1);
   }
 }
-// a targeted piece hops when its lane reaches it: up 0.12 of a square and down with a squash on contact
-// (0.35s), then a small 0.05 hop and it settles. returns the lift and squash for drawPiece
+// a targeted piece hops when its lane reaches it: up 0.12 of a square and down (a med beat), a squash on
+// contact (a tick), a small 0.05 hop (a short beat) and a light squash as it settles (a tick); see clip.HOP.
+// returns the lift and squash for drawPiece
 function laneHop(p, x, y, t) {
   if (!p || !p.lane || !p.lane.hop || !p.lane.lanes.some(l => l[l.length - 1][0] === x && l[l.length - 1][1] === y)) return null;
-  const u = t - p.arrive - p.lane.reach;
-  if (u <= 0 || u >= LANE.hop) return null;
-  const squash = k => ({lift: 0, sx: 1 + .1 * Math.sin(Math.PI * k), sy: 1 - .12 * Math.sin(Math.PI * k)});
-  if (u < .25) return {lift: .12 * Math.sin(Math.PI * u / .25), sx: 1, sy: 1};
-  if (u < .35) return squash((u - .25) / .1);
-  if (u < .5) return {lift: .05 * Math.sin(Math.PI * (u - .35) / .15), sx: 1, sy: 1};
-  const s = squash((u - .5) / .06); return {lift: 0, sx: 1 + (s.sx - 1) * .4, sy: 1 + (s.sy - 1) * .4};
+  const h = clip.HOP;
+  let u = t - p.arrive - p.lane.reach;
+  if (u <= 0 || u >= h.total) return null;
+  const squash = (k, f) => ({lift: 0, sx: 1 + .1 * f * Math.sin(Math.PI * k), sy: 1 - .12 * f * Math.sin(Math.PI * k)});
+  if (u < h.up) return {lift: .12 * Math.sin(Math.PI * u / h.up), sx: 1, sy: 1};
+  if ((u -= h.up) < h.squash) return squash(u / h.squash, 1);
+  if ((u -= h.squash) < h.small) return {lift: .05 * Math.sin(Math.PI * u / h.small), sx: 1, sy: 1};
+  return squash((u - h.small) / h.settle, .4);
 }
 // screen space: FORK! pops up above the attacker with a bounce, in the BRILLIANT MOVE font
 function drawFork(i, t) {
   const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
   const cam = clip._cam, size = clamp(cam.s * .55, 64, 130), [x0, y0] = toScreen(cam, q.to[0] + .5, q.to[1] - .55);
-  const x = clamp(x0, size * 1.7, W - size * 1.7), y = Math.max(y0, (clip.title ? FRAME.top + 112 : 0) + size * .7);
-  const k = eback(clamp((t - q.arrive - q.lane.start) / .35));
+  const R = safeRect(), x = clamp(x0, R.x0 + size * 1.7, R.x1 - size * 1.7), y = Math.max(y0, R.y0 + size * .7);
+  const k = EASE.pop(clamp((t - q.arrive - q.lane.start) / clip.M.med));
   ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(k, k);
   // dark outline under the glow keeps it readable over the red squares and light board
   ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
