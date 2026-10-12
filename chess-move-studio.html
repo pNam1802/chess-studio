@@ -29,6 +29,8 @@ textarea:focus,input:focus,select:focus,button:focus-visible{outline:2px solid v
 .legend span{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
 .legend b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#fff;font-size:11px;font-weight:800}
 input[type=range]{width:100%;accent-color:var(--accent)}
+label.check{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink);cursor:pointer}
+input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
 button{font:inherit;font-weight:700;border-radius:999px;padding:10px 20px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -65,11 +67,16 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
         <div><label for="orient">Mình cầm quân (nằm phía dưới)</label><select id="orient"><option value="auto">Tự động (bên đi nước !!)</option><option value="w">Trắng</option><option value="b">Đen</option></select>
           <div class="btns" style="margin-top:8px"><button id="swaprole" type="button">Đổi vai</button></div><p class="hint" id="rolenote"></p></div>
         <div><label for="aspect">Tỉ lệ khung hình</label><select id="aspect"><option value="9:16">9:16 · TikTok, Reels, Shorts</option><option value="4:5">4:5 · Instagram</option><option value="1:1">1:1 · Vuông</option><option value="16:9">16:9 · YouTube</option></select></div>
+        <div><label for="oppcam">Camera khi bên kia đi</label><select id="oppcam"><option value="fit">Lùi vừa đủ thấy nước đi</option><option value="wide">Lùi ra toàn bàn</option><option value="still">Đứng yên (như cũ)</option></select></div>
         <div><label for="theme">Màu bàn cờ</label><select id="theme"><option value="gray">Trắng xám</option><option value="green">Xanh lá</option><option value="brown">Nâu gỗ</option><option value="blue">Xanh xám</option></select></div>
         <div><label for="zoom">Độ zoom: <span id="zoomv">5</span> ô</label><input type="range" id="zoom" min="3.5" max="8" step="0.5" value="5"></div>
         <div><label for="speed">Tốc độ: <span id="speedv">1.0</span>x</label><input type="range" id="speed" min="0.5" max="1.8" step="0.1" value="1"></div>
         <div><label for="mspeed">Tốc độ đi quân: <span id="mspeedv">1.0</span>x</label><input type="range" id="mspeed" min="0.5" max="2.5" step="0.1" value="1"></div>
         <div><label for="accel">Nhiều nước thì tăng tốc phần đầu</label><select id="accel"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+      </div>
+      <div>
+        <label class="check"><input type="checkbox" id="clane" checked> Dải chiếu</label>
+        <p class="hint">Khi chiếu Vua, các ô từ quân chiếu tới Vua lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Không áp dụng ở nước !!.</p>
       </div>
       <div class="row">
         <div><label for="title">Chữ phía trên</label><input type="text" id="title" value="Bẫy Blackburne Shilling"></div>
@@ -114,6 +121,7 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
   <div class="stage">
     <canvas id="cv" width="1080" height="1920" aria-label="Xem trước video nước cờ"></canvas>
     <div class="scrub"><span id="tcur">0.0s</span><input type="range" id="scrub" min="0" max="10" step="0.01" value="0" aria-label="Tua video"><span id="tdur">0.0s</span></div>
+    <p class="hint" style="margin:0;text-align:center">Bấm vào video hoặc phím Space để phát/dừng · kéo thanh để tua · phím ← → tua 1 giây</p>
   </div>
 </div>
 
@@ -1964,6 +1972,34 @@ function parse() {
   return {plies, boards};
 }
 
+// ---------- check lane ----------
+// step: delay between squares lighting up; fade: how long each square takes to appear;
+// cam: camera pull-back time; out: fade when the next move begins
+const LANE = {col: '#E24B4A', step: .12, fade: .18, cam: .9, out: .25};
+// every piece of `color` giving check on board b (chess.js board(), b[0] = rank 8), as the list of
+// squares from that piece to the enemy king, both ends included. a discovered or double check gives
+// the lanes of the pieces really giving it
+function checkLanes(b, color) {
+  const at = (f, r) => b[7 - r][f], sq = (f, r) => 'abcdefgh'[f] + (r + 1);
+  let kf = -1, kr = -1;
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { const pc = at(f, r); if (pc && pc.type === 'k' && pc.color !== color) { kf = f; kr = r; } }
+  if (kf < 0) return [];
+  const lanes = [];
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+    const pc = at(f, r); if (!pc || pc.color !== color) continue;
+    const dx = kf - f, dy = kr - r, ax = Math.abs(dx), ay = Math.abs(dy);
+    if (pc.type === 'n') { if (ax * ay === 2) lanes.push([sq(f, r), sq(kf, kr)]); continue; }
+    if (pc.type === 'p') { if (ax === 1 && dy === (color === 'w' ? 1 : -1)) lanes.push([sq(f, r), sq(kf, kr)]); continue; }
+    const straight = dx === 0 || dy === 0, diag = ax === ay;
+    if (!(pc.type === 'q' && (straight || diag) || pc.type === 'r' && straight || pc.type === 'b' && diag)) continue;
+    const sx = Math.sign(dx), sy = Math.sign(dy), n = Math.max(ax, ay), line = [sq(f, r)];
+    let clear = true;
+    for (let k = 1; k < n; k++) { if (at(f + sx * k, r + sy * k)) { clear = false; break; } line.push(sq(f + sx * k, r + sy * k)); }
+    if (clear) lanes.push([...line, sq(kf, kr)]);
+  }
+  return lanes;
+}
+
 // lay the whole video out. boost scales the opening speed-up; drop overrides the music drop (song seconds)
 function layout(boost = 1, dropAt = null) {
   const {plies, boards} = parse();
@@ -2002,7 +2038,7 @@ function layout(boost = 1, dropAt = null) {
   };
   let pi = -1;
   let titleHit = null, slamHit = null;   // slamHit: the brilliant piece hitting the board = the music drop
-  const view = parseFloat($('zoom').value);
+  const view = parseFloat($('zoom').value), laneOn = $('clane').checked, oppMode = $('oppcam').value;
   for (const p of plies) {
     const mv = p.mv;
     p.speed = accel(++pi);
@@ -2043,13 +2079,30 @@ function layout(boost = 1, dropAt = null) {
     }
     p.cam = [lerp(p.from[0], p.to[0], .62) + .5, lerp(p.from[1], p.to[1], .62) + .5];
     p.glow = p.badge ? p.badge.c : DEFAULT_GLOW;
+    // check lane: the squares from each checking piece to the king light up one after another while the
+    // camera pulls back to show the whole lane. the brilliant keeps its own scene
+    p.lane = null;
+    if (laneOn && !p.brilliant && /[+#]/.test(mv.san)) {
+      const lanes = checkLanes(boards[pi + 1], mv.color).map(l => l.map(sqxy));
+      if (lanes.length) {
+        const all = lanes.flat(), m = Math.min(W, H);
+        // whole lane plus a one-square margin on every side
+        const x0 = Math.min(...all.map(q => q[0])) - 1, x1 = Math.max(...all.map(q => q[0])) + 2;
+        const y0 = Math.min(...all.map(q => q[1])) - 1, y1 = Math.max(...all.map(q => q[1])) + 2;
+        p.lane = {lanes, dur: Math.max(...lanes.map(l => (l.length - 1) * LANE.step)) + LANE.fade,
+                  c: [(x0 + x1) / 2, (y0 + y1) / 2], V: Math.min(10, Math.max(view, (x1 - x0) * m / W, (y1 - y0) * m / H))};
+        p.end = Math.max(p.end, p.arrive + Math.max(LANE.cam, p.lane.dur) + .45);
+      }
+    }
     p.mate = null;
     if (mv.san.includes('#')) {
       // losing king tips over after the mating piece lands; it hits the board at `hit`
       const b = boards[plies.indexOf(p) + 1];
       for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
         const pc = b[r][f];
-        if (pc && pc.type === 'k' && pc.color !== mv.color) p.mate = {sq: sqxy('abcdefgh'[f] + (8 - r)), fall: p.arrive + (p.brilliant ? .8 : .35/sp)};
+        if (pc && pc.type === 'k' && pc.color !== mv.color) p.mate = {sq: sqxy('abcdefgh'[f] + (8 - r)),
+          // the king only starts to fall once the check lane has reached it
+          fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.dur + .15 : 0)};
       }
       // after the brilliant scene the checkmate landing is nudged onto the next strong beat (bar line)
       if (sync && afterBrilliant && !p.brilliant && slamHit != null) {
@@ -2064,8 +2117,24 @@ function layout(boost = 1, dropAt = null) {
         p.end = Math.max(p.end, p.mate.hit + 1.0);
       }
     }
-    // opponent moves keep the camera still; it only nudges if the move would be off screen
-    p.still = mv.color !== (flip ? 'b' : 'w') && !p.brilliant && !p.mate && lastCam;
+    // opponent moves, by the "camera khi bên kia đi" setting:
+    //   still: the camera stays put and only nudges sideways if the move would be off screen
+    //   fit:   frames the move's two squares, zooming out only as far as needed and moving as little as possible
+    //   wide:  goes back to the whole board
+    // in fit / wide the camera settles within the pan, before the piece starts to move
+    const opp = mv.color !== (flip ? 'b' : 'w') && !p.brilliant && !p.mate && !!lastCam;
+    p.still = opp && oppMode === 'still';
+    p.wide = opp && oppMode === 'wide';
+    p.V = p.camT = null;
+    if (opp && oppMode === 'fit') {
+      const m = Math.min(W, H), pad = .6;
+      const x0 = Math.min(p.from[0], p.to[0]) - pad, x1 = Math.max(p.from[0], p.to[0]) + 1 + pad;
+      const y0 = Math.min(p.from[1], p.to[1]) - pad, y1 = Math.max(p.from[1], p.to[1]) + 1 + pad;
+      p.V = Math.max(view, (x1 - x0) * m / W, (y1 - y0) * m / H);
+      const vw = p.V * W / m, vh = p.V * H / m;
+      p.cam = [clamp(lastCam[0], x1 - vw / 2, x0 + vw / 2), clamp(lastCam[1], y1 - vh / 2, y0 + vh / 2)];
+    }
+    if (opp && oppMode !== 'still') p.camT = p.pan;
     if (p.still) {
       const half = view / 2 - .5, cx = lastCam[0], xs = [p.from[0] + .5, p.to[0] + .5];
       const lo = Math.max(...xs) - half, hi = Math.min(...xs) + half;
@@ -2129,23 +2198,34 @@ function camera(t) {
   let V = clip.view, roll = 0;
   let c = plies[0].cam;
   const F = fullView();
+  // where each move frames the board: an opponent move in "wide" mode shows the whole board,
+  // one in "fit" mode carries its own centre and zoom
+  const camOf = q => q.wide ? F.c : q.cam, viewOf = q => q.wide ? F.V : q.V || clip.view;
   // intro: hold on the whole board so viewers can read the position, then push in to the first move
   if (t < T.intro) {
     // a brilliant first move keeps the wide view instead of pushing in only to pull back out
     const k = plies[0].brilliant ? 0 : eio(clamp((t - T.introHold) / (T.intro - T.introHold)));
-    c = [lerp(F.c[0], plies[0].cam[0], k), lerp(F.c[1], plies[0].cam[1], k)];
-    V = lerp(F.V, V, k);
+    c = [lerp(F.c[0], camOf(plies[0])[0], k), lerp(F.c[1], camOf(plies[0])[1], k)];
+    V = lerp(F.V, viewOf(plies[0]), k);
   } else {
     for (let i = 0; i < plies.length; i++) {
       const p = plies[i];
       if (t >= p.start) {
-        const prev = i ? plies[i-1].cam : plies[0].cam;
-        const k = eio(clamp((t - p.start) / (p.pan + p.dur * .75)));
-        c = [lerp(prev[0], p.cam[0], k), lerp(prev[1], p.cam[1], k)];
+        // after a check lane the camera is still pulled back over the lane; the next move pans in from there.
+        // an opponent move framed by the camera (p.camT) gets there before the piece starts to move
+        const q = i ? plies[i-1] : p, pl = i ? q.lane : null, prev = pl ? pl.c : camOf(q);
+        const k = eio(clamp((t - p.start) / (p.camT || p.pan + p.dur * .75)));
+        c = [lerp(prev[0], camOf(p)[0], k), lerp(prev[1], camOf(p)[1], k)];
+        if (pl || q.wide || q.V || p.wide || p.V) V = lerp(pl ? pl.V : viewOf(q), viewOf(p), k);
+        // check: from the landing, glide out to the whole lane while it lights up, then hold
+        if (p.lane && t >= p.arrive) {
+          const kl = eio(clamp((t - p.arrive) / LANE.cam));
+          c = [lerp(c[0], p.lane.c[0], kl), lerp(c[1], p.lane.c[1], kl)]; V = lerp(V, p.lane.V, kl);
+        }
         // after the full-board reveal the brilliant move pushes back in from the wide view
         if (p.reveal) { c = [lerp(F.c[0], p.cam[0], k), lerp(F.c[1], p.cam[1], k)]; V = lerp(F.V, clip.view, k); }
         const d = t - p.arrive;
-        if (p.brilliant && d > 0 && d < IMP.hold) V *= lerp(.78, 1, eio(d / IMP.hold)); else if (d > 0 && d < .5 && !p.still) V *= 1 - .045 * Math.sin(Math.PI * d / .5);  // small punch-in when the piece lands
+        if (p.brilliant && d > 0 && d < IMP.hold) V *= lerp(.78, 1, eio(d / IMP.hold)); else if (d > 0 && d < .5 && !p.still && !p.camT) V *=1 - .045 * Math.sin(Math.PI * d / .5);  // small punch-in when the piece lands
       }
     }
     // pull back to the whole board ahead of a brilliant
@@ -2268,6 +2348,9 @@ function renderBoard(t) {
     ctx.fillStyle = hexA(p.glow, .32 * clamp((t - p.moveStart) / .2)); ctx.fillRect(p.to[0], p.to[1], 1, 1);
   }
 
+  // check lanes sit on the squares, under the pieces; the previous move's lane fades out
+  for (const i of [idx - 1, idx]) drawLane(i, t);
+
   // checkmate: the losing king's square turns red as the king starts to tip
   const mate = p && arrived && p.mate ? p.mate : null;
   if (mate) {
@@ -2350,6 +2433,29 @@ function renderBoard(t) {
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(clip.handle, 54, H - FRAME.bottom);
     ctx.fillStyle = '#fff'; ctx.fillText(clip.handle, 54, H - FRAME.bottom);
+  }
+}
+
+// ---------- check lane drawing (board space) ----------
+// squares light up one by one from the checking piece to the king: light at the piece, medium in between,
+// strongest on the king, which keeps pulsing. a double check lights both lanes at once
+function drawLane(i, t) {
+  const q = clip.plies[i], n = clip.plies[i + 1];
+  if (!q || !q.lane || t < q.arrive) return;
+  const out = n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / LANE.out) : 1;
+  if (out <= 0) return;
+  const lit = new Map();   // square -> strongest alpha, so a square shared by two lanes is painted once
+  for (const l of q.lane.lanes) l.forEach((sq, j) => {
+    const since = t - q.arrive - j * LANE.step, last = j === l.length - 1;
+    if (since <= 0) return;
+    let a = (j === 0 ? .3 : last ? .85 : .5) * eout(clamp(since / LANE.fade));
+    if (last && since > LANE.fade) a *= .8 + .2 * Math.cos((since - LANE.fade) * Math.PI * 3.2);
+    const key = sq[0] + ',' + sq[1];
+    lit.set(key, Math.max(lit.get(key) || 0, a));
+  });
+  for (const [key, a] of lit) {
+    const [x, y] = key.split(',').map(Number);
+    ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1);
   }
 }
 
@@ -2817,14 +2923,29 @@ async function audioReady() {
   if (actx && actx.state !== 'running') { try { await actx.resume(); } catch {} }
 }
 
-$('play').onclick = async () => {
+async function togglePlay() {
   if (recorder) return;
   if (playing) { playing = false; stopMusic(); syncUI(); return; }
   rebuild(); if (!clip) return;
   await audioReady();
   if (clip.sync && !songBuf) { if (!songLoading) loadSong(SONG_DATA); try { await songLoading; } catch {} }
   start(cur >= clip.to - .05 || cur < clip.from ? clip.from : cur);
-};
+}
+$('play').onclick = togglePlay;
+// jump to a time; keeps playing from there if the preview was running
+function seek(to) {
+  if (!clip || recorder) return;
+  to = clamp(to, clip.from, clip.to);
+  if (playing) start(to); else { cur = to; render(cur); syncUI(); }
+}
+// click the preview to play / pause; space plays / pauses, arrows step 1s (not while typing in a field)
+cv.style.cursor = 'pointer';
+cv.addEventListener('click', togglePlay);
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input:not([type=range]), textarea, select, button')) return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target.id !== 'scrub') { e.preventDefault(); seek(cur + (e.key === 'ArrowLeft' ? -1 : 1)); }
+});
 [['sndmove','move'], ['sndcap','capture']].forEach(([id, key]) => $(id).addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await loadSound(key, f); sndSrc[key] = f.name; }
@@ -2863,8 +2984,20 @@ $('swaprole').onclick = () => {
   $('orient').value = clip && clip.flip ? 'w' : 'b';
   rebuild();
 };
-$('scrub').oninput = e => { playing = false; stopMusic(); cur = +e.target.value; render(cur); syncUI(); };
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel'].forEach(id => $(id).addEventListener('input', () => {
+// scrubbing: the preview holds while the bar is dragged and plays on from the new spot when released,
+// if it was playing before. locked while a video is being exported
+let scrubResume = false;
+$('scrub').oninput = e => {
+  if (recorder || !clip) { syncUI(); return; }
+  if (playing) { scrubResume = true; playing = false; stopMusic(); }
+  cur = +e.target.value; render(cur); syncUI();
+};
+$('scrub').onchange = () => {
+  if (recorder || !scrubResume) return;
+  scrubResume = false;
+  start(cur >= clip.to - .05 ? clip.from : cur);
+};
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','oppcam'].forEach(id => $(id).addEventListener('input', () => {
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
   rebuild();
@@ -3002,8 +3135,10 @@ $('rec').onclick = async () => {
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic'];
-const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, $(id).value]));
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','oppcam'];
+// checkboxes are stored as 'true' / 'false'
+const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
+const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
 function refreshLabels() {
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1);
   $('mspeedv').textContent = (+$('mspeed').value).toFixed(1); $('volv').textContent = $('vol').value; $('mvolv').textContent = $('mvol').value;
@@ -3013,14 +3148,14 @@ function applySettings(s) {
     const v = s[id], el = $(id);
     if (typeof v !== 'string') continue;
     if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === v)) continue;
-    el.value = v;
+    if (el.type === 'checkbox') el.checked = v === 'true'; else el.value = v;
   }
   refreshLabels();
   if (master) master.gain.value = +$('vol').value / 100;
   if (musicGain) musicGain.gain.value = +$('mvol').value / 100;
 }
 function saveSettings() {
-  const s = Object.fromEntries(SAVED_IDS.map(id => [id, $(id).value]));
+  const s = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
   s.song = songName;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch {}
 }

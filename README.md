@@ -1,6 +1,6 @@
 # Chess Move Studio
 
-Dựng video nước cờ kiểu TikTok ngay trong trình duyệt: camera bám quân, quân nảy và xoay, ô đích phát sáng, huy hiệu đánh giá (`!!`, `!`, `?!`, `??`…), cảnh "BRILLIANT MOVE", vua đổ khi chiếu hết, và khớp nước đi theo nhịp nhạc.
+Dựng video nước cờ kiểu TikTok ngay trong trình duyệt: camera bám quân, quân nảy và xoay, ô đích phát sáng, huy hiệu đánh giá (`!!`, `!`, `?!`, `??`…), cảnh "BRILLIANT MOVE", dải chiếu đỏ khi chiếu Vua, vua đổ khi chiếu hết, và khớp nước đi theo nhịp nhạc.
 
 Toàn bộ là một file `chess-move-studio.html`, không cần cài đặt hay server.
 
@@ -14,6 +14,16 @@ Toàn bộ là một file `chess-move-studio.html`, không cần cài đặt hay
 5. Bấm **Phát xem trước**, rồi **Xuất video** để tải file `.mp4`.
 
 Cài đặt được tự lưu trong trình duyệt; nút **Về mặc định** đưa mọi thứ về ban đầu.
+
+Khung xem trước dùng như trình phát video: bấm vào video hoặc phím Space để phát/dừng, kéo thanh để tua, phím ← → tua 1 giây.
+
+## Hiệu ứng và camera
+
+- **Dải chiếu:** khi chiếu Vua, các ô từ quân chiếu tới Vua lần lượt bật đỏ, camera lùi ra cho thấy cả dải (có tính chiếu mở và chiếu đôi). Bật/tắt bằng ô tick "Dải chiếu".
+- **Camera khi bên kia đi:**
+  - *Lùi vừa đủ* (mặc định): trượt hoặc lùi vừa đủ để thấy nước của bên kia.
+  - *Lùi ra toàn bàn*: lùi ra toàn bàn rồi bên kia mới đi.
+  - *Đứng yên*: giữ camera như cũ.
 
 ## Xuất video
 
