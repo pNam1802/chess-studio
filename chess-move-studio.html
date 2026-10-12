@@ -1919,6 +1919,23 @@ const ARC = {base: .08, perSquare: .05, max: .38, grow: .9, growMax: .26};
 const CAM = {zoomOut: 1.35, zoomIn: .8, deadZone: .7, maxW: 40,
              // the safe area keeps this margin from the title, the channel name and the frame edge (px)
              safePad: 16};
+
+// ---------- lane and brilliant effects (stage 2) ----------
+// lanes: dim = darkening of the board squares outside the lanes; the attacker's square is drawn as a red outline
+// (it sits under the move highlight, where a light fill was lost); targets hop hopLift squares high, growing to
+// hopScale. bump: the "lego" hit when a lane reaches its target — the target's tile is pressed down by `sink`,
+// the tiles around it jump up to `lift` squares ring by ring (rings deep, each ring `decay` times weaker),
+// growing by `scale`, flashing red at `tint`
+const LANE_FX = {dim: .2, outline: .07, hopLift: .25, hopScale: 1.15,
+                 bump: {rings: 2, lift: .16, decay: .5, scale: .1, tint: .35, sink: .1, jitter: .35}};
+// brilliant: ramp = slow motion in the middle of the flight and a rush into the slam (0 = off; same total time);
+// impactFrames = inverted black-and-white frames at contact (60fps frames); aberration = seconds of RGB split,
+// starting at aberrationPx and closing to 0; bloom = strength of the glow around the landed piece;
+// bricks = the tiles around the landing square jump like bricks (the lane hit, stronger and in the brilliant's colour)
+const BRILLIANT_FX = {ramp: .75, impactFrames: 3, aberration: .15, aberrationPx: 18, bloom: .7, bloomBlur: 5, bricks: true};
+// motion blur for fast flights: ghosts trail the piece `spacing` seconds apart once it moves faster than minSpeed
+// squares per second
+const MOTION_BLUR = {ghosts: 4, spacing: 1 / 120, minSpeed: 6, alpha: .3};
 let FRAME = ASPECTS['9:16'], W = FRAME.w, H = FRAME.h;
 function applyAspect() {
   const f = ASPECTS[$('aspect').value] || ASPECTS['9:16'];
@@ -1969,6 +1986,11 @@ const EASE = {
   pop: eback,
   settle: s => Math.exp(-6 * s) * Math.cos(14 * s),
 };
+// seeded random numbers (mulberry32): the same seed always gives the same sequence, so frames stay deterministic
+function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 // critically damped spring in closed form: position x0 with velocity v0 heading for goal g, dt seconds later
 function springAt(x0, v0, g, w, dt) {
   const d = x0 - g, c = v0 + w * d, e = Math.exp(-w * dt);
@@ -2195,10 +2217,15 @@ function layout(boost = 1, dropAt = null) {
         // in a fork every lane starts together and reaches its target at the same moment, so the targets hop together
         const steps = lanes.map(l => fork ? longest * M.short / (l.length - 1) : M.short);
         // whole lanes plus a one-square margin on every side (and room for FORK! above the attacker)
-        const pts = [...lanes.flat(), ...(fork && forkOn ? [[p.to[0], p.to[1] - .9]] : [])], m = Math.min(W, H);
+        // callout: several pieces checking the king = DOUBLE CHECK; one attacker with two or more targets = FORK!
+        // (double check wins when both apply)
+        const key = q => q[0] + ',' + q[1], attackers = new Set(lanes.map(l => key(l[0]))), targets = new Set(lanes.map(l => key(l[l.length - 1])));
+        const label = /[+#]/.test(mv.san) && attackers.size > 1 && targets.size === 1 && !p.targets ? 'DOUBLE CHECK'
+                    : attackers.size === 1 && targets.size > 1 ? 'FORK!' : null;
+        const pts = [...lanes.flat(), ...(label && forkOn ? [[p.to[0], p.to[1] - .9]] : [])], m = Math.min(W, H);
         const x0 = Math.min(...pts.map(q => q[0])) - 1, x1 = Math.max(...pts.map(q => q[0])) + 2;
         const y0 = Math.min(...pts.map(q => q[1])) - 1, y1 = Math.max(...pts.map(q => q[1])) + 2;
-        p.lane = {lanes, steps, start, reach, fork, text: fork && forkOn, hop: bounceOn,
+        p.lane = {lanes, steps, start, reach, fork, text: forkOn ? label : null, hop: bounceOn,
                   c: [(x0 + x1) / 2, (y0 + y1) / 2], V: Math.min(10, Math.max(view, (x1 - x0) * m / W, (y1 - y0) * m / H))};
         p.end = Math.max(p.end, p.arrive + Math.max(start + LANE.cam, reach + HOP.total) + .4);
       }
@@ -2505,7 +2532,23 @@ function cameraLegacy(t) {
 
 // ---------- drawing ----------
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
-function hexA(hex, a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+// greying of the board while the brilliant card / impact is up: colours are pulled towards their luminance as
+// they are painted (paintGray 0..1, set by render() around renderBoard). a 'saturation' blend over the whole
+// frame did the same but cost 10-25ms a frame
+let paintGray = 0;
+function tint(hex) {
+  if (!(paintGray > 0)) return hex;
+  const n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255, l = .299 * r + .587 * g + .114 * b;
+  const m = c => Math.round(lerp(c, l, paintGray)).toString(16).padStart(2, '0');
+  return '#' + m(r) + m(g) + m(b);
+}
+// a colour greyed by `gray` (0..1) and darkened by `dark` (0..1), as the brilliant's dimmed board shows it
+function shade(hex, gray, dark) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255, l = .299 * r + .587 * g + .114 * b;
+  const m = c => Math.round(lerp(c, l, gray) * (1 - dark));
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+function hexA(hex, a){const n=parseInt(tint(hex).slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
 
 // spin flight: rises and grows, turns one slow full circle in the air, then drops hard onto the square.
 // the lift is applied in board space so the spin stays centred on the piece
@@ -2521,6 +2564,44 @@ function spinPose(p, u) {
     sc: lerp(1, top, up) - (top - 1) * drop,
     rot: (dx < 0 ? -1 : 1) * Math.PI * 2 * kt,
   };
+}
+
+// flight progress 0..1 of move p at time t. the brilliant's flight is remapped: quick lift-off, slow motion
+// through the middle, a rush into the slam; it starts and ends at the same moments
+function flightU(p, t) {
+  const u = clamp((t - p.moveStart) / p.dur);
+  return p.brilliant ? u + BRILLIANT_FX.ramp * Math.sin(2 * Math.PI * u) / (2 * Math.PI) : u;
+}
+// where and how the moving piece is drawn at time t: {x, y, opt} for drawPiece
+function moverPose(p, t) {
+  const M = clip.M, u = flightU(p, t), arc = Math.sin(Math.PI * u), dx = p.to[0] - p.from[0];
+  // anticipation: squash on the square for one tick before lifting off (inside the pan, so the landing time
+  // does not move), released the moment the piece leaves the board
+  const ant = clamp(1 - (p.moveStart - t) / Math.min(M.tick, p.pan * .6));
+  const sq = t < p.moveStart && ant > 0 ? EASE.snap(ant) : 0;
+  if (p.fx) {
+    const f = spinPose(p, u);
+    return {x: f.x, y: f.y, opt: {sx: f.sc * lerp(1, ANTIC.sxSpin, sq), sy: f.sc * lerp(1, ANTIC.sySpin, sq), rot: f.rot, shadow: true}};
+  }
+  // flight height grows with the distance travelled: short hops stay low, long moves arc high
+  const k = EASE.travel(u), h = Math.min(ARC.max, ARC.base + ARC.perSquare * Math.hypot(dx, p.to[1] - p.from[1]));
+  const sc = 1 + Math.min(ARC.growMax, ARC.grow * h) * arc;
+  return {x: lerp(p.from[0], p.to[0], k), y: lerp(p.from[1], p.to[1], k),
+          opt: {sx: sc * lerp(1, ANTIC.sx, sq), sy: sc * lerp(1, ANTIC.sy, sq), rot: (dx === 0 ? .12 : Math.sign(dx)) * .26 * arc, lift: h * arc, shadow: u > 0 && u < 1}};
+}
+// the moving piece, with fading ghosts trailing it while it travels fast (motion blur)
+function drawMover(p, pc, t) {
+  const now = moverPose(p, t);
+  if (t > p.moveStart && t < p.arrive) {
+    const MB = MOTION_BLUR, pos = q => [q.x, q.y - (q.opt.lift || 0)];
+    const a = pos(now), b = pos(moverPose(p, t - 1 / 60)), speed = Math.hypot(a[0] - b[0], a[1] - b[1]) * 60;
+    const strength = clamp((speed - MB.minSpeed) / MB.minSpeed);
+    if (strength > 0) for (let k = MB.ghosts; k >= 1; k--) {
+      const g = moverPose(p, t - k * MB.spacing);
+      drawPiece(pc, g.x, g.y, {...g.opt, shadow: false, alpha: MB.alpha * strength * (1 - k / (MB.ghosts + 1))});
+    }
+  }
+  drawPiece(pc, now.x, now.y, now.opt);
 }
 
 function drawPiece(p, x, y, opt = {}) {
@@ -2547,9 +2628,59 @@ function render(t) {
   if (hit || th) { const k = (t - (hit ? hit.arrive : clip.titleHit)) / sh, a = 22 * (1 - k) * (1 - k); shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)]; }
   else shk = [0, 0];
   // the board holds still while the teaser card is up
+  paintGray = grayAt(t);
   renderBoard(bp && t < bp.start ? bp.start : t);
+  paintGray = 0;
   for (const p of clip.plies) if (p.brilliant && t >= p.start && t < p.end + .2) drawImpact(p, t);
   if (bp) drawCard(bp, t);
+  postFx(t);
+}
+
+// ---------- full-frame effects of the brilliant slam ----------
+// offscreen canvases, made once (again only when the frame size changes)
+const fxCanvases = {};
+function fxCanvas(name, w, h) {
+  let c = fxCanvases[name];
+  if (!c || c.width !== w || c.height !== h) { c = fxCanvases[name] = document.createElement('canvas'); c.width = w; c.height = h; }
+  return c;
+}
+// impact frames: the first frames after the brilliant lands turn into an inverted, hard black-and-white image;
+// then an RGB split that closes over BRILLIANT_FX.aberration seconds
+function postFx(t) {
+  const p = clip.plies.find(q => q.brilliant && t >= q.arrive && t < q.arrive + Math.max(BRILLIANT_FX.aberration, BRILLIANT_FX.impactFrames / 60));
+  if (!p) return;
+  const d = t - p.arrive, buf = fxCanvas('buf', W, H), b = buf.getContext('2d');
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (d < BRILLIANT_FX.impactFrames / 60) {
+    b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
+    ctx.globalCompositeOperation = 'copy'; ctx.filter = 'grayscale(1) invert(1) contrast(4)';
+    ctx.drawImage(buf, 0, 0); ctx.filter = 'none';
+  } else if (d < BRILLIANT_FX.aberration) {
+    const off = BRILLIANT_FX.aberrationPx * Math.pow(1 - d / BRILLIANT_FX.aberration, 2);
+    b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
+    const ch = fxCanvas('chan', W, H), c = ch.getContext('2d');
+    ctx.globalCompositeOperation = 'copy'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    // each colour channel on its own, shifted sideways, added back together
+    for (const [col, dx] of [['#FF0000', -off], ['#00FF00', 0], ['#0000FF', off]]) {
+      c.globalCompositeOperation = 'copy'; c.drawImage(buf, 0, 0);
+      c.globalCompositeOperation = 'multiply'; c.fillStyle = col; c.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ch, dx, 0);
+    }
+  }
+  ctx.restore();
+}
+// fake bloom around the landed brilliant: its square and a white copy of the piece drawn blurred into a
+// quarter-size canvas, scaled back up and added on top
+function bloomPiece(p, pc, alpha) {
+  const cam = clip._cam, bl = fxCanvas('bloom', Math.ceil(W / 4), Math.ceil(H / 4)), g = bl.getContext('2d'), [tx, ty] = p.to;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bl.width, bl.height);
+  g.setTransform(cam.s / 4, 0, 0, cam.s / 4, (cam.ox + shk[0] - cam.cx * cam.s) / 4, (cam.oy + shk[1] - cam.cy * cam.s) / 4);
+  g.filter = `blur(${BRILLIANT_FX.bloomBlur}px)`;
+  g.fillStyle = p.glow; g.fillRect(tx, ty, 1, 1);
+  const im = pc && pimg(pc); if (im) g.drawImage(silhouette(im, '#FFFFFF'), tx - .05, ty - .05, 1.1, 1.1);
+  g.filter = 'none';
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = alpha;
+  ctx.drawImage(bl, 0, 0, W, H); ctx.restore();
 }
 // the camera centre (cx, cy) lands on the screen point (ox, oy): the frame centre for the legacy camera,
 // the centre of the safe area for the spring camera
@@ -2566,7 +2697,7 @@ function renderBoard(t) {
   const cam = camera(t);
   clip._s = cam.s; clip._cam = cam;
   ctx.setTransform(1,0,0,1,shk[0],shk[1]);
-  ctx.fillStyle = theme.bg; ctx.fillRect(-40,-40,W+80,H+80);
+  ctx.fillStyle = tint(theme.bg); ctx.fillRect(-40,-40,W+80,H+80);
   boardTf(cam);
 
   // current ply
@@ -2578,7 +2709,7 @@ function renderBoard(t) {
 
   // squares
   for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
-    ctx.fillStyle = (x + y) % 2 ? theme.dark : theme.light;
+    ctx.fillStyle = tint((x + y) % 2 ? theme.dark : theme.light);
     ctx.fillRect(x, y, 1.002, 1.002);
   }
 
@@ -2608,6 +2739,13 @@ function renderBoard(t) {
 
   // check lanes sit on the squares, under the pieces; the previous move's lane fades out
   for (const i of [idx - 1, idx]) drawLane(i, t);
+  // tiles jumping round a lane's target, over the lane's darkening so the hit reads bright (the pressed target
+  // tile is drawn by drawLane)
+  // (the brilliant's bricks are drawn by drawImpact, over its darkened board)
+  if (arrived && !p.brilliant) for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+    const b = tileBump(p, x, y, t);
+    if (b && b.lift > 0) drawTile(x, y, b, tint((x + y) % 2 ? theme.dark : theme.light));
+  }
 
   // checkmate: the losing king's square turns red as the king starts to tip
   const mate = p && arrived && p.mate ? p.mate : null;
@@ -2625,7 +2763,9 @@ function renderBoard(t) {
     if (p && !arrived && (same([x,y], p.from) || (p.rook && same([x,y], p.rook.from)))) continue;
     if (p && arrived && (same([x,y], p.to) || (p.rook && same([x,y], p.rook.to)))) continue;
     if (mate && same([x,y], mate.sq)) continue;
-    drawPiece(pc, x, y, (arrived && laneHop(p, x, y, t)) || {});
+    // a targeted piece hops; pieces on tiles jumping round the target ride along with their tile
+    const opt = (arrived && laneHop(p, x, y, t)) || {}, tb = arrived && !p.brilliant && tileBump(p, x, y, t);
+    drawPiece(pc, x, y, tb && tb.lift > 0 ? {...opt, lift: (opt.lift || 0) + tb.lift} : opt);
   }
   if (p) {
     const mover = boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
@@ -2634,22 +2774,7 @@ function renderBoard(t) {
       // captured piece waits on its square
       if (p.capSq) { const cp = boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]]; if (cp) drawPiece(cp, p.capSq[0], p.capSq[1]); }
       if (p.rook) { const ru = eio(clamp((u-.15)/.85)); const rk = boards[idx][7 - (clip.flip ? p.rook.from[1] : 7 - p.rook.from[1])][clip.flip ? 7 - p.rook.from[0] : p.rook.from[0]]; drawPiece(rk, lerp(p.rook.from[0], p.rook.to[0], ru), lerp(p.rook.from[1], p.rook.to[1], ru)); }
-      const k = EASE.travel(u), arc = Math.sin(Math.PI * u);
-      const dx = p.to[0] - p.from[0];
-      const x = lerp(p.from[0], p.to[0], k), y = lerp(p.from[1], p.to[1], k);
-      // anticipation: squash on the square for one tick before lifting off (inside the pan, so the landing time
-      // does not move), released the moment the piece leaves the board
-      const ant = clamp(1 - (p.moveStart - t) / Math.min(M.tick, p.pan * .6));
-      const sq = t < p.moveStart && ant > 0 ? EASE.snap(ant) : 0;
-      if (p.fx) {
-        const f = spinPose(p, u);
-        drawPiece(mover, f.x, f.y, {sx: f.sc * lerp(1, ANTIC.sxSpin, sq), sy: f.sc * lerp(1, ANTIC.sySpin, sq), rot: f.rot, shadow: true});
-      } else {
-        // flight height grows with the distance travelled: short hops stay low, long moves arc high
-        const h = Math.min(ARC.max, ARC.base + ARC.perSquare * Math.hypot(dx, p.to[1] - p.from[1]));
-        const sc = 1 + Math.min(ARC.growMax, ARC.grow * h) * arc;
-        drawPiece(mover, x, y, {sx: sc * lerp(1, ANTIC.sx, sq), sy: sc * lerp(1, ANTIC.sy, sq), rot: (dx === 0 ? .12 : Math.sign(dx)) * .26 * arc, lift: h * arc, shadow: u > 0 && u < 1});
-      }
+      drawMover(p, mover, t);
     } else {
       const d = t - p.arrive;
       if (p.capSq) {
@@ -2715,23 +2840,90 @@ function laneAlpha(i, t) {
 // attacker, medium in between, strongest on the target, which keeps pulsing
 function drawLane(i, t) {
   const out = laneAlpha(i, t); if (out <= 0) return;
-  const q = clip.plies[i], t0 = q.arrive + q.lane.start;
-  const lit = new Map();   // square -> strongest alpha, so a square shared by two lanes is painted once
+  const q = clip.plies[i], t0 = q.arrive + q.lane.start, fade = clip.M.short;
+  // square -> {a, fill}: strongest alpha, so a square shared by two lanes is painted once; the attacker's own
+  // square is outlined (fill: false) unless another lane fills it
+  const lit = new Map();
   q.lane.lanes.forEach((l, li) => l.forEach((sq, j) => {
     const since = t - t0 - j * q.lane.steps[li], last = j === l.length - 1;
     if (since <= 0) return;
-    const fade = clip.M.short;
-    let a = (j === 0 ? .3 : last ? .85 : .5) * EASE.snap(clamp(since / fade));
+    let a = (j === 0 ? .9 : last ? .85 : .5) * EASE.snap(clamp(since / fade));
     if (last && since > fade) a *= .8 + .2 * Math.cos((since - fade) * Math.PI * 3.2);
-    const key = sq[0] + ',' + sq[1];
-    lit.set(key, Math.max(lit.get(key) || 0, a));
+    const key = sq[0] + ',' + sq[1], had = lit.get(key);
+    lit.set(key, {a: Math.max(had ? had.a : 0, a), fill: j > 0 || (had && had.fill)});
   }));
-  for (const [key, a] of lit) {
+  // the rest of the board darkens a little so the lanes stand out
+  const dim = LANE_FX.dim * EASE.snap(clamp((t - t0) / fade)) * out;
+  if (dim > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${dim})`;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!lit.has(x + ',' + y)) ctx.fillRect(x, y, 1.002, 1.002);
+  }
+  const w = LANE_FX.outline;
+  for (const [key, {a, fill}] of lit) {
     const [x, y] = key.split(',').map(Number);
-    ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1);
+    const tb = fill && tileBump(q, x, y, t);
+    if (tb && tb.scale < 1) drawTile(x, y, {...tb, red: a * out}, tint((x + y) % 2 ? clip.theme.dark : clip.theme.light));
+    else if (fill) { ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1); }
+    else { ctx.strokeStyle = hexA(LANE.col, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
   }
 }
-// a targeted piece hops when its lane reaches it: up 0.12 of a square and down (a med beat), a squash on
+// the "lego" hit when a lane reaches its target (see LANE_FX.bump): the target's tile is pressed down for a short
+// beat; the tiles around it jump ring by ring, a tick apart, up and down over a med beat with a small bounce at
+// the end, flashing red. squares of the lanes stay flat so the lanes keep reading.
+// returns {lift, scale, red} for tile (x, y) of move p at time t, or null when it is still
+// what hits the board on move p: its lanes reaching their targets (red; the target tiles are pressed, the lane
+// squares stay flat), or the brilliant slamming down (stronger, one ring more, in the brilliant's colour, right
+// after the impact frames)
+function bumpHit(p) {
+  if (!p) return null;
+  const B = LANE_FX.bump;
+  if (p.brilliant) return BRILLIANT_FX.bricks ? {t0: p.arrive + BRILLIANT_FX.impactFrames / 60, targets: [p.to], flat: [],
+    rings: B.rings + 1, lift: B.lift * 1.5, tint: .5, col: p.glow, press: false} : null;
+  if (p.lane && p.lane.hop) return {t0: p.arrive + p.lane.reach, targets: p.lane.lanes.map(l => l[l.length - 1]),
+    flat: p.lane.lanes.flat(), rings: B.rings, lift: B.lift, tint: B.tint, col: LANE.col, press: true};
+  return null;
+}
+function tileBump(p, x, y, t) {
+  const hit = bumpHit(p); if (!hit) return null;
+  const B = LANE_FX.bump, M = clip.M, since = t - hit.t0;
+  if (since <= 0 || since > M.short + (hit.rings + B.jitter) * M.tick + M.med) return null;
+  for (const [tx, ty] of hit.targets) if (x === tx && y === ty) {
+    const k = since / M.short;
+    return hit.press && k < 1 ? {lift: 0, scale: 1 - B.sink * Math.sin(Math.PI * k), red: 0, col: hit.col} : null;
+  }
+  if (hit.flat.some(q => q[0] === x && q[1] === y)) return null;
+  let best = null;
+  for (const [tx, ty] of hit.targets) {
+    const ring = Math.max(Math.abs(x - tx), Math.abs(y - ty));
+    if (ring > hit.rings) continue;
+    // each brick gets its own height and a slight delay (seeded, so a frame always comes out the same)
+    const rnd = seededRandom(Math.round(p.arrive * 1000) * 131 + x * 8 + y), jh = 1 - B.jitter + 2 * B.jitter * rnd(), jd = rnd() * B.jitter;
+    const kk = (since - (ring - 1 + jd) * M.tick) / M.med; if (kk <= 0 || kk >= 1) continue;
+    const f = Math.pow(B.decay, ring - 1), h = kk < .55 ? Math.sin(Math.PI * kk / .55) : .25 * Math.sin(Math.PI * (kk - .55) / .45);
+    // raised bricks shrink a little so the gaps between them show
+    const b = {lift: hit.lift * f * h * jh, scale: 1 - B.scale * h, red: hit.tint * f * (1 - kk), col: hit.col};
+    if (!best || b.lift > best.lift) best = b;
+  }
+  return best;
+}
+// draws a bumped tile over its square: a shadow where it lifted off (or a dark gap round a pressed tile), then the
+// tile itself raised / scaled, in its own colour plus the red flash
+function drawTile(x, y, b, color) {
+  const B = LANE_FX.bump, depth = Math.max(b.lift / B.lift, (1 - b.scale) / B.sink);   // (clamped below)
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${.32 * clamp(depth)})`; ctx.fillRect(x, y, 1, 1);
+  // a raised tile shows its front face below the top, like a brick standing up from the board
+  if (b.lift > 0) {
+    const s = b.scale;
+    ctx.fillStyle = color; ctx.fillRect(x + .5 - s / 2, y + .5 + s / 2 - b.lift, s, b.lift);
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x + .5 - s / 2, y + .5 + s / 2 - b.lift, s, b.lift);
+  }
+  ctx.translate(x + .5, y + .5 - b.lift); ctx.scale(b.scale, b.scale);
+  ctx.fillStyle = color; ctx.fillRect(-.5, -.5, 1, 1);
+  if (b.red > 0) { ctx.fillStyle = hexA(b.col || LANE.col, b.red); ctx.fillRect(-.5, -.5, 1, 1); }
+  ctx.restore();
+}
+// a targeted piece hops when its lane reaches it: up LANE_FX.hopLift squares growing to hopScale and down (a med beat), a squash on
 // contact (a tick), a small 0.05 hop (a short beat) and a light squash as it settles (a tick); see clip.HOP.
 // returns the lift and squash for drawPiece
 function laneHop(p, x, y, t) {
@@ -2740,23 +2932,34 @@ function laneHop(p, x, y, t) {
   let u = t - p.arrive - p.lane.reach;
   if (u <= 0 || u >= h.total) return null;
   const squash = (k, f) => ({lift: 0, sx: 1 + .1 * f * Math.sin(Math.PI * k), sy: 1 - .12 * f * Math.sin(Math.PI * k)});
-  if (u < h.up) return {lift: .12 * Math.sin(Math.PI * u / h.up), sx: 1, sy: 1};
+  if (u < h.up) { const k = Math.sin(Math.PI * u / h.up), g = 1 + (LANE_FX.hopScale - 1) * k; return {lift: LANE_FX.hopLift * k, sx: g, sy: g}; }
   if ((u -= h.up) < h.squash) return squash(u / h.squash, 1);
   if ((u -= h.squash) < h.small) return {lift: .05 * Math.sin(Math.PI * u / h.small), sx: 1, sy: 1};
   return squash((u - h.small) / h.settle, .4);
 }
-// screen space: FORK! pops up above the attacker with a bounce, in the BRILLIANT MOVE font
+// screen space: the lane's callout (FORK!, DOUBLE CHECK) above the attacker
 function drawFork(i, t) {
   const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
-  const cam = clip._cam, size = clamp(cam.s * .55, 64, 130), [x0, y0] = toScreen(cam, q.to[0] + .5, q.to[1] - .55);
-  const R = safeRect(), x = clamp(x0, R.x0 + size * 1.7, R.x1 - size * 1.7), y = Math.max(y0, R.y0 + size * .7);
-  const k = EASE.pop(clamp((t - q.arrive - q.lane.start) / clip.M.med));
-  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(k, k);
-  // dark outline under the glow keeps it readable over the red squares and light board
+  drawCallout(q.lane.text, CALLOUT.red, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
+}
+// shared callout: a word in the BRILLIANT MOVE font that pops up with a bounce over a board point, glowing in
+// its colour over a dark outline, kept inside the safe area. for FORK!, DOUBLE CHECK and the tactics to come
+const CALLOUT = {red: {fill: '#FF5A4F', glow: '#FF3B30', outline: 'rgba(70,6,4,.8)'}};
+function drawCallout(text, color, at, t0, t, alpha) {
+  const cam = clip._cam, R = safeRect(), [sx, sy] = toScreen(cam, at[0], at[1]);
+  let size = clamp(cam.s * .55, 64, 130);
+  ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
+  // long words shrink to fit the safe area's width
+  const tw = ctx.measureText(text).width, maxW = (R.x1 - R.x0) - 60;
+  if (tw > maxW) size *= maxW / tw;
+  const half = Math.min(tw, maxW) / 2 + 20;
+  const x = clamp(sx, R.x0 + half, R.x1 - half), y = Math.max(sy, R.y0 + size * .7);
+  const k = EASE.pop(clamp((t - t0) / clip.M.med));
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(k, k);
   ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-  ctx.lineWidth = size * .14; ctx.strokeStyle = 'rgba(70,6,4,.8)'; ctx.strokeText('FORK!', 0, 0, W - 60);
-  glowText('FORK!', 0, 0, size, '#FF5A4F', '#FF3B30', 30, 3);
+  ctx.lineWidth = size * .14; ctx.strokeStyle = color.outline; ctx.strokeText(text, 0, 0, W - 60);
+  glowText(text, 0, 0, size, color.fill, color.glow, 30, 3);
   ctx.restore();
 }
 
@@ -2784,12 +2987,23 @@ function smear(vel, alpha, fn) {
   for (let i = n; i >= 1; i--) { ctx.globalAlpha = alpha * .22; fn(-vel * i * .5); }
   ctx.globalAlpha = alpha; fn(0);
 }
+// darkens the frame; the greying (`gray`) is applied at paint time instead, see grayAt() and tint()
 function dimBoard(gray, dark) {
+  if (!(dark > 0)) return;
   ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-  if (gray > 0) { ctx.globalCompositeOperation = 'saturation'; ctx.globalAlpha = gray; ctx.fillStyle = '#808080'; ctx.fillRect(0,0,W,H); }
-  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-  if (dark > 0) { ctx.fillStyle = `rgba(0,0,0,${dark})`; ctx.fillRect(0,0,W,H); }
+  ctx.fillStyle = `rgba(0,0,0,${dark})`; ctx.fillRect(0,0,W,H);
   ctx.restore();
+}
+// how grey the board is painted at time t: the brilliant's teaser card fading it in and out, the flight (0.85)
+// and the impact (full, then back to colour over the exit). matches the dimBoard() calls in drawCard / drawImpact
+function grayAt(t) {
+  let g = 0;
+  for (const p of clip.plies) {
+    const c = p.card;
+    if (c && t >= c.start && t < c.end) g = Math.max(g, eout(clamp((t - c.start) / CARD.in)) * (1 - eio(clamp((t - c.out) / CARD.out))));
+    if (p.brilliant && t >= p.start && t < p.end + .2) g = Math.max(g, t < p.arrive ? .85 : 1 - clamp((t - (p.end - IMP.exit)) / IMP.exit));
+  }
+  return g;
 }
 
 function drawCard(p, t) {
@@ -2858,6 +3072,21 @@ function silhouette(im, color) {
   return c;
 }
 
+// the x-ray rim: a light silhouette stamped at eight offsets around the piece, baked into one image per piece
+// (one draw per piece instead of eight). pad: extra margin around the square, in squares
+const RIM = {offset: .035, pad: .05};
+function rimSilhouette(im) {
+  const key = 'rim:' + im.src.length + ':' + im.src.slice(-40);
+  let c = silCache.get(key);
+  if (!c) {
+    const S = 96, P = Math.round(RIM.pad * S), o = RIM.offset * S;
+    c = document.createElement('canvas'); c.width = c.height = S + 2 * P;
+    const g = c.getContext('2d'), sil = silhouette(im, '#F4F4F2');
+    for (const [ox, oy] of [[o,0],[-o,0],[0,o],[0,-o],[o*.7,o*.7],[-o*.7,o*.7],[o*.7,-o*.7],[-o*.7,-o*.7]]) g.drawImage(sil, P + ox, P + oy, S, S);
+    silCache.set(key, c);
+  }
+  return c;
+}
 function drawImpact(p, t) {
   const cam = clip._cam, d = t - p.arrive, col = p.glow;
   const idx = clip.plies.indexOf(p);
@@ -2871,9 +3100,8 @@ function drawImpact(p, t) {
       ctx.fillStyle = hexA(col, .22 * a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
       if (p.badge) drawBadge(p, .75, .8 * a);
       // the spinning piece is redrawn above the dimming so it stays bright
-      const f = spinPose(p, clamp((t - p.moveStart) / p.dur));
       const mover = clip.boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
-      drawPiece(mover, f.x, f.y, {sx: f.sc, sy: f.sc, rot: f.rot, shadow: true});
+      drawMover(p, mover, t);
     }
     return;
   }
@@ -2900,18 +3128,26 @@ function drawImpact(p, t) {
       ctx.stroke();
     }
     ctx.restore();
-    // every other piece turns into a dark shape with a white rim
-    boardTf(cam);
-    const o = .035;
+  }
+  // the slam knocks the tiles around the square up like bricks, in the darkened board's tone
+  boardTf(cam);
+  const dark = (.5 + .2 * xr) * (1 - ex), th = clip.theme;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+    const b = tileBump(p, x, y, t);
+    if (b && b.lift > 0) drawTile(x, y, b, shade((x + y) % 2 ? th.dark : th.light, 1 - ex, dark));
+  }
+  if (xr > 0) {
+    // every other piece turns into a dark shape with a white rim (the rim is baked once per piece image); pieces on
+    // knocked-up tiles ride along
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
       const pc = at(x, y); if (!pc || (x === tx && y === ty)) continue;
       const im = pimg(pc); if (!im) continue;
+      const tb = tileBump(p, x, y, t), ly = y - (tb ? tb.lift : 0);
       ctx.globalAlpha = .85 * xr;
-      const rim = silhouette(im, '#F4F4F2');
-      for (const [ox, oy] of [[o,0],[-o,0],[0,o],[0,-o],[o*.7,o*.7],[-o*.7,o*.7],[o*.7,-o*.7],[-o*.7,-o*.7]]) ctx.drawImage(rim, x + ox, y + oy, 1, 1);
+      ctx.drawImage(rimSilhouette(im), x - RIM.pad, ly - RIM.pad, 1 + 2 * RIM.pad, 1 + 2 * RIM.pad);
       // body stays opaque until late in the fade so the white rim reads as an outline
       ctx.globalAlpha = clamp(xr * 2.5);
-      ctx.drawImage(silhouette(im, '#3C3C3A'), x, y, 1, 1);
+      ctx.drawImage(silhouette(im, '#3C3C3A'), x, ly, 1, 1);
     }
     ctx.globalAlpha = 1;
   }
@@ -2920,21 +3156,22 @@ function drawImpact(p, t) {
   boardTf(cam);
   const fa = 1 - ex;
   if (fa > 0) {
+    // (the glow around the square and the piece comes from bloomPiece, much cheaper than shadowBlur)
     ctx.save();
-    ctx.shadowColor = col; ctx.shadowBlur = 60;
     ctx.fillStyle = hexA(col, .92 * fa); ctx.fillRect(tx, ty, 1, 1);
-    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,' + (.55 * fa) + ')'; ctx.lineWidth = .025; ctx.strokeRect(tx, ty, 1, 1);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (.55 * fa) + ')'; ctx.lineWidth = .025; ctx.strokeRect(tx, ty, 1, 1);
     const pc = at(tx, ty), im = pc && pimg(pc);
     if (im) {
       // squash on contact, then settle
       const s = clamp(d / .3), wob = Math.exp(-6*s) * Math.cos(14*s);
       ctx.translate(tx + .5, ty + .5); ctx.scale(1 + .2*wob, 1 - .24*wob);
-      ctx.shadowColor = col; ctx.shadowBlur = 22;
       ctx.drawImage(silhouette(im, '#FFFFFF'), -.53, -.53, 1.06, 1.06);
-      ctx.shadowBlur = 0;
       ctx.drawImage(im, -.5, -.5, 1, 1);
     }
     ctx.restore();
+    // bloom: strongest at contact, settling to a soft glow, gone with the exit
+    if (BRILLIANT_FX.bloom > 0) bloomPiece(p, pc, BRILLIANT_FX.bloom * fa * lerp(1, .45, eout(clamp(d / .8))));
+    boardTf(cam);
     if (p.badge && d > .06) {
       // badge with its own glow
       ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 30;
@@ -2943,22 +3180,10 @@ function drawImpact(p, t) {
     }
   }
 
-  // thin rings expanding around the badge
-  if (d < 1.1) {
-    const [bx, by] = toScreen(cam, tx + .9, ty + .1);
-    ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-    ctx.shadowColor = col; ctx.shadowBlur = 16;
-    for (const off of [0, .12, .24, .36]) {
-      const k = clamp((d - off) / .7);
-      if (k <= 0 || k >= 1) continue;
-      ctx.beginPath(); ctx.arc(bx, by, cam.s * (.3 + 1.1 * eout(k)), 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(255,255,255,' + (.75 * (1 - k)) + ')'; ctx.lineWidth = cam.s * .022 * (1.4 - k); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
   // white pop on contact, and a bright flash on the way out
-  const pop = d < IMP.flash ? .6 : 0;
+  // (the impact frames take the very first frames, the white pop follows them)
+  // (softer while the RGB split runs, so the split stays visible)
+  const pop = d >= BRILLIANT_FX.impactFrames / 60 && d < IMP.flash + BRILLIANT_FX.impactFrames / 60 ? (BRILLIANT_FX.aberration > 0 ? .3 : .6) : 0;
   const out = t > p.end - .08 ? .4 * (1 - clamp((t - p.end) / .2)) : 0;
   if (pop + out > 0) { ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = 'rgba(255,255,255,' + (pop + out) + ')'; ctx.fillRect(0,0,W,H); ctx.restore(); }
 }
@@ -2967,7 +3192,7 @@ function drawBadge(p, scale, alpha) {
   const b = p.badge, x = p.to[0] + .9, y = p.to[1] + .1, r = .23;
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(scale, scale);
   ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = .12 * clip._s; ctx.shadowOffsetY = .03 * clip._s;
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = b.c; ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.lineWidth = .035; ctx.strokeStyle = '#fff'; ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
