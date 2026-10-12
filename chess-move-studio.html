@@ -49,10 +49,16 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
     <p class="lede">Dựng video nước cờ 9:16 kiểu TikTok: camera bám quân, quân nảy và nghiêng, ô đích phát sáng, huy hiệu đánh giá bật lên. Xuất video rồi đăng kèm nhạc.</p>
     <div class="panel">
       <div>
+        <label for="sample">Ván mẫu</label>
+        <select id="sample"><option value="">Chọn ván mẫu để điền sẵn…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov, Wijk aan Zee 1999 (24.Rxd4!!)</option></select>
+      </div>
+      <div>
         <label for="moves">Nước đi</label>
         <textarea id="moves" spellcheck="false">e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7</textarea>
         <p class="hint">Gõ nước kiểu <code>Nf3</code>, <code>exd5</code>, <code>O-O</code>. Phần trước dấu <code>|</code> được xếp sẵn, phần sau mới được dựng chuyển động. Thêm ký hiệu sau nước để gắn huy hiệu:</p>
         <div class="legend" id="legend"></div>
+        <p class="hint">Ghi mục tiêu trong ngoặc nhọn ngay sau nước để vẽ dải tấn công: <code>Nf5{f7,h6}</code>, <code>Qh5!{f7}</code>; <code>Nf5{}</code> để không vẽ dải. Nước chiếu tự vẽ dải tới Vua.</p>
+        <p class="hint" id="movewarn" style="color:var(--danger)"></p>
       </div>
       <div>
         <label for="fen">Thế cờ bắt đầu (FEN, để trống = thế ban đầu)</label>
@@ -75,8 +81,12 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
         <div><label for="accel">Nhiều nước thì tăng tốc phần đầu</label><select id="accel"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
       </div>
       <div>
-        <label class="check"><input type="checkbox" id="clane" checked> Dải chiếu</label>
-        <p class="hint">Khi chiếu Vua, các ô từ quân chiếu tới Vua lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Không áp dụng ở nước !!.</p>
+        <div class="btns" style="gap:18px">
+          <label class="check"><input type="checkbox" id="clane" checked> Dải tấn công</label>
+          <label class="check"><input type="checkbox" id="lbounce" checked> Quân bị tấn công nảy lên</label>
+          <label class="check"><input type="checkbox" id="lfork" checked> Chữ FORK</label>
+        </div>
+        <p class="hint">Các ô từ quân tấn công tới mục tiêu lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Mục tiêu là các ô ghi trong <code>{}</code>, hoặc Vua khi bị chiếu. Từ 2 dải trở lên là FORK. Không áp dụng ở nước !!.</p>
       </div>
       <div class="row">
         <div><label for="title">Chữ phía trên</label><input type="text" id="title" value="Bẫy Blackburne Shilling"></div>
@@ -1940,22 +1950,30 @@ function parse() {
   const game = fen ? new Chess(fen) : new Chess();
   if (fen && !game.validate_fen(fen).valid) throw new Error('FEN không hợp lệ.');
   let [pre, main] = text.includes('|') ? text.split('|') : ['', text];
-  const toks = s => s.replace(/\{[^}]*\}/g,' ').split(/\s+/).map(x => x.replace(/^\d+\.+/, '')).filter(x => x && !/^\d+\.+$/.test(x) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(x));
+  // braces glued to a move are its attack targets: Nf5{f7,h6}, Qh5!{f7}, Nf5{} (= no lane).
+  // braces after a space stay PGN comments and are dropped
+  const toks = s => s.replace(/(\S)\{([^}]*)\}/g, (_, c, in_) => c + '{' + in_.replace(/\s+/g, '') + '}')
+    .replace(/(^|\s)\{[^}]*\}/g, ' ')
+    .split(/\s+/).map(x => x.replace(/^\d+\.+/, '')).filter(x => x && !/^\d+\.+$/.test(x) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(x));
+  // move token -> {san, ann, targets}; targets: null = none written, [] = written empty
+  const split = tk => {
+    const br = tk.match(/^(.*?)\{([^}]*)\}$/), base = br ? br[1] : tk;
+    if (br && !/^([a-h][1-8](,[a-h][1-8])*)?$/i.test(br[2])) throw new Error('Mục tiêu không hợp lệ ở nước ' + tk + ': ghi các ô cách nhau bằng dấu phẩy, ví dụ Nf5{f7,h6}.');
+    const m = base.match(/(!!|\?\?|!\?|\?!|!|\?)$/);
+    return {san: base.replace(/(!!|\?\?|!\?|\?!|!|\?)$/, ''), ann: m ? m[1] : '', targets: br ? (br[2] ? br[2].toLowerCase().split(',') : []) : null};
+  };
   for (const tk of toks(pre)) {
-    const san = tk.replace(/(!!|\?\?|!\?|\?!|!|\?)$/,'');
-    if (!game.move(san, {sloppy:true})) throw new Error('Nước không hợp lệ: ' + tk);
+    if (!game.move(split(tk).san, {sloppy:true})) throw new Error('Nước không hợp lệ: ' + tk);
   }
   const plies = [];
   const boards = [game.board()];
   for (const tk of toks(main)) {
-    const m = tk.match(/(!!|\?\?|!\?|\?!|!|\?)$/);
-    const ann = m ? m[1] : '';
-    const san = tk.replace(/(!!|\?\?|!\?|\?!|!|\?)$/,'');
+    const {san, ann, targets} = split(tk);
     const mv = game.move(san, {sloppy:true});
     if (!mv) throw new Error('Nước không hợp lệ: ' + tk);
     let badge = BADGES[ann] || null;
     if (!badge && mv.san.includes('#')) badge = BADGES['#'];
-    plies.push({mv, badge});
+    plies.push({mv, badge, targets});
     boards.push(game.board());
   }
   if (!plies.length) throw new Error('Thêm ít nhất một nước sau dấu |.');
@@ -1972,32 +1990,74 @@ function parse() {
   return {plies, boards};
 }
 
-// ---------- check lane ----------
-// step: delay between squares lighting up; fade: how long each square takes to appear;
-// cam: camera pull-back time; out: fade when the next move begins
-const LANE = {col: '#E24B4A', step: .12, fade: .18, cam: .9, out: .25};
-// every piece of `color` giving check on board b (chess.js board(), b[0] = rank 8), as the list of
-// squares from that piece to the enemy king, both ends included. a discovered or double check gives
-// the lanes of the pieces really giving it
-function checkLanes(b, color) {
-  const at = (f, r) => b[7 - r][f], sq = (f, r) => 'abcdefgh'[f] + (r + 1);
-  let kf = -1, kr = -1;
-  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { const pc = at(f, r); if (pc && pc.type === 'k' && pc.color !== color) { kf = f; kr = r; } }
-  if (kf < 0) return [];
-  const lanes = [];
-  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
-    const pc = at(f, r); if (!pc || pc.color !== color) continue;
-    const dx = kf - f, dy = kr - r, ax = Math.abs(dx), ay = Math.abs(dy);
-    if (pc.type === 'n') { if (ax * ay === 2) lanes.push([sq(f, r), sq(kf, kr)]); continue; }
-    if (pc.type === 'p') { if (ax === 1 && dy === (color === 'w' ? 1 : -1)) lanes.push([sq(f, r), sq(kf, kr)]); continue; }
-    const straight = dx === 0 || dy === 0, diag = ax === ay;
-    if (!(pc.type === 'q' && (straight || diag) || pc.type === 'r' && straight || pc.type === 'b' && diag)) continue;
-    const sx = Math.sign(dx), sy = Math.sign(dy), n = Math.max(ax, ay), line = [sq(f, r)];
-    let clear = true;
-    for (let k = 1; k < n; k++) { if (at(f + sx * k, r + sy * k)) { clear = false; break; } line.push(sq(f + sx * k, r + sy * k)); }
-    if (clear) lanes.push([...line, sq(kf, kr)]);
+// ---------- board geometry (shared by the effects) ----------
+// squares are algebraic ('e4'); b is a chess.js board(), b[0] = rank 8
+const sqFR = s => [s.charCodeAt(0) - 97, +s[1] - 1], frSq = (f, r) => 'abcdefgh'[f] + (r + 1);
+const pieceAt = (b, s) => { const [f, r] = sqFR(s); return b[7 - r][f]; };
+// squares on the rank, file or diagonal from a to b, both ends included; null when they share none
+function lineBetween(a, b) {
+  const [f0, r0] = sqFR(a), [f1, r1] = sqFR(b), dx = f1 - f0, dy = r1 - r0;
+  if (!(dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) || (dx === 0 && dy === 0)) return null;
+  const n = Math.max(Math.abs(dx), Math.abs(dy)), out = [];
+  for (let k = 0; k <= n; k++) out.push(frSq(f0 + Math.sign(dx) * k, r0 + Math.sign(dy) * k));
+  return out;
+}
+// squares the piece on s attacks; rooks, bishops and queens stop at (and include) the first piece in each direction
+function attackedSquares(b, s) {
+  const pc = pieceAt(b, s); if (!pc) return [];
+  const [f, r] = sqFR(s), out = [], on = (x, y) => x >= 0 && x < 8 && y >= 0 && y < 8;
+  const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]], DIAG = [[1,1],[1,-1],[-1,1],[-1,-1]];
+  const steps = (dirs, slide) => {
+    for (const [dx, dy] of dirs) for (let x = f + dx, y = r + dy; on(x, y); x += dx, y += dy) {
+      out.push(frSq(x, y));
+      if (!slide || b[7 - y][x]) break;
+    }
+  };
+  const fwd = pc.color === 'w' ? 1 : -1;
+  if (pc.type === 'p') steps([[1, fwd], [-1, fwd]], false);
+  else if (pc.type === 'n') steps([[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]], false);
+  else if (pc.type === 'k') steps([...ORTHO, ...DIAG], false);
+  else steps(pc.type === 'r' ? ORTHO : pc.type === 'b' ? DIAG : [...ORTHO, ...DIAG], true);
+  return out;
+}
+// the squares a lane covers from an attacker of `type` on `from` to `to`: the whole line for a rook, bishop
+// or queen standing on a line it moves along, otherwise just the two end squares
+function lanePath(type, from, to) {
+  const line = lineBetween(from, to);
+  if (line && line.length > 2) {
+    const [f0, r0] = sqFR(from), [f1, r1] = sqFR(to), straight = f0 === f1 || r0 === r1;
+    if (type === 'q' || (type === 'r' && straight) || (type === 'b' && !straight)) return line;
   }
-  return lanes;
+  return [from, to];
+}
+
+// ---------- attack lanes ----------
+// delay: after landing (captures wait for the taken piece to vanish); step: delay between squares lighting up;
+// fade: how long each square takes to appear; cam: camera pull-back; out: fade when the next move begins;
+// hop: the target's two hops (big, then small)
+const LANE = {col: '#E24B4A', delay: .1, delayCapture: .25, step: .1, fade: .18, cam: .8, out: .25, hop: .56, max: 2};
+const LANE_VAL = {k: 100, q: 9, r: 5, b: 3, n: 3, p: 1};
+// which lanes a move shows, as [attacker, target] square pairs on the board after the move:
+//   a) targets written in braces after the move, from the moved piece (empty braces = none)
+//   b) otherwise a check: one lane from each piece giving it (discovered and double checks included)
+// at most LANE.max, most valuable target first. warn collects targets the moved piece does not really attack
+function pickLanes(b, mv, written, warn) {
+  let pairs = [];
+  if (written) {
+    const hits = attackedSquares(b, mv.to);
+    for (const s of written) {
+      if (s === mv.to) continue;
+      if (!hits.includes(s)) warn.push(mv.san + '{' + s + '}');
+      pairs.push([mv.to, s]);
+    }
+  } else if (/[+#]/.test(mv.san)) {
+    const all = [...'abcdefgh'].flatMap(f => [1,2,3,4,5,6,7,8].map(r => f + r));
+    const king = all.find(s => { const pc = pieceAt(b, s); return pc && pc.type === 'k' && pc.color !== mv.color; });
+    for (const s of all) { const pc = pieceAt(b, s); if (pc && pc.color === mv.color && attackedSquares(b, s).includes(king)) pairs.push([s, king]); }
+  }
+  const val = s => { const pc = pieceAt(b, s); return pc ? LANE_VAL[pc.type] : 0; };
+  return pairs.sort((x, y) => val(y[1]) - val(x[1])).slice(0, LANE.max)
+    .map(([a, t]) => lanePath(pieceAt(b, a) ? pieceAt(b, a).type : 'p', a, t));
 }
 
 // lay the whole video out. boost scales the opening speed-up; drop overrides the music drop (song seconds)
@@ -2039,6 +2099,7 @@ function layout(boost = 1, dropAt = null) {
   let pi = -1;
   let titleHit = null, slamHit = null;   // slamHit: the brilliant piece hitting the board = the music drop
   const view = parseFloat($('zoom').value), laneOn = $('clane').checked, oppMode = $('oppcam').value;
+  const bounceOn = $('lbounce').checked, forkOn = $('lfork').checked, warn = [];
   for (const p of plies) {
     const mv = p.mv;
     p.speed = accel(++pi);
@@ -2079,19 +2140,24 @@ function layout(boost = 1, dropAt = null) {
     }
     p.cam = [lerp(p.from[0], p.to[0], .62) + .5, lerp(p.from[1], p.to[1], .62) + .5];
     p.glow = p.badge ? p.badge.c : DEFAULT_GLOW;
-    // check lane: the squares from each checking piece to the king light up one after another while the
-    // camera pulls back to show the whole lane. the brilliant keeps its own scene
+    // attack lanes: the squares from the attacker to each target light up one after another, each target hops
+    // when its lane reaches it, and the camera pulls back over every lane. the brilliant keeps its own scene.
+    // all times in p.lane are seconds after p.arrive
     p.lane = null;
-    if (laneOn && !p.brilliant && /[+#]/.test(mv.san)) {
-      const lanes = checkLanes(boards[pi + 1], mv.color).map(l => l.map(sqxy));
+    if (laneOn && !p.brilliant) {
+      const lanes = pickLanes(boards[pi + 1], mv, p.targets, warn).map(l => l.map(sqxy));
       if (lanes.length) {
-        const all = lanes.flat(), m = Math.min(W, H);
-        // whole lane plus a one-square margin on every side
-        const x0 = Math.min(...all.map(q => q[0])) - 1, x1 = Math.max(...all.map(q => q[0])) + 2;
-        const y0 = Math.min(...all.map(q => q[1])) - 1, y1 = Math.max(...all.map(q => q[1])) + 2;
-        p.lane = {lanes, dur: Math.max(...lanes.map(l => (l.length - 1) * LANE.step)) + LANE.fade,
+        const fork = lanes.length > 1, longest = Math.max(...lanes.map(l => l.length - 1));
+        const start = mv.captured ? LANE.delayCapture : LANE.delay, reach = start + longest * LANE.step;
+        // in a fork every lane starts together and reaches its target at the same moment, so the targets hop together
+        const steps = lanes.map(l => fork ? longest * LANE.step / (l.length - 1) : LANE.step);
+        // whole lanes plus a one-square margin on every side (and room for FORK! above the attacker)
+        const pts = [...lanes.flat(), ...(fork && forkOn ? [[p.to[0], p.to[1] - .9]] : [])], m = Math.min(W, H);
+        const x0 = Math.min(...pts.map(q => q[0])) - 1, x1 = Math.max(...pts.map(q => q[0])) + 2;
+        const y0 = Math.min(...pts.map(q => q[1])) - 1, y1 = Math.max(...pts.map(q => q[1])) + 2;
+        p.lane = {lanes, steps, start, reach, fork, text: fork && forkOn, hop: bounceOn,
                   c: [(x0 + x1) / 2, (y0 + y1) / 2], V: Math.min(10, Math.max(view, (x1 - x0) * m / W, (y1 - y0) * m / H))};
-        p.end = Math.max(p.end, p.arrive + Math.max(LANE.cam, p.lane.dur) + .45);
+        p.end = Math.max(p.end, p.arrive + Math.max(start + LANE.cam, reach + LANE.hop) + .4);
       }
     }
     p.mate = null;
@@ -2101,8 +2167,8 @@ function layout(boost = 1, dropAt = null) {
       for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
         const pc = b[r][f];
         if (pc && pc.type === 'k' && pc.color !== mv.color) p.mate = {sq: sqxy('abcdefgh'[f] + (8 - r)),
-          // the king only starts to fall once the check lane has reached it
-          fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.dur + .15 : 0)};
+          // the king only starts to fall once the lane has reached it and its hops are over
+          fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.reach + LANE.hop + .05 : 0)};
       }
       // after the brilliant scene the checkmate landing is nudged onto the next strong beat (bar line)
       if (sync && afterBrilliant && !p.brilliant && slamHit != null) {
@@ -2143,6 +2209,7 @@ function layout(boost = 1, dropAt = null) {
     lastCam = p.cam;
     t = p.end;
   }
+  $('movewarn').textContent = warn.length ? 'Lưu ý: ' + warn.join(', ') + ': quân vừa đi không tấn công ô này, dải vẫn được vẽ.' : '';
   // when the song should start (song seconds at video time 0); negative = video runs first
   let musicStart = null;
   if (sync) musicStart = sync.drop - (slamHit != null ? slamHit : (anchor != null ? anchor : 0));
@@ -2217,9 +2284,9 @@ function camera(t) {
         const k = eio(clamp((t - p.start) / (p.camT || p.pan + p.dur * .75)));
         c = [lerp(prev[0], camOf(p)[0], k), lerp(prev[1], camOf(p)[1], k)];
         if (pl || q.wide || q.V || p.wide || p.V) V = lerp(pl ? pl.V : viewOf(q), viewOf(p), k);
-        // check: from the landing, glide out to the whole lane while it lights up, then hold
-        if (p.lane && t >= p.arrive) {
-          const kl = eio(clamp((t - p.arrive) / LANE.cam));
+        // attack lanes: as they start to spread, glide out to show every lane, then hold
+        if (p.lane && t >= p.arrive + p.lane.start) {
+          const kl = eio(clamp((t - p.arrive - p.lane.start) / LANE.cam));
           c = [lerp(c[0], p.lane.c[0], kl), lerp(c[1], p.lane.c[1], kl)]; V = lerp(V, p.lane.V, kl);
         }
         // after the full-board reveal the brilliant move pushes back in from the wide view
@@ -2367,7 +2434,7 @@ function renderBoard(t) {
     if (p && !arrived && (same([x,y], p.from) || (p.rook && same([x,y], p.rook.from)))) continue;
     if (p && arrived && (same([x,y], p.to) || (p.rook && same([x,y], p.rook.to)))) continue;
     if (mate && same([x,y], mate.sq)) continue;
-    drawPiece(pc, x, y);
+    drawPiece(pc, x, y, (arrived && laneHop(p, x, y, t)) || {});
   }
   if (p) {
     const mover = boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
@@ -2405,9 +2472,10 @@ function renderBoard(t) {
       let ang = (Math.PI / 2) * k * k;
       const after = t - mate.hit;
       if (after > 0) ang -= .16 * Math.exp(-7 * after) * Math.abs(Math.sin(after * 16));
-      // shift toward the fall side so the lying king stays inside its square
+      // shift toward the fall side so the lying king stays inside its square; before falling it hops with the lane
+      const hop = laneHop(p, mate.sq[0], mate.sq[1], t) || {lift: 0, sx: 1, sy: 1};
       drawPiece(king, mate.sq[0] + mate.dir * .06 * (ang / (Math.PI/2)), mate.sq[1] + .08 * (ang / (Math.PI/2)),
-                {rot: mate.dir * ang, sx: .92, sy: .92, shadow: k > 0 && k < 1});
+                {rot: mate.dir * ang, sx: .92 * hop.sx, sy: .92 * hop.sy, lift: hop.lift, shadow: k > 0 && k < 1});
     }
     // badge
     const prevBadge = idx > 0 ? plies[idx-1] : null;
@@ -2418,6 +2486,7 @@ function renderBoard(t) {
 
   // overlays in screen space
   ctx.setTransform(1,0,0,1,shk[0],shk[1]);
+  for (const i of [idx - 1, idx]) drawFork(i, t);
   const fadeIn = clamp(t / .5);
   if (clip.title) {
     ctx.globalAlpha = fadeIn;
@@ -2436,27 +2505,57 @@ function renderBoard(t) {
   }
 }
 
-// ---------- check lane drawing (board space) ----------
-// squares light up one by one from the checking piece to the king: light at the piece, medium in between,
-// strongest on the king, which keeps pulsing. a double check lights both lanes at once
-function drawLane(i, t) {
+// ---------- attack lane drawing ----------
+// lanes stay up until the next move (or the reveal before it) begins, then fade out
+function laneAlpha(i, t) {
   const q = clip.plies[i], n = clip.plies[i + 1];
-  if (!q || !q.lane || t < q.arrive) return;
-  const out = n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / LANE.out) : 1;
-  if (out <= 0) return;
+  if (!q || !q.lane || t < q.arrive + q.lane.start) return 0;
+  return n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / LANE.out) : 1;
+}
+// board space, under the pieces: squares light up one by one from the attacker to the target, light at the
+// attacker, medium in between, strongest on the target, which keeps pulsing
+function drawLane(i, t) {
+  const out = laneAlpha(i, t); if (out <= 0) return;
+  const q = clip.plies[i], t0 = q.arrive + q.lane.start;
   const lit = new Map();   // square -> strongest alpha, so a square shared by two lanes is painted once
-  for (const l of q.lane.lanes) l.forEach((sq, j) => {
-    const since = t - q.arrive - j * LANE.step, last = j === l.length - 1;
+  q.lane.lanes.forEach((l, li) => l.forEach((sq, j) => {
+    const since = t - t0 - j * q.lane.steps[li], last = j === l.length - 1;
     if (since <= 0) return;
     let a = (j === 0 ? .3 : last ? .85 : .5) * eout(clamp(since / LANE.fade));
     if (last && since > LANE.fade) a *= .8 + .2 * Math.cos((since - LANE.fade) * Math.PI * 3.2);
     const key = sq[0] + ',' + sq[1];
     lit.set(key, Math.max(lit.get(key) || 0, a));
-  });
+  }));
   for (const [key, a] of lit) {
     const [x, y] = key.split(',').map(Number);
     ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1);
   }
+}
+// a targeted piece hops when its lane reaches it: up 0.12 of a square and down with a squash on contact
+// (0.35s), then a small 0.05 hop and it settles. returns the lift and squash for drawPiece
+function laneHop(p, x, y, t) {
+  if (!p || !p.lane || !p.lane.hop || !p.lane.lanes.some(l => l[l.length - 1][0] === x && l[l.length - 1][1] === y)) return null;
+  const u = t - p.arrive - p.lane.reach;
+  if (u <= 0 || u >= LANE.hop) return null;
+  const squash = k => ({lift: 0, sx: 1 + .1 * Math.sin(Math.PI * k), sy: 1 - .12 * Math.sin(Math.PI * k)});
+  if (u < .25) return {lift: .12 * Math.sin(Math.PI * u / .25), sx: 1, sy: 1};
+  if (u < .35) return squash((u - .25) / .1);
+  if (u < .5) return {lift: .05 * Math.sin(Math.PI * (u - .35) / .15), sx: 1, sy: 1};
+  const s = squash((u - .5) / .06); return {lift: 0, sx: 1 + (s.sx - 1) * .4, sy: 1 + (s.sy - 1) * .4};
+}
+// screen space: FORK! pops up above the attacker with a bounce, in the BRILLIANT MOVE font
+function drawFork(i, t) {
+  const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
+  const cam = clip._cam, size = clamp(cam.s * .55, 64, 130), [x0, y0] = toScreen(cam, q.to[0] + .5, q.to[1] - .55);
+  const x = clamp(x0, size * 1.7, W - size * 1.7), y = Math.max(y0, (clip.title ? FRAME.top + 112 : 0) + size * .7);
+  const k = eback(clamp((t - q.arrive - q.lane.start) / .35));
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(k, k);
+  // dark outline under the glow keeps it readable over the red squares and light board
+  ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = size * .14; ctx.strokeStyle = 'rgba(70,6,4,.8)'; ctx.strokeText('FORK!', 0, 0, W - 60);
+  glowText('FORK!', 0, 0, size, '#FF5A4F', '#FF3B30', 30, 3);
+  ctx.restore();
 }
 
 // ---------- brilliant: teaser card + impact ----------
@@ -2997,7 +3096,7 @@ $('scrub').onchange = () => {
   scrubResume = false;
   start(cur >= clip.to - .05 ? clip.from : cur);
 };
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','oppcam'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam'].forEach(id => $(id).addEventListener('input', () => {
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
   rebuild();
@@ -3132,10 +3231,31 @@ $('rec').onclick = async () => {
   recorder.start(200);
 };
 
+// ---------- sample games ----------
+// picking one fills the moves, title and brilliant subtitle; moves before | are already on the board
+const SAMPLES = {
+  blackburne: {moves: 'e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7', title: 'Bẫy Blackburne Shilling', brsub: 'IN KNIGHT OPENING'},
+  // Kasparov - Topalov, Hoogovens Wijk aan Zee 1999, round 4 (1-0): the rook sacrifice and the king hunt that follows
+  kasparov: {
+    moves: '1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Be3 Bg7 5. Qd2 c6 6. f3 b5 7. Nge2 Nbd7 8. Bh6 Bxh6 9. Qxh6 Bb7 ' +
+           '10. a3 e5 11. O-O-O Qe7 12. Kb1 a6 13. Nc1 O-O-O 14. Nb3 exd4 15. Rxd4 c5 16. Rd1 Nb6 17. g3 Kb8 ' +
+           '18. Na5 Ba8 19. Bh3 d5 20. Qf4+ Ka7 21. Rhe1 d4 | 22. Nd5 Nbxd5 23. exd5 Qd6 24. Rxd4!! cxd4 ' +
+           '25. Re7+ Kb6 26. Qxd4+ Kxa5 27. b4+ Ka4',
+    title: 'Kasparov – Topalov 1999', brsub: "KASPAROV'S IMMORTAL"},
+};
+$('sample').addEventListener('change', () => {
+  const s = SAMPLES[$('sample').value]; $('sample').value = '';
+  if (!s || recorder) return;
+  if (playing) { playing = false; stopMusic(); }
+  $('moves').value = s.moves; $('fen').value = ''; $('nplies').value = '0'; $('orient').value = 'auto';
+  $('title').value = s.title; $('brsub').value = s.brsub;
+  cur = 0; rebuild(); syncUI();
+});
+
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','oppcam'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
