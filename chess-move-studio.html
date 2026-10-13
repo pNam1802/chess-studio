@@ -1,25 +1,24 @@
 <meta charset="utf-8">
 <title>Chess Move Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E1E1C'/%3E%3Cg transform='translate(8 6) scale(.84)'%3E%3Cpath fill='%23F2C230' fill-rule='evenodd' d='M28 92C36 90 40 85 39 78C38 70 41 64 46 58L30 64 16 64 12 60 22 57 10 56 8 52 12 44 40 18 52 2 52 16 64 4 62 18 80 14 70 26 90 28 78 38 94 46 82 52 94 64 84 68 84 92ZM26 38L46 26 43 35ZM22 51Q36 58 46 52Q36 55 22 51ZM60 22Q70 44 64 72Q66 46 58 26ZM13 48L20 45.5 18.5 49ZM42.5 81L84 79 84 84 42 86Z'/%3E%3Cpath fill='%23C98E14' d='M62 18L80 14 70 26 90 28 78 38 94 46 82 52 94 64 84 68 64 72Q70 44 60 22Z'/%3E%3Crect fill='%23F2C230' x='20' y='94' width='70' height='5' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&family=Montserrat:wght@900&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: control column beside a 9:16 phone-shaped preview, stacks on narrow screens */
 :root{
   --bg:#ECEBE7; --panel:#F8F7F4; --ink:#1E1E1C; --muted:#6A6862; --line:#D6D4CE;
-  --accent:#F2C230; --accent-ink:#4A3A00; --danger:#B3261E;
+  --accent:#F2C230; --accent-ink:#4A3A00; --knight:#1E1E1C; --danger:#B3261E;
   --font-ui:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--panel:#211F1D;--ink:#EDEBE6;--muted:#A19E96;--line:#3A3834;--accent:#F2C230;--accent-ink:#2A2000;--danger:#F2B8B5;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#161615;--panel:#211F1D;--ink:#EDEBE6;--muted:#A19E96;--line:#3A3834;--accent:#F2C230;--accent-ink:#2A2000;--danger:#F2B8B5;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--panel:#211F1D;--ink:#EDEBE6;--muted:#A19E96;--line:#3A3834;--accent:#F2C230;--accent-ink:#2A2000;--knight:#F2C230;--danger:#F2B8B5;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161615;--panel:#211F1D;--ink:#EDEBE6;--muted:#A19E96;--line:#3A3834;--accent:#F2C230;--accent-ink:#2A2000;--knight:#F2C230;--danger:#F2B8B5;color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.55}
-.wrap{max-width:1080px;margin:0 auto;padding-block:28px 40px;padding-inline:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:start}
-@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
 h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px;text-wrap:balance}
 .lede{color:var(--muted);margin:0 0 22px;max-width:60ch}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:16px}
-label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
 textarea,input[type=text],select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
 textarea{font-family:var(--font-mono);font-size:14px;min-height:92px;resize:vertical}
 textarea:focus,input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -62,122 +61,292 @@ button{font:inherit;font-weight:700;border-radius:999px;padding:10px 20px;border
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 button:disabled{opacity:.5;cursor:default}
 .err{color:var(--danger);font-size:14px;margin:0;min-height:1em}
-.stage{display:grid;gap:10px;justify-items:center}
 /* --ar (width/height) and --ch (preferred height) follow the chosen aspect ratio; never wider than the page */
-canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var(--ar)));aspect-ratio:var(--ar);max-width:100%;border-radius:18px;background:#ddd;display:block}
+canvas{--ar:.5625;--ch:720px;height:min(max(calc(100vh - 250px),380px),var(--ch),calc((100vw - 32px) / var(--ar)));aspect-ratio:var(--ar);max-width:100%;border-radius:18px;background:#ddd;display:block}
 .scrub{width:100%;display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+/* ---------- app layout: header, sticky preview on the left, tabbed settings on the right ---------- */
+.app{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.top h1{margin:0;font-size:22px}
+.top .lede{margin:0;font-size:14px}
+.wrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:32px;align-items:start}
+.stage{position:sticky;top:16px;display:grid;gap:10px;justify-items:center}
+.stage > :not(.screen){width:100%}
+.stage .err,.stage .hint{margin:0}
+.stage .keys{font-size:12px;text-align:center}
+.actions{display:flex;gap:10px}
+.actions button{flex:1}
+@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}.stage{position:static}}
+.controls{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 20px 16px;min-width:0}
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 -20px 20px;padding:0 12px}
+.tabs button{border:0;border-radius:0;background:none;padding:14px 12px 12px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:hover{color:var(--ink)}
+.pane{display:grid;gap:28px}
+.pane[hidden]{display:none}
+.group{display:grid;gap:14px}
+.group h3{margin:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field{min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px}
+.labelrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+.labelrow label{margin:0}
+select.compact{width:auto;max-width:60%;padding:5px 10px;font-size:13px}
+/* "more" sections: the rarely touched settings, closed by default */
+details.more{border-top:1px solid var(--line);padding-top:14px;margin-top:-8px}
+details.more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"";width:6px;height:6px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(-45deg);transition:transform .15s}
+details.more[open] summary::before{transform:rotate(45deg)}
+details.more summary:hover{color:var(--ink)}
+details.more > div{display:grid;gap:14px;margin-top:14px}
+.foot{display:flex;justify-content:flex-end;margin-top:18px}
+button.link{border:0;background:none;padding:4px 0;font-weight:500;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+button.link:hover{color:var(--ink)}
+button.link.confirm{color:var(--danger)}
+/* segmented control drawn over a hidden select (data-seg): the select keeps the value */
+.seg{display:flex;gap:4px;padding:3px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.seg button{flex:1 1 0;min-width:0;border:0;border-radius:7px;padding:7px 8px;font-size:13px;font-weight:600;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.3}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(0,0,0,.18)}
+.seg small{font-size:11px;font-weight:400;color:var(--muted)}
+.seg .ar{display:block;height:20px;margin-bottom:3px;border:1.5px solid currentColor;border-radius:3px}
+.seg.swatch{background:none;border:0;padding:4px 0;gap:10px}
+.seg.swatch button{flex:none;width:34px;height:34px;padding:0;border-radius:50%;border:2px solid transparent;box-shadow:none;background:none}
+.seg.swatch button.on{border-color:var(--ink)}
+.seg.swatch i{display:block;width:100%;height:100%;border-radius:50%;border:1px solid var(--line);background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%)}
+/* on/off switch: a select with data-seg="switch", or a checkbox with class sw */
+.swrow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:34px}
+.swrow label,label.swrow{margin:0;font-size:14px;font-weight:500;color:var(--ink)}
+label.swrow{cursor:pointer}
+button.switch,input.sw{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:42px;height:24px;margin:0;padding:0;border:0;border-radius:12px;background:var(--line);cursor:pointer;transition:background .15s}
+button.switch::after,input.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
+button.switch[aria-checked="true"],input.sw:checked{background:var(--accent)}
+button.switch[aria-checked="true"]::after,input.sw:checked::after{transform:translateX(18px)}
+input.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* file pickers */
+input[type=file]{width:100%;font-size:13px;color:var(--muted)}
+input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radius:999px;padding:7px 14px;margin-right:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+/* brand: the golden knight. one shape (#knight in the sprite) serves the logo, the loader and the empty state */
+.logo{width:40px;height:40px;flex:none;border-radius:11px;background:#1E1E1C;color:var(--accent);--knight-shade:#C98E14;padding:4px 4px 4px 5px}
+.logo svg{width:100%;height:100%;display:block}
+/* L-hop loader: the knight tours the 8 outer squares of a 3x3 board, one knight move per step */
+.kload{--s:10px;position:relative;display:inline-block;width:calc(var(--s) * 3);height:calc(var(--s) * 3);flex:none;vertical-align:middle;border-radius:3px;
+  background:conic-gradient(var(--line) 25%,transparent 0 50%,var(--line) 0 75%,transparent 0) 0 0/calc(var(--s) * 2) calc(var(--s) * 2)}
+.kload svg{position:absolute;left:0;top:0;width:var(--s);height:var(--s);color:var(--knight);animation:ktour 2.4s infinite}
+@keyframes ktour{
+  0%,8%{transform:translate(0,0);scale:1}
+  10.25%{transform:translate(0,200%);scale:1.3}
+  12.5%,20.5%{transform:translate(100%,200%);scale:1}
+  22.75%{transform:translate(100%,0);scale:1.3}
+  25%,33%{transform:translate(200%,0);scale:1}
+  35.25%{transform:translate(0,0);scale:1.3}
+  37.5%,45.5%{transform:translate(0,100%);scale:1}
+  47.75%{transform:translate(200%,100%);scale:1.3}
+  50%,58%{transform:translate(200%,200%);scale:1}
+  60.25%{transform:translate(200%,0);scale:1.3}
+  62.5%,70.5%{transform:translate(100%,0);scale:1}
+  72.75%{transform:translate(100%,200%);scale:1.3}
+  75%,83%{transform:translate(0,200%);scale:1}
+  85.25%{transform:translate(200%,200%);scale:1.3}
+  87.5%,95.5%{transform:translate(200%,100%);scale:1}
+  97.75%{transform:translate(0,100%);scale:1.3}
+  100%{transform:translate(0,0);scale:1}}
+.loading{display:inline-flex;align-items:center;gap:10px}
+/* export progress under the preview: the knight rides the bar */
+.expbar{width:100%;display:grid;gap:8px;font-size:13px;color:var(--muted)}
+.expbar[hidden]{display:none}
+.expbar .track{position:relative;height:6px;border-radius:3px;background:var(--line);margin:8px 9px 4px}
+.expbar .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:3px;background:var(--accent);transition:width .2s}
+.expbar .rider{position:absolute;top:50%;left:0;width:18px;height:18px;margin:-13px 0 0 -9px;color:var(--ink);transition:left .2s}
+.expbar .rider.hop{animation:hop .2s}
+@keyframes hop{50%{transform:translateY(-5px)}}
+/* empty state over the preview while the moves box holds no moves */
+.screen{position:relative}
+.empty{position:absolute;inset:0;border-radius:18px;display:grid;place-content:center;justify-items:center;gap:10px;padding:24px;text-align:center;background:var(--panel);border:1px dashed var(--line)}
+.empty[hidden]{display:none}
+.empty svg{width:80px;height:80px;color:var(--muted);opacity:.55}
+.empty h2{font-size:18px;margin:6px 0 0}
+.empty p{margin:0;color:var(--muted);font-size:14px;max-width:26ch}
+.empty .btns{justify-content:center;margin-top:6px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}.kload svg{animation-duration:9.6s}.expbar .rider.hop{animation:none}}
 </style>
 
+<!-- the knight: an armoured warhorse head (blade mane, slanted eye, gorget band) on a chess base; cuts are evenodd holes.
+     the mane takes --knight-shade (a darker gold on the logo) and falls back to the plain colour -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="knight" viewBox="0 0 100 100">
+    <path fill-rule="evenodd" style="fill:currentColor" d="M28 92C36 90 40 85 39 78C38 70 41 64 46 58L30 64 16 64 12 60 22 57 10 56 8 52 12 44 40 18 52 2 52 16 64 4 62 18 80 14 70 26 90 28 78 38 94 46 82 52 94 64 84 68 84 92ZM26 38L46 26 43 35ZM22 51Q36 58 46 52Q36 55 22 51ZM60 22Q70 44 64 72Q66 46 58 26ZM13 48L20 45.5 18.5 49ZM42.5 81L84 79 84 84 42 86Z"/>
+    <path style="fill:var(--knight-shade,currentColor)" d="M62 18L80 14 70 26 90 28 78 38 94 46 82 52 94 64 84 68 64 72Q70 44 60 22Z"/>
+    <rect style="fill:currentColor" x="20" y="94" width="70" height="5" rx="1.5"/>
+  </symbol>
+</svg>
+<div class="app">
+<header class="top">
+  <span class="logo"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span>
+  <div><h1>Chess Move Studio</h1><p class="lede">Dựng video nước cờ kiểu TikTok ngay trong trình duyệt.</p></div>
+</header>
 <div class="wrap">
-  <div>
-    <h1>Chess Move Studio</h1>
-    <p class="lede">Dựng video nước cờ 9:16 kiểu TikTok: camera bám quân, quân nảy và nghiêng, ô đích phát sáng, huy hiệu đánh giá bật lên. Xuất video rồi đăng kèm nhạc.</p>
-    <div class="panel">
-      <div>
-        <label for="sample">Ván mẫu</label>
-        <select id="sample"><option value="">Chọn ván mẫu để điền sẵn…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov, Wijk aan Zee 1999 (24.Rxd4!!)</option></select>
+  <!-- the preview stays in view while the settings scroll; play and export sit right under it -->
+  <div class="stage">
+    <div class="screen">
+      <canvas id="cv" width="1080" height="1920" aria-label="Xem trước video nước cờ"></canvas>
+      <div class="empty" id="empty" hidden>
+        <svg aria-hidden="true"><use href="#knight"/></svg>
+        <h2>Chưa có ván cờ</h2>
+        <p>Dán ván cờ hoặc link Lichess để bắt đầu.</p>
+        <div class="btns"><button class="primary" type="button" id="emptysample">Thử ván mẫu</button><button type="button" id="emptylink">Dán link Lichess</button></div>
       </div>
-      <div>
+    </div>
+    <div class="scrub"><span id="tcur">0.0s</span><input type="range" id="scrub" min="0" max="10" step="0.01" value="0" aria-label="Tua video"><span id="tdur">0.0s</span></div>
+    <div class="actions">
+      <button id="play" type="button">Phát xem trước</button>
+      <button class="primary" id="rec" type="button">Xuất video</button>
+    </div>
+    <div class="swrow"><label for="recmusic">Kèm nhạc trong video</label><select id="recmusic" data-seg="switch"><option value="with">Kèm nhạc</option><option value="without">Không nhạc (gắn sound trên TikTok)</option></select></div>
+    <div class="expbar" id="expbar" hidden>
+      <span class="loading"><span class="kload"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span><span id="exptext">Đang dựng video…</span></span>
+      <div class="track" id="exptrack"><div class="fill" id="expfill"></div><svg class="rider" id="exprider" fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></div>
+    </div>
+    <p class="err" id="err" role="status"></p>
+    <p class="hint" id="recnote">Xuất file .mp4 60fps. Dùng Chrome hoặc Edge trên máy tính.</p>
+    <p class="hint keys">Bấm vào video hoặc Space để phát/dừng · ← → tua 1 giây</p>
+  </div>
+
+  <div class="controls">
+    <div class="tabs" role="tablist" aria-label="Cài đặt">
+      <button type="button" role="tab" id="tab-game" aria-controls="pane-game" aria-selected="true">Ván cờ</button>
+      <button type="button" role="tab" id="tab-look" aria-controls="pane-look" aria-selected="false" tabindex="-1">Hình ảnh</button>
+      <button type="button" role="tab" id="tab-sound" aria-controls="pane-sound" aria-selected="false" tabindex="-1">Âm thanh</button>
+    </div>
+
+    <section class="pane" id="pane-game" role="tabpanel" aria-labelledby="tab-game">
+      <div class="field">
         <label for="glink">Lấy ván từ Lichess</label>
         <div class="linkrow"><input type="text" id="glink" spellcheck="false" placeholder="https://lichess.org/abcd1234"><button id="gload" type="button">Tải ván</button></div>
-        <p class="hint" id="glinknote">Dán link ván hoặc chương nghiên cứu trên Lichess. Ván Chess.com: bấm Share → PGN → Copy PGN rồi dán thẳng vào ô Nước đi. Ký hiệu đánh giá trong PGN (<code>??</code>, <code>$3</code>…) tự thành huy hiệu.</p>
+        <p class="hint" id="glinknote">Dán link ván hoặc chương nghiên cứu. Ván Chess.com: Share → PGN → dán vào ô Nước đi.</p>
       </div>
-      <div>
-        <label for="moves">Nước đi</label>
+      <div class="field">
+        <div class="labelrow">
+          <label for="moves">Nước đi</label>
+          <select id="sample" class="compact" aria-label="Ván mẫu"><option value="">Ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999 (24.Rxd4!!)</option></select>
+        </div>
         <textarea id="moves" spellcheck="false">e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7</textarea>
-        <p class="hint">Gõ hoặc dán nước đi kiểu <code>e4 e5 Nf3</code>, rồi bấm vào một nước bên dưới để gắn huy hiệu, chọn nước bắt đầu dựng chuyển động, hoặc chọn ô bị tấn công.</p>
+        <p class="hint">Gõ hoặc dán nước đi, rồi bấm vào một nước bên dưới để gắn huy hiệu, chọn nước bắt đầu dựng, hoặc chọn ô bị tấn công.</p>
         <div class="movelist" id="movelist" hidden></div>
         <div class="mvedit" id="mvedit" hidden></div>
         <p class="hint" id="movewarn" style="color:var(--danger)"></p>
-        <details class="syntax">
-          <summary>Cú pháp gõ tay</summary>
-          <p class="hint">Phần trước dấu <code>|</code> được xếp sẵn, phần sau mới được dựng chuyển động. Thêm ký hiệu sau nước để gắn huy hiệu:</p>
-          <div class="legend" id="legend"></div>
-          <p class="hint">Ghi mục tiêu trong ngoặc nhọn ngay sau nước để vẽ dải tấn công: <code>Nf5{f7,h6}</code>, <code>Qh5!{f7}</code>; <code>Nf5{}</code> để không vẽ dải. Nước chiếu tự vẽ dải tới Vua.</p>
-        </details>
       </div>
-      <div>
-        <label for="fen">Thế cờ bắt đầu (FEN, để trống = thế ban đầu)</label>
-        <input type="text" id="fen" spellcheck="false" placeholder="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1">
-      </div>
-      <div>
-        <label for="nplies">Số nước dựng chuyển động (0 = tất cả)</label>
-        <input type="text" id="nplies" inputmode="numeric" value="0">
-        <p class="hint" id="npliesnote">Mỗi lần một bên đi quân tính là 1 nước. Video dựng các nước cuối ván, các nước trước đó được xếp sẵn lên bàn.</p>
-      </div>
-      <div class="row">
-        <div><label for="orient">Mình cầm quân (nằm phía dưới)</label><select id="orient"><option value="auto">Tự động (bên đi nước !!)</option><option value="w">Trắng</option><option value="b">Đen</option></select>
-          <div class="btns" style="margin-top:8px"><button id="swaprole" type="button">Đổi vai</button></div><p class="hint" id="rolenote"></p></div>
-        <div><label for="aspect">Tỉ lệ khung hình</label><select id="aspect"><option value="9:16">9:16 · TikTok, Reels, Shorts</option><option value="4:5">4:5 · Instagram</option><option value="1:1">1:1 · Vuông</option><option value="16:9">16:9 · YouTube</option></select></div>
-        <div><label for="oppcam">Camera khi bên kia đi</label><select id="oppcam"><option value="fit">Lùi vừa đủ thấy nước đi</option><option value="wide">Lùi ra toàn bàn</option><option value="still">Đứng yên (như cũ)</option></select></div>
-        <div><label for="theme">Màu bàn cờ</label><select id="theme"><option value="gray">Trắng xám</option><option value="green">Xanh lá</option><option value="brown">Nâu gỗ</option><option value="blue">Xanh xám</option></select></div>
-        <div><label for="zoom">Độ zoom: <span id="zoomv">5</span> ô</label><input type="range" id="zoom" min="3.5" max="8" step="0.5" value="5"></div>
-        <div><label for="speed">Tốc độ: <span id="speedv">1.0</span>x</label><input type="range" id="speed" min="0.5" max="1.8" step="0.1" value="1"></div>
-        <div><label for="mspeed">Tốc độ đi quân: <span id="mspeedv">1.0</span>x</label><input type="range" id="mspeed" min="0.5" max="2.5" step="0.1" value="1"></div>
-        <div><label for="accel">Nhiều nước thì tăng tốc phần đầu</label><select id="accel"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
-      </div>
-      <div>
-        <div class="btns" style="gap:18px">
-          <label class="check"><input type="checkbox" id="clane" checked> Dải tấn công</label>
-          <label class="check"><input type="checkbox" id="lbounce" checked> Quân bị tấn công nảy lên</label>
-          <label class="check"><input type="checkbox" id="lfork" checked> Chữ FORK</label>
+      <details class="more">
+        <summary>Nâng cao</summary>
+        <div>
+          <div class="field">
+            <label for="fen">Thế cờ bắt đầu (FEN, để trống = thế ban đầu)</label>
+            <input type="text" id="fen" spellcheck="false" placeholder="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1">
+          </div>
+          <div class="field">
+            <label for="nplies">Chỉ dựng N nước cuối (0 = tất cả)</label>
+            <input type="text" id="nplies" inputmode="numeric" value="0">
+            <p class="hint" id="npliesnote">Mỗi lần một bên đi quân tính là 1 nước. Các nước trước đó được xếp sẵn lên bàn.</p>
+          </div>
+          <div class="field">
+            <label>Cú pháp gõ tay</label>
+            <p class="hint">Phần trước dấu <code>|</code> được xếp sẵn, phần sau mới được dựng chuyển động. Thêm ký hiệu sau nước để gắn huy hiệu:</p>
+            <div class="legend" id="legend"></div>
+            <p class="hint">Ghi mục tiêu trong ngoặc nhọn ngay sau nước để vẽ dải tấn công: <code>Nf5{f7,h6}</code>, <code>Qh5!{f7}</code>; <code>Nf5{}</code> để không vẽ dải. Nước chiếu tự vẽ dải tới Vua.</p>
+          </div>
         </div>
-        <p class="hint">Các ô từ quân tấn công tới mục tiêu lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Mục tiêu là các ô ghi trong <code>{}</code>, hoặc Vua khi bị chiếu. Từ 2 dải trở lên là FORK. Không áp dụng ở nước !!.</p>
-      </div>
-      <div class="row">
-        <div><label for="title">Chữ phía trên</label><input type="text" id="title" value="Bẫy Blackburne Shilling"></div>
-        <div><label for="handle">Tên kênh phía dưới</label><input type="text" id="handle" value="@pNam1802"></div>
-        <div><label for="brsub">Chữ phụ khi thiên tài</label><input type="text" id="brsub" value="IN KNIGHT OPENING"></div>
-      </div>
-      <div class="row">
-        <div><label for="brstyle">Kiểu cảnh Brilliant</label><select id="brstyle"><option value="aura">Aura (quân xoáy chậm trên bàn rồi đập xuống)</option><option value="classic">Cổ điển (thẻ BRILLIANT MOVE)</option></select></div>
-        <div><label for="clipfile">Âm thanh chèn (lấy tiếng từ video hoặc file nhạc)</label><input type="file" id="clipfile" accept="video/*,audio/*"></div>
-        <div><label for="sndin">Từ giây</label><input type="text" id="sndin" inputmode="decimal" value="0"></div>
-        <div><label for="sndout">Đến giây (trống = hết)</label><input type="text" id="sndout" inputmode="decimal" value=""></div>
-        <div><label for="clipvol">Âm lượng: <span id="clipvolv">100</span>%</label><input type="range" id="clipvol" min="0" max="200" step="10" value="100"></div>
-      </div>
-      <p class="hint" id="clipnote" style="margin-top:-8px"></p>
-      <div class="row">
-        <div><label for="hold">Mở đầu toàn bàn: <span id="holdv">1.5</span>s</label><input type="range" id="hold" min="0" max="4" step="0.5" value="1.5"></div>
-        <div><label for="sound">Tiếng quân cờ</label><select id="sound"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
-        <div><label for="vol">Âm lượng: <span id="volv">200</span>%</label><input type="range" id="vol" min="50" max="400" step="25" value="200"></div>
-      </div>
-      <div class="row">
-        <div><label for="sndmove">File tiếng đi quân</label><input type="file" id="sndmove" accept="audio/*"></div>
-        <div><label for="sndcap">File tiếng ăn quân</label><input type="file" id="sndcap" accept="audio/*"></div>
-      </div>
-      <p class="hint" id="sndnote"></p>
-      <div>
-        <label>Khớp nhạc</label>
-        <div class="row">
-          <div><label for="sync">Chế độ</label><select id="sync"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
-          <div><label for="songfile">File nhạc</label><input type="file" id="songfile" accept="audio/*,video/*"></div>
+      </details>
+    </section>
+
+    <section class="pane" id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden>
+      <div class="group">
+        <h3>Khung hình</h3>
+        <div class="field"><label for="aspect">Tỉ lệ</label><select id="aspect" data-seg="aspect"><option value="9:16" data-sub="TikTok">9:16</option><option value="4:5" data-sub="Instagram">4:5</option><option value="1:1" data-sub="Vuông">1:1</option><option value="16:9" data-sub="YouTube">16:9</option></select></div>
+        <div class="field"><label for="orient">Mình cầm quân (nằm phía dưới)</label><select id="orient" data-seg><option value="auto" data-sub="bên đi !!">Tự động</option><option value="w">Trắng</option><option value="b">Đen</option></select>
+          <button id="swaprole" type="button" hidden>Đổi vai</button><p class="hint" id="rolenote"></p></div>
+        <div class="grid2">
+          <div class="field"><label for="theme">Màu bàn cờ</label><select id="theme" data-seg="swatch"><option value="gray">Trắng xám</option><option value="green">Xanh lá</option><option value="brown">Nâu gỗ</option><option value="blue">Xanh xám</option></select></div>
+          <div class="field"><label for="zoom">Độ zoom: <span id="zoomv">5</span> ô</label><input type="range" id="zoom" min="3.5" max="8" step="0.5" value="5"></div>
         </div>
-        <div class="row" style="margin-top:12px">
-          <div><label for="drop">Cao trào ở giây</label><input type="text" id="drop" inputmode="decimal" value="16.875"></div>
-          <div><label for="bpm">BPM</label><input type="text" id="bpm" inputmode="decimal" value="112.35"></div>
-          <div><label for="mvol">Âm lượng nhạc: <span id="mvolv">80</span>%</label><input type="range" id="mvol" min="0" max="150" step="5" value="80"></div>
+      </div>
+      <div class="group">
+        <h3>Chữ trên video</h3>
+        <div class="grid2">
+          <div class="field"><label for="title">Chữ phía trên</label><input type="text" id="title" value="Bẫy Blackburne Shilling"></div>
+          <div class="field"><label for="handle">Tên kênh phía dưới</label><input type="text" id="handle" value="@pNam1802"></div>
         </div>
-        <div class="btns" style="margin-top:12px"><button id="finddrop">Tự tìm cao trào</button></div>
+      </div>
+      <div class="group">
+        <h3>Cảnh Brilliant (nước !!)</h3>
+        <div class="field"><label for="brstyle">Kiểu cảnh</label><select id="brstyle" data-seg><option value="aura" data-sub="quân xoáy chậm rồi đập xuống">Aura</option><option value="classic" data-sub="thẻ BRILLIANT MOVE">Cổ điển</option></select></div>
+        <div class="field"><label for="brsub">Chữ phụ</label><input type="text" id="brsub" value="IN KNIGHT OPENING"></div>
+      </div>
+      <details class="more">
+        <summary>Camera, tốc độ và hiệu ứng</summary>
+        <div>
+          <div class="field"><label for="oppcam">Camera khi bên kia đi</label><select id="oppcam"><option value="fit">Lùi vừa đủ thấy nước đi</option><option value="wide">Lùi ra toàn bàn</option><option value="still">Đứng yên (như cũ)</option></select></div>
+          <div class="grid2">
+            <div class="field"><label for="speed">Tốc độ: <span id="speedv">1.0</span>x</label><input type="range" id="speed" min="0.5" max="1.8" step="0.1" value="1"></div>
+            <div class="field"><label for="mspeed">Tốc độ đi quân: <span id="mspeedv">1.0</span>x</label><input type="range" id="mspeed" min="0.5" max="2.5" step="0.1" value="1"></div>
+            <div class="field"><label for="hold">Mở đầu toàn bàn: <span id="holdv">1.5</span>s</label><input type="range" id="hold" min="0" max="4" step="0.5" value="1.5"></div>
+          </div>
+          <div class="swrow"><label for="accel">Nhiều nước thì tăng tốc phần đầu</label><select id="accel" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+          <label class="swrow"><span>Dải tấn công</span><input type="checkbox" class="sw" id="clane" checked></label>
+          <label class="swrow"><span>Quân bị tấn công nảy lên</span><input type="checkbox" class="sw" id="lbounce" checked></label>
+          <label class="swrow"><span>Chữ FORK khi đánh 2 quân</span><input type="checkbox" class="sw" id="lfork" checked></label>
+          <p class="hint">Dải tấn công: các ô từ quân vừa đi tới mục tiêu lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Không áp dụng ở nước !!.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="pane" id="pane-sound" role="tabpanel" aria-labelledby="tab-sound" hidden>
+      <div class="group">
+        <h3>Nhạc nền</h3>
+        <div class="field"><label for="songfile">File nhạc</label><input type="file" id="songfile" accept="audio/*,video/*"></div>
+        <div class="field"><label for="mvol">Âm lượng nhạc: <span id="mvolv">80</span>%</label><input type="range" id="mvol" min="0" max="150" step="5" value="80"></div>
+        <div class="swrow"><label for="sync">Khớp nước đi theo nhịp nhạc</label><select id="sync" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="btns"><button id="finddrop" type="button">Tự tìm cao trào</button></div>
         <p class="hint" id="syncinfo"></p>
       </div>
-      <div><label for="trim">Phần không có nhạc</label><select id="trim"><option value="cut">Cắt bỏ</option><option value="keep">Giữ lại</option></select></div>
-      <div><label for="recmusic">Khi xuất video</label><select id="recmusic"><option value="with">Kèm nhạc</option><option value="without">Không nhạc (gắn sound trên TikTok)</option></select></div>
-      <p class="err" id="err" role="status"></p>
-      <div class="btns">
-        <button class="primary" id="play">Phát xem trước</button>
-        <button id="rec">Xuất video</button>
-        <button id="resetcfg" type="button">Về mặc định</button>
+      <div class="group">
+        <h3>Tiếng quân cờ</h3>
+        <div class="swrow"><label for="sound">Tiếng đi quân, ăn quân</label><select id="sound" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="field"><label for="vol">Âm lượng: <span id="volv">200</span>%</label><input type="range" id="vol" min="50" max="400" step="25" value="200"></div>
       </div>
-      <p class="hint" id="recnote">Xuất video dựng từng khung hình (60fps) rồi tự tải file .mp4 về, máy chậm cũng không giật. Hãy mở trang này bằng Chrome hoặc Edge trên máy tính.</p>
-    </div>
+      <details class="more">
+        <summary>Nhịp nhạc và file tiếng riêng</summary>
+        <div>
+          <div class="grid2">
+            <div class="field"><label for="drop">Cao trào ở giây</label><input type="text" id="drop" inputmode="decimal" value="16.875"></div>
+            <div class="field"><label for="bpm">BPM</label><input type="text" id="bpm" inputmode="decimal" value="112.35"></div>
+          </div>
+          <div class="swrow"><label for="trim">Cắt phần không có nhạc</label><select id="trim" data-seg="switch"><option value="cut">Cắt bỏ</option><option value="keep">Giữ lại</option></select></div>
+          <div class="grid2">
+            <div class="field"><label for="sndmove">File tiếng đi quân</label><input type="file" id="sndmove" accept="audio/*"></div>
+            <div class="field"><label for="sndcap">File tiếng ăn quân</label><input type="file" id="sndcap" accept="audio/*"></div>
+          </div>
+          <p class="hint" id="sndnote"></p>
+        </div>
+      </details>
+      <details class="more">
+        <summary>Âm thanh chèn từ video</summary>
+        <div>
+          <div class="field"><label for="clipfile">File video hoặc nhạc để lấy tiếng</label><input type="file" id="clipfile" accept="video/*,audio/*"></div>
+          <div class="grid3">
+            <div class="field"><label for="sndin">Từ giây</label><input type="text" id="sndin" inputmode="decimal" value="0"></div>
+            <div class="field"><label for="sndout">Đến giây</label><input type="text" id="sndout" inputmode="decimal" value="" placeholder="hết"></div>
+            <div class="field"><label for="clipvol">Âm lượng: <span id="clipvolv">100</span>%</label><input type="range" id="clipvol" min="0" max="200" step="10" value="100"></div>
+          </div>
+          <p class="hint" id="clipnote"></p>
+        </div>
+      </details>
+    </section>
+
+    <div class="foot"><button type="button" class="link" id="resetcfg">Về mặc định</button></div>
   </div>
-  <div class="stage">
-    <canvas id="cv" width="1080" height="1920" aria-label="Xem trước video nước cờ"></canvas>
-    <div class="scrub"><span id="tcur">0.0s</span><input type="range" id="scrub" min="0" max="10" step="0.01" value="0" aria-label="Tua video"><span id="tdur">0.0s</span></div>
-    <p class="hint" style="margin:0;text-align:center">Bấm vào video hoặc phím Space để phát/dừng · kéo thanh để tua · phím ← → tua 1 giây</p>
-  </div>
+</div>
 </div>
 
 <script>/* mp4-muxer 5.1.3, MIT License, Copyright (c) 2023 Vanilagy, https://github.com/Vanilagy/mp4-muxer */
@@ -3833,6 +4002,8 @@ function rebuild() {
   try { buildClip(); $('err').textContent = ''; render(Math.min(cur, clip.dur)); }
   catch (e) { $('err').textContent = e.message; }
   renderMoves();
+  updateEmpty();
+  syncSegs();
   saveSettings();   // also catches values the page sets itself (swap role, drop finder)
 }
 // audio is scheduled START_LEAD ahead; the picture clock is pushed back by the same lead, plus the speaker
@@ -3857,7 +4028,7 @@ async function audioReady() {
 }
 
 async function togglePlay() {
-  if (recorder) return;
+  if (recorder || !clip) return;   // no clip yet: the moves box was empty from the start
   if (playing) { playing = false; stopMusic(); syncUI(); return; }
   rebuild(); if (!clip) return;
   await audioReady();
@@ -3992,7 +4163,7 @@ async function exportOffline(withSound, withMusic) {
     ...(acfg ? {audio: {codec: acfg.codec === 'opus' ? 'opus' : 'aac', numberOfChannels: 2, sampleRate: SR}} : {})
   });
   let failed = null;
-  const progress = k => { $('rec').textContent = 'Đang dựng ' + Math.floor(k * 100) + '%'; };
+  const progress = k => { $('rec').textContent = 'Đang dựng ' + Math.floor(k * 100) + '%'; showExport('Đang dựng video ' + Math.floor(k * 100) + '%', k); };
   if (acfg) {
     progress(0);
     const buf = await renderAudio(withSound, withMusic);
@@ -4027,7 +4198,7 @@ async function exportOffline(withSound, withMusic) {
 }
 
 $('rec').onclick = async () => {
-  if (recorder) return;
+  if (recorder || !clip) return;
   await audioReady();
   rebuild(); if (!clip || recorder) return;
   if (playing) { playing = false; stopMusic(); }
@@ -4041,10 +4212,11 @@ $('rec').onclick = async () => {
   // a stand-in recorder locks the timeline and the buttons while the offline export runs
   recorder = {stop() {}};
   $('rec').disabled = true;
+  showExport('Đang chuẩn bị…', 0);
   let done = false;
   try { done = await exportOffline(withSound, withMusic); }
   catch (e) { $('err').textContent = 'Xuất video bị lỗi: ' + (e && e.message || e); done = true; }
-  finally { recorder = null; $('rec').disabled = false; $('rec').textContent = 'Xuất video'; syncUI(); }
+  finally { recorder = null; $('rec').disabled = false; $('rec').textContent = 'Xuất video'; syncUI(); showExport(null); }
   if (done) return;
   // fallback: record the live playback in real time
   if (!window.MediaRecorder || !cv.captureStream) { $('err').textContent = 'Trình duyệt này không hỗ trợ xuất video. Hãy dùng Chrome hoặc Edge trên máy tính.'; return; }
@@ -4061,16 +4233,101 @@ $('rec').onclick = async () => {
   recorder.onstop = () => {
     const ext = mime.includes('mp4') ? 'mp4' : 'webm';
     saveFile(new Blob(chunks, {type: mime || 'video/webm'}), 'chess-edit.' + ext);
-    recorder = null; $('rec').disabled = false; $('rec').textContent = 'Xuất video';
+    recorder = null; $('rec').disabled = false; $('rec').textContent = 'Xuất video'; showExport(null);
     $('recnote').textContent = 'Đã xuất file chess-edit.' + ext + '.' + (ext === 'webm' ? ' TikTok nhận .webm qua bản web; nếu cần .mp4, đổi định dạng bằng công cụ chuyển đổi bất kỳ.' : '');
   };
-  $('rec').disabled = true; $('rec').textContent = 'Đang ghi…';
+  $('rec').disabled = true; $('rec').textContent = 'Đang ghi…'; showExport('Đang ghi theo thời gian thực…');
   render(clip.from);
   // start playback and recording in the same tick so the video and audio tracks share one time origin.
   // "without music" exports keep the song out of the file; it does not play at all during the recording
   if (withMusic) start(clip.from, true); else { start(clip.from); stopMusic(); }
   recorder.start(200);
 };
+
+// ---------- knight loader, export progress, empty state ----------
+const KNIGHT_SVG = '<svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg>';
+const loadingHTML = text => '<span class="loading"><span class="kload">' + KNIGHT_SVG + '</span><span>' + text + '</span></span>';
+// k = 0..1 moves the knight along the bar; no k (real-time recording) hides the bar and keeps the loader; null hides it all
+function showExport(text, k) {
+  const bar = $('expbar');
+  if (text === null) { bar.hidden = true; return; }
+  bar.hidden = false; $('exptext').textContent = text;
+  $('exptrack').hidden = k === undefined;
+  if (k === undefined) return;
+  const pct = (clamp(k) * 100).toFixed(1) + '%', r = $('exprider');
+  if (r.style.left !== pct) { r.classList.remove('hop'); void r.offsetWidth; r.classList.add('hop'); }
+  r.style.left = pct; $('expfill').style.width = pct;
+}
+// the moves box holds no moves at all (an invalid move still counts as moves: that error stays visible)
+function updateEmpty() {
+  const empty = !cleanPgn($('moves').value).text.replace(/\|/g, '').trim();
+  $('empty').hidden = !empty;
+  if (empty) $('err').textContent = $('movewarn').textContent = '';
+}
+$('emptysample').onclick = () => { $('sample').value = 'blackburne'; $('sample').dispatchEvent(new Event('change')); };
+$('emptylink').onclick = () => { openTab($('tab-game')); $('glink').scrollIntoView({block: 'center', behavior: 'smooth'}); $('glink').focus({preventScroll: true}); };
+
+// ---------- settings UI: segmented buttons and switches over hidden selects, tabs ----------
+// a select marked data-seg stays the value holder (saved, read by the clip); the buttons only set it and
+// fire the same input/change events a real pick would. data-seg="switch" = on/off between its two options
+function buildSeg(sel) {
+  const kind = sel.dataset.seg, row = document.createElement('div');
+  const label = document.querySelector('label[for="' + sel.id + '"]');
+  const pick = v => { sel.value = v; ['input', 'change'].forEach(ev => sel.dispatchEvent(new Event(ev))); syncSegs(); };
+  if (kind === 'switch') {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'switch'; b.setAttribute('role', 'switch');
+    if (label) { label.id = label.id || sel.id + '-lbl'; b.setAttribute('aria-labelledby', label.id); label.onclick = e => { e.preventDefault(); b.click(); }; }
+    b.onclick = () => { if (!sel.disabled) pick(sel.value === sel.options[0].value ? sel.options[1].value : sel.options[0].value); };
+    sel.hidden = true; sel.after(b); sel._seg = b;
+    return;
+  }
+  row.className = 'seg' + (kind ? ' ' + kind : ''); row.setAttribute('role', 'radiogroup');
+  if (label) row.setAttribute('aria-label', label.textContent);
+  for (const o of sel.options) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.v = o.value; b.setAttribute('role', 'radio'); b.title = o.textContent;
+    if (kind === 'swatch') b.innerHTML = '<i style="--a:' + THEMES[o.value].light + ';--b:' + THEMES[o.value].dark + '"></i>';
+    else {
+      const [w, h] = o.value.split(':');
+      b.innerHTML = (kind === 'aspect' ? '<i class="ar" style="aspect-ratio:' + w + '/' + h + '"></i>' : '') + o.textContent +
+        (o.dataset.sub ? '<small>' + o.dataset.sub + '</small>' : '');
+    }
+    row.append(b);
+  }
+  row.onclick = e => { const b = e.target.closest('button'); if (b && !sel.disabled) pick(b.dataset.v); };
+  sel.hidden = true; sel.after(row); sel._seg = row;
+}
+// called after anything sets a select's value in code (saved settings, samples, imports, reset): see rebuild()
+function syncSegs() {
+  document.querySelectorAll('select[data-seg]').forEach(sel => {
+    if (!sel._seg) return;
+    if (sel.dataset.seg === 'switch') { sel._seg.setAttribute('aria-checked', sel.value === sel.options[0].value); return; }
+    sel._seg.querySelectorAll('button').forEach(b => { const on = b.dataset.v === sel.value; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+  });
+}
+document.querySelectorAll('select[data-seg]').forEach(buildSeg);
+syncSegs();
+
+// tabs: arrow keys move between them; the open tab is remembered in this browser
+const TAB_KEY = 'chess-move-studio:tab', tabs = [...document.querySelectorAll('[role=tab]')];
+function openTab(t, focus) {
+  tabs.forEach(x => {
+    const on = x === t;
+    x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1;
+    $(x.getAttribute('aria-controls')).hidden = !on;
+  });
+  if (focus) t.focus();
+  try { localStorage.setItem(TAB_KEY, t.id); } catch {}
+}
+tabs.forEach((t, i) => {
+  t.onclick = () => openTab(t);
+  t.onkeydown = e => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (d) { e.preventDefault(); openTab(tabs[(i + d + tabs.length) % tabs.length], true); }
+  };
+});
+try { const t = $(localStorage.getItem(TAB_KEY)); if (t && tabs.includes(t)) openTab(t); } catch {}
 
 // ---------- sample games ----------
 // picking one fills the moves, title and brilliant subtitle; moves before | are already on the board
@@ -4130,7 +4387,7 @@ $('gload').onclick = async () => {
   if (/chess\.com/i.test(link)) { note.textContent = 'Ván Chess.com chưa tải bằng link được: mở ván, bấm Share → PGN → Copy PGN rồi dán vào ô Nước đi.'; return; }
   const src = lichessSource(link);
   if (!src) { note.textContent = 'Link chưa đúng. Dán link ván dạng lichess.org/abcd1234, hoặc link chương nghiên cứu lichess.org/study/…/….'; return; }
-  $('gload').disabled = true; note.textContent = 'Đang tải ván từ Lichess…';
+  $('gload').disabled = true; note.innerHTML = loadingHTML('Đang tải ván từ Lichess…');
   try {
     const r = await fetch(src.url);
     if (!r.ok) throw new Error(r.status === 404 ? 'Không tìm thấy ván này: link sai hoặc ván/nghiên cứu đang để riêng tư.' : 'Lichess báo lỗi ' + r.status + ', thử lại sau giây lát.');
@@ -4178,14 +4435,23 @@ try {
   }
 } catch {}
 SAVED_IDS.forEach(id => ['input', 'change'].forEach(ev => $(id).addEventListener(ev, saveSettings)));
+// reset asks once: the first click arms it for a few seconds, the second one resets
+let resetArmed = null;
 $('resetcfg').onclick = () => {
   if (recorder) return;
+  const b = $('resetcfg');
+  if (!resetArmed) {
+    b.textContent = 'Bấm lần nữa để xoá mọi cài đặt'; b.classList.add('confirm');
+    resetArmed = setTimeout(() => { resetArmed = null; b.textContent = 'Về mặc định'; b.classList.remove('confirm'); }, 4000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed = null; b.textContent = 'Về mặc định'; b.classList.remove('confirm');
   if (playing) { playing = false; stopMusic(); }
   applySettings(DEFAULTS);
   rebuild(); syncUI();   // rebuild stores the defaults in place of the old settings
 };
 
 // hooks for offline frame rendering
-window.__ready =imgsReady.then(() => document.fonts ? Promise.all([document.fonts.load('900 110px Montserrat'), document.fonts.ready]).catch(() => {}) : null).then(() => { rebuild(); render(0); return clip.dur; });
+window.__ready =imgsReady.then(() => document.fonts ? Promise.all([document.fonts.load('900 110px Montserrat'), document.fonts.ready]).catch(() => {}) : null).then(() => { rebuild(); if (clip) render(0); return clip ? clip.dur : 0; });
 window.__render = t => render(t);
 </script>
