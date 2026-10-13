@@ -32,6 +32,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 label.check{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink);cursor:pointer}
 input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
+.linkrow{display:flex;gap:10px}.linkrow input{flex:1;min-width:0}
 button{font:inherit;font-weight:700;border-radius:999px;padding:10px 20px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 button:disabled{opacity:.5;cursor:default}
@@ -51,6 +52,11 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
       <div>
         <label for="sample">Ván mẫu</label>
         <select id="sample"><option value="">Chọn ván mẫu để điền sẵn…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov, Wijk aan Zee 1999 (24.Rxd4!!)</option></select>
+      </div>
+      <div>
+        <label for="glink">Lấy ván từ Lichess</label>
+        <div class="linkrow"><input type="text" id="glink" spellcheck="false" placeholder="https://lichess.org/abcd1234"><button id="gload" type="button">Tải ván</button></div>
+        <p class="hint" id="glinknote">Dán link ván hoặc chương nghiên cứu trên Lichess. Ván Chess.com: bấm Share → PGN → Copy PGN rồi dán thẳng vào ô Nước đi. Ký hiệu đánh giá trong PGN (<code>??</code>, <code>$3</code>…) tự thành huy hiệu.</p>
       </div>
       <div>
         <label for="moves">Nước đi</label>
@@ -93,6 +99,14 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
         <div><label for="handle">Tên kênh phía dưới</label><input type="text" id="handle" value="@pNam1802"></div>
         <div><label for="brsub">Chữ phụ khi thiên tài</label><input type="text" id="brsub" value="IN KNIGHT OPENING"></div>
       </div>
+      <div class="row">
+        <div><label for="brstyle">Kiểu cảnh Brilliant</label><select id="brstyle"><option value="aura">Aura (quân xoáy chậm trên bàn rồi đập xuống)</option><option value="classic">Cổ điển (thẻ BRILLIANT MOVE)</option></select></div>
+        <div><label for="clipfile">Âm thanh chèn (lấy tiếng từ video hoặc file nhạc)</label><input type="file" id="clipfile" accept="video/*,audio/*"></div>
+        <div><label for="sndin">Từ giây</label><input type="text" id="sndin" inputmode="decimal" value="0"></div>
+        <div><label for="sndout">Đến giây (trống = hết)</label><input type="text" id="sndout" inputmode="decimal" value=""></div>
+        <div><label for="clipvol">Âm lượng: <span id="clipvolv">100</span>%</label><input type="range" id="clipvol" min="0" max="200" step="10" value="100"></div>
+      </div>
+      <p class="hint" id="clipnote" style="margin-top:-8px"></p>
       <div class="row">
         <div><label for="hold">Mở đầu toàn bàn: <span id="holdv">1.5</span>s</label><input type="range" id="hold" min="0" max="4" step="0.5" value="1.5"></div>
         <div><label for="sound">Tiếng quân cờ</label><select id="sound"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
@@ -1933,9 +1947,26 @@ const LANE_FX = {dim: .2, outline: .07, hopLift: .25, hopScale: 1.15,
 // starting at aberrationPx and closing to 0; bloom = strength of the glow around the landed piece;
 // bricks = the tiles around the landing square jump like bricks (the lane hit, stronger and in the brilliant's colour)
 const BRILLIANT_FX = {ramp: .75, impactFrames: 3, aberration: .15, aberrationPx: 18, bloom: .7, bloomBlur: 5, bricks: true};
+// aura style for the brilliant (Kiểu cảnh Brilliant = Aura), all on the board: the piece lifts off its square
+// (liftBeats beats) to `hover` squares above the board, growing to `grow` times its size; it turns in slow motion
+// (`slowSpin` radians/s) while drifting over its target (slowBeats beats at least), then dives onto it, the dive
+// taking `dive` times a normal flight
+const AURA = {liftBeats: 2, slowBeats: 4, hover: 1.4, grow: 1.7, slowSpin: 1.1, dive: .7};
 // motion blur for fast flights: ghosts trail the piece `spacing` seconds apart once it moves faster than minSpeed
 // squares per second
 const MOTION_BLUR = {ghosts: 4, spacing: 1 / 120, minSpeed: 6, alpha: .3};
+
+// ---------- blunder and promotion (stage 3) ----------
+// blunder (??, and ? at `light` strength): the board greys (`gray`) under a red wash (`red`), the moved piece
+// glitches for a long beat (RGB split of `split` squares + sideways jumps up to `jump` squares, seeded per frame),
+// the badge falls in from `drop` squares above and bounces instead of popping up, and a short "fail" sting plays
+// (`sound` = its volume, 0 = off)
+const BLUNDER_FX = {gray: .6, red: .16, split: .08, jump: .12, drop: 1, light: .4, sound: 1};
+// promotion: a white flash on the square while the pawn shrinks away (a short beat), then the new piece pops in
+// (a med beat) inside a soft glow of `glow` colour, `glowSize` squares across
+const PROMO_FX = {flash: .8, glow: '#F5CD3A', glowSize: 1.6};
+// when effects meet on one move: the brilliant (!!) owns its move, nothing else runs on it; otherwise they run one
+// after another from the landing: promotion, then the blunder, then the attack lane, then a checkmate's fall
 let FRAME = ASPECTS['9:16'], W = FRAME.w, H = FRAME.h;
 function applyAspect() {
   const f = ASPECTS[$('aspect').value] || ASPECTS['9:16'];
@@ -2004,9 +2035,25 @@ function motionSeconds(sync, sp) {
 
 // ---------- build the clip from settings ----------
 let clip = null;
+// a pasted PGN is cut down to its moves: tag pairs, comments after a space, variations and the result go,
+// NAGs $1-$6 become the matching badge (a glyph written on the move wins). Tags come back for [FEN], players
+const NAG_GLYPH = {1:'!', 2:'?', 3:'!!', 4:'??', 5:'!?', 6:'?!'};
+function cleanPgn(raw) {
+  const tags = {};
+  let s = raw.replace(/\[\s*(\w+)\s+"((?:[^"\\]|\\.)*)"\s*\]/g, (_, k, v) => { tags[k] = v.replace(/\\(.)/g, '$1'); return ' '; })
+    .replace(/(^|\s)\{[^}]*\}/g, ' ').replace(/(^|\s);[^\n]*/g, ' ');
+  for (let prev; prev !== s; ) { prev = s; s = s.replace(/\([^()]*\)/g, ' '); }
+  for (let prev; prev !== s; ) {
+    prev = s;
+    s = s.replace(/([^\s{}$|]+)(\{[^}]*\})?\s*\$(\d+)/, (_, mv, br, n) => mv + (/[!?]$/.test(mv) ? '' : NAG_GLYPH[n] || '') + (br || ''));
+  }
+  s = s.replace(/\$\d+/g, ' ').replace(/(^|\s)(\d+\.\.\.|1-0|0-1|1\/2-1\/2|\*)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  return {text: s, tags};
+}
+
 function parse() {
-  const text = $('moves').value.trim();
-  const fen = $('fen').value.trim();
+  const {text, tags} = cleanPgn($('moves').value);
+  const fen = $('fen').value.trim() || tags.FEN || '';
   const game = fen ? new Chess(fen) : new Chess();
   if (fen && !game.validate_fen(fen).valid) throw new Error('FEN không hợp lệ.');
   let [pre, main] = text.includes('|') ? text.split('|') : ['', text];
@@ -2022,15 +2069,17 @@ function parse() {
     const m = base.match(/(!!|\?\?|!\?|\?!|!|\?)$/);
     return {san: base.replace(/(!!|\?\?|!\?|\?!|!|\?)$/, ''), ann: m ? m[1] : '', targets: br ? (br[2] ? br[2].toLowerCase().split(',') : []) : null};
   };
+  // the bad move is named with its number, e.g. "14... Nxe4", so it can be found in a long game
+  const bad = tk => { const f = game.fen().split(' '); return new Error('Nước không hợp lệ: ' + f[5] + (f[1] === 'w' ? '. ' : '... ') + tk); };
   for (const tk of toks(pre)) {
-    if (!game.move(split(tk).san, {sloppy:true})) throw new Error('Nước không hợp lệ: ' + tk);
+    if (!game.move(split(tk).san, {sloppy:true})) throw bad(tk);
   }
   const plies = [];
   const boards = [game.board()];
   for (const tk of toks(main)) {
     const {san, ann, targets} = split(tk);
     const mv = game.move(san, {sloppy:true});
-    if (!mv) throw new Error('Nước không hợp lệ: ' + tk);
+    if (!mv) throw bad(tk);
     let badge = BADGES[ann] || null;
     if (!badge && mv.san.includes('#')) badge = BADGES['#'];
     plies.push({mv, badge, targets});
@@ -2163,7 +2212,7 @@ function layout(boost = 1, dropAt = null) {
   let pi = -1;
   let titleHit = null, slamHit = null;   // slamHit: the brilliant piece hitting the board = the music drop
   const view = parseFloat($('zoom').value), laneOn = $('clane').checked, oppMode = $('oppcam').value;
-  const bounceOn = $('lbounce').checked, forkOn = $('lfork').checked, warn = [];
+  const bounceOn = $('lbounce').checked, forkOn = $('lfork').checked, warn = [], auraOn = $('brstyle').value === 'aura';
   for (const p of plies) {
     const mv = p.mv;
     p.speed = accel(++pi);
@@ -2180,16 +2229,29 @@ function layout(boost = 1, dropAt = null) {
     const ms = parseFloat($('mspeed').value);
     p.dur = p.brilliant ? T.move * 2.6 : (p.fx ? T.move * 1.6 : T.move) / ms / p.speed;
     // brilliant moves open with a "BRILLIANT MOVE" teaser card; it slides away as the real piece lifts off
-    p.card = null; p.reveal = null;
+    p.card = null; p.reveal = null; p.aura = null;
     if (p.brilliant) {
+      // aura style: the piece lifts off its square (lift), turns in slow motion above the board drifting to its
+      // target (slow motion), then dives onto it. the lift and the slow motion start on beats counted back from the
+      // slam, which lands on the drop
+      const aura = auraOn, beat = sync ? sync.period : .5;
+      if (aura) p.dur = T.move * AURA.dive;
+      const Lr = aura ? AURA.liftBeats * beat : 0;
+      const Ls = aura ? Math.ceil((AURA.slowBeats * beat + p.pan + p.dur) / beat - 1e-6) * beat - p.pan - p.dur : 0;
       // first pull back to a straight, full view of the board so every piece is visible
-      t += snap(t + RV.zoom + RV.hold + CARD.in + CARD.hold + p.pan + p.dur);   // the piece slam lands on the beat
+      t += snap(t + RV.zoom + RV.hold + (aura ? Lr + Ls : CARD.in + CARD.hold) + p.pan + p.dur);   // the piece slam lands on the beat
       p.reveal = {start: t};
       t += RV.zoom + RV.hold;
-      if (titleHit == null) titleHit = t + CARD.in;
-      p.card = {start: t, out: t + CARD.in + CARD.hold};
-      p.card.end = p.card.out + CARD.out;
-      t = p.card.out;
+      if (aura) {
+        // rise0: lift-off; hover0: slow motion begins; it runs on through p.start until the dive at p.moveStart
+        p.aura = {rise0: t, hover0: t + Lr};
+        t += Lr + Ls;
+      } else {
+        if (titleHit == null) titleHit = t + CARD.in;
+        p.card = {start: t, out: t + CARD.in + CARD.hold};
+        p.card.end = p.card.out + CARD.out;
+        t = p.card.out;
+      }
     }
     // every landing sits on a beat (before and after the "!!"); sped-up moves may land on half beats
     t += snap(t + p.pan + p.dur, sync && (p.speed > 8 ? sync.period / 8 : p.speed > 3 ? sync.period / 4 : p.speed > 1.5 ? sync.period / 2 : sync.period));
@@ -2204,6 +2266,14 @@ function layout(boost = 1, dropAt = null) {
     }
     p.cam = [lerp(p.from[0], p.to[0], .62) + .5, lerp(p.from[1], p.to[1], .62) + .5];
     p.glow = p.badge ? p.badge.c : DEFAULT_GLOW;
+    // promotion and blunder run on landing, one after the other (see the order under PROMO_FX); `before` is how
+    // long they take, so an attack lane starts after them
+    p.promo = !p.brilliant && mv.flags.includes('p') ? {shrink: M.short, grow: M.med} : null;
+    p.blunder = p.brilliant ? 0 : p.badge === BADGES['??'] ? 1 : p.badge === BADGES['?'] ? BLUNDER_FX.light : 0;
+    const promoT = p.promo ? M.short + M.med : 0;
+    p.blunderDelay = promoT;   // seconds after landing (the landing itself may still move onto a bar line)
+    const before = promoT + (p.blunder ? M.long : 0);
+    if (before) p.end = Math.max(p.end, p.arrive + before + .5);
     // attack lanes: the squares from the attacker to each target light up one after another, each target hops
     // when its lane reaches it, and the camera pulls back over every lane. the brilliant keeps its own scene.
     // all times in p.lane are seconds after p.arrive
@@ -2213,7 +2283,7 @@ function layout(boost = 1, dropAt = null) {
       if (lanes.length) {
         const fork = lanes.length > 1, longest = Math.max(...lanes.map(l => l.length - 1));
         // lanes start a short beat after landing, or once the taken piece has faded on a capture
-        const start = mv.captured ? M.med : M.short, reach = start + longest * M.short;
+        const start = before + (mv.captured ? M.med : M.short), reach = start + longest * M.short;
         // in a fork every lane starts together and reaches its target at the same moment, so the targets hop together
         const steps = lanes.map(l => fork ? longest * M.short / (l.length - 1) : M.short);
         // whole lanes plus a one-square margin on every side (and room for FORK! above the attacker)
@@ -2283,7 +2353,7 @@ function layout(boost = 1, dropAt = null) {
   // when the song should start (song seconds at video time 0); negative = video runs first
   let musicStart = null;
   if (sync) musicStart = sync.drop - (slamHit != null ? slamHit : (anchor != null ? anchor : 0));
-  clip = {plies, boards, T, M, HOP, flip, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
+  clip = {plies, boards, T, M, HOP, flip, insertVol: +$('clipvol').value / 100, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
           view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim()};
   // optionally drop the stretches with no music: before the song comes in, and after it runs out
   clip.from = 0; clip.to = clip.dur;
@@ -2292,6 +2362,7 @@ function layout(boost = 1, dropAt = null) {
     if (musicStart < 0) clip.from = Math.min(-musicStart, Math.max(0, plies[0].start - .4));
     if (songBuf) clip.to = Math.min(clip.dur, songBuf.duration - musicStart);
   }
+  clip.insertRange = insReady ? insertRange() : null;
   clip.camTrack = CAMERA_MODE === 'spring' ? buildCamTrack() : null;
   $('scrub').min = clip.from.toFixed(2);
   $('scrub').max = clip.to.toFixed(2);
@@ -2418,7 +2489,8 @@ function buildCamTrack() {
   const goalAt = t => { let sg = segs[0]; for (const q of segs) if (q.t <= t) sg = q; return sg.g; };
   if (!plies[0].brilliant) go(T.introHold, frameSquares([plies[0].from, plies[0].to], .25, view, plies[0].cam), T.intro - T.introHold);
   plies.forEach((p, i) => {
-    const flight = p.pan + p.dur * .75, sqs = [p.from, p.to];
+    // (an aura brilliant hangs above its target before diving: keep the air above it in view)
+    const flight = p.pan + p.dur * .75, sqs = p.aura ? [p.to, [p.to[0], Math.max(0, p.to[1] - 2)]] : [p.from, p.to];
     // both squares must be in view by the time the piece lifts off, and the landing square when it lands
     const mine = pos => camSees(pos(p.moveStart), sqs) && camSees(pos(p.arrive), [p.to]);
     const theirs = pos => camSees(pos(p.moveStart), sqs);
@@ -2574,6 +2646,7 @@ function flightU(p, t) {
 }
 // where and how the moving piece is drawn at time t: {x, y, opt} for drawPiece
 function moverPose(p, t) {
+  if (p.aura) return auraPose(p, t);   // slow motion over the board, then the dive
   const M = clip.M, u = flightU(p, t), arc = Math.sin(Math.PI * u), dx = p.to[0] - p.from[0];
   // anticipation: squash on the square for one tick before lifting off (inside the pan, so the landing time
   // does not move), released the moment the piece leaves the board
@@ -2627,13 +2700,77 @@ function render(t) {
   const th = clip.titleHit != null && t >= clip.titleHit && t < clip.titleHit + sh;
   if (hit || th) { const k = (t - (hit ? hit.arrive : clip.titleHit)) / sh, a = 22 * (1 - k) * (1 - k); shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)]; }
   else shk = [0, 0];
+  // aura brilliant before its move begins: the piece has left its square and hangs over the board
+  const ap = clip.plies.find(p => p.aura && t >= p.aura.rise0 && t < p.start);
   // the board holds still while the teaser card is up
   paintGray = grayAt(t);
+  hiddenSq = ap ? ap.from : null;
   renderBoard(bp && t < bp.start ? bp.start : t);
-  paintGray = 0;
+  hiddenSq = null; paintGray = 0;
+  if (ap) {
+    dimBoard(0, .25 * EASE.travel(clamp((t - ap.aura.rise0) / Math.max(.01, ap.aura.hover0 - ap.aura.rise0))));
+    drawAuraPiece(ap, t);
+  }
   for (const p of clip.plies) if (p.brilliant && t >= p.start && t < p.end + .2) drawImpact(p, t);
+  for (const p of clip.plies) if (p.aura) drawAuraTitle(p, t);
   if (bp) drawCard(bp, t);
   postFx(t);
+}
+
+// ---------- aura brilliant: the piece lifts off and turns in slow motion above the board ----------
+let hiddenSq = null;   // a square renderBoard leaves empty (the brilliant piece has left it)
+// where the brilliant piece is at time t in the aura style, all above the board:
+//   lift (rise0 -> hover0): crouch, then up to AURA.hover squares above its square, growing to AURA.grow, starting to turn
+//   slow motion (hover0 -> moveStart): turning slowly, it drifts across to hang above its target, bobbing a little
+//   dive (moveStart -> arrive): straight down onto the target, shrinking back, finishing its turn upright on the slam
+// returns {x, y, h (height above the board), opt for drawPiece}
+function auraPose(p, t) {
+  const a = p.aura, Hh = AURA.hover, G = AURA.grow, [fx, fy] = p.from, [tx, ty] = p.to;
+  const hoverLen = Math.max(.01, p.moveStart - a.hover0), r0 = Math.PI * 2 + hoverLen * AURA.slowSpin;
+  if (t < a.hover0) {
+    const k = clamp((t - a.rise0) / Math.max(.01, a.hover0 - a.rise0)), sq = k < .2 ? EASE.snap(k / .2) : 0, e = EASE.travel(clamp((k - .2) / .8));
+    const g = lerp(1, G, e);
+    return {x: fx, y: fy - Hh * e, h: Hh * e, opt: {sx: lerp(1, ANTIC.sxSpin, sq) * g, sy: lerp(1, ANTIC.sySpin, sq) * g, rot: e * e * Math.PI * 2, shadow: e > 0}};
+  }
+  if (t < p.moveStart) {
+    const u = t - a.hover0, e = EASE.travel(clamp(u / hoverLen)), bob = Math.sin(u * 2.4) * .06;
+    return {x: lerp(fx, tx, e), y: lerp(fy, ty, e) - Hh - bob, h: Hh + bob, opt: {sx: G, sy: G, rot: Math.PI * 2 + u * AURA.slowSpin, shadow: true}};
+  }
+  // finish upright: one more fast turn past the next whole one
+  const f = Math.pow(clamp((t - p.moveStart) / p.dur), 2.2), r1 = Math.ceil(r0 / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2;
+  return {x: tx, y: ty - Hh * (1 - f), h: Hh * (1 - f), opt: {sx: lerp(G, 1, f), sy: lerp(G, 1, f), rot: lerp(r0, r1, f), shadow: true}};
+}
+// the piece's shadow on the board under it (smaller and lighter the higher it is) and a glow in the brilliant colour
+function drawAuraShadow(p, t) {
+  const q = auraPose(p, t), lift = clamp(q.h / AURA.hover), gx = q.x + .5, gy = q.y + q.h + .62;
+  ctx.fillStyle = `rgba(0,0,0,${.45 - .2 * lift})`;
+  ctx.beginPath(); ctx.ellipse(gx, gy, .42 - .15 * lift, .14 - .05 * lift, 0, 0, Math.PI * 2); ctx.fill();
+  if (lift > 0) {
+    const cy = q.y + .5, gl = ctx.createRadialGradient(gx, cy, .1, gx, cy, 1.3);
+    gl.addColorStop(0, hexA(BR.glow, .35 * lift)); gl.addColorStop(1, hexA(BR.glow, 0));
+    ctx.fillStyle = gl; ctx.fillRect(gx - 1.3, cy - 1.3, 2.6, 2.6);
+  }
+}
+// before the brilliant move itself begins (the lift and the slow motion up to p.start): drawn over the board
+function drawAuraPiece(p, t) {
+  const idx = clip.plies.indexOf(p), pc = clip.boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
+  boardTf(clip._cam);
+  // the square it leaves flashes in the brilliant colour
+  const k = clamp((t - p.aura.rise0) / Math.max(.01, p.aura.hover0 - p.aura.rise0));
+  ctx.fillStyle = hexA(BR.glow, .5 * Math.sin(Math.PI * clamp(k / .7))); ctx.fillRect(p.from[0], p.from[1], 1, 1);
+  drawAuraShadow(p, t);
+  // a faint trail of where it just was keeps the slow turn readable
+  for (let j = 3; j >= 1; j--) { const g = auraPose(p, t - j * .06); drawPiece(pc, g.x, g.y, {...g.opt, shadow: false, alpha: .16 * (1 - j / 4)}); }
+  const q = auraPose(p, t); drawPiece(pc, q.x, q.y, q.opt);
+}
+// BRILLIANT MOVE (and the subtitle) near the bottom while the piece turns in slow motion; gone as it dives
+function drawAuraTitle(p, t) {
+  const a = p.aura; if (t < a.hover0 || t > p.moveStart + clip.M.med) return;
+  const k = EASE.pop(clamp((t - a.hover0) / clip.M.med)), out = 1 - clamp((t - p.moveStart) / clip.M.med), R = safeRect();
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, (R.x0 + R.x1) / 2 + shk[0], R.y1 - 130 + shk[1]); ctx.globalAlpha = out; ctx.scale(k, k);
+  glowText('BRILLIANT MOVE', 0, 0, 88, BR.text, BR.glow, 30, 2);
+  if (clip.brsub) glowText(clip.brsub.toUpperCase(), 0, 84, 54, '#F2F2F0', 'rgba(255,255,255,.5)', 14, 2);
+  ctx.restore();
 }
 
 // ---------- full-frame effects of the brilliant slam ----------
@@ -2707,11 +2844,14 @@ function renderBoard(t) {
   const u = p ? clamp((t - p.moveStart) / p.dur) : 0;
   const arrived = p && t >= p.arrive;
 
-  // squares
+  // squares (greyed under a blunder; its badge and any lane keep their colour)
+  const bm = Math.max(blunderMix(idx, t), blunderMix(idx - 1, t));
   for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
-    ctx.fillStyle = tint((x + y) % 2 ? theme.dark : theme.light);
+    const c = tint((x + y) % 2 ? theme.dark : theme.light);
+    ctx.fillStyle = bm > 0 ? shade(c, BLUNDER_FX.gray * bm, 0) : c;
     ctx.fillRect(x, y, 1.002, 1.002);
   }
+  if (bm > 0) { ctx.fillStyle = `rgba(229,57,43,${BLUNDER_FX.red * bm})`; ctx.fillRect(0, 0, 8, 8); }
 
   const M = clip.M;
   // fading highlight of the previous ply
@@ -2763,6 +2903,7 @@ function renderBoard(t) {
     if (p && !arrived && (same([x,y], p.from) || (p.rook && same([x,y], p.rook.from)))) continue;
     if (p && arrived && (same([x,y], p.to) || (p.rook && same([x,y], p.rook.to)))) continue;
     if (mate && same([x,y], mate.sq)) continue;
+    if (hiddenSq && same([x, y], hiddenSq)) continue;
     // a targeted piece hops; pieces on tiles jumping round the target ride along with their tile
     const opt = (arrived && laneHop(p, x, y, t)) || {}, tb = arrived && !p.brilliant && tileBump(p, x, y, t);
     drawPiece(pc, x, y, tb && tb.lift > 0 ? {...opt, lift: (opt.lift || 0) + tb.lift} : opt);
@@ -2782,10 +2923,33 @@ function renderBoard(t) {
         if (ca > 0) { const cp = boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]]; if (cp) drawPiece(cp, p.capSq[0], p.capSq[1], {alpha: ca, sx: .6+.4*ca, sy: .6+.4*ca}); }
       }
       if (p.rook) { const rk = sqAt(p.rook.to[0], p.rook.to[1]); if (rk) drawPiece(rk, p.rook.to[0], p.rook.to[1]); }
-      // landing squash with a little spring (harder after a spin)
-      const s = clamp(d / M.med), hard = p.fx ? 1.8 : 1;
-      const wob = EASE.settle(s);
-      drawPiece(landed, p.to[0], p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
+      const pr = p.promo;
+      if (pr) {
+        // promotion: white flash while the pawn shrinks away, then a soft glow round the new piece popping in
+        const cx = p.to[0] + .5, cy = p.to[1] + .5;
+        if (d < pr.shrink) { ctx.fillStyle = `rgba(255,255,255,${PROMO_FX.flash * (1 - d / pr.shrink)})`; ctx.fillRect(p.to[0], p.to[1], 1, 1); }
+        const kg = (d - pr.shrink) / (pr.grow * 2);
+        if (kg > 0 && kg < 1) {
+          const r = PROMO_FX.glowSize / 2 * (.6 + .4 * EASE.snap(kg)), g = ctx.createRadialGradient(cx, cy, .05, cx, cy, r);
+          g.addColorStop(0, hexA(PROMO_FX.glow, .75 * (1 - kg))); g.addColorStop(1, hexA(PROMO_FX.glow, 0));
+          ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+        }
+      }
+      if (pr && d < pr.shrink) { const k = 1 - EASE.travel(d / pr.shrink); drawPiece(mover, p.to[0], p.to[1], {sx: k, sy: k}); }
+      else if (pr && d < pr.shrink + pr.grow) { const k = EASE.pop((d - pr.shrink) / pr.grow); drawPiece(landed, p.to[0], p.to[1], {sx: k, sy: k}); }
+      else {
+        // landing squash with a little spring (harder after a spin); a blunder's piece glitches
+        const s = clamp(d / M.med), hard = p.fx ? 1.8 : 1, wob = pr ? 0 : EASE.settle(s);
+        const gl = glitch(p, t), x = p.to[0] + (gl ? gl.dx : 0);
+        if (gl && gl.split > 0) {
+          const im = pimg(landed);
+          ctx.globalAlpha = .75;
+          ctx.drawImage(silhouette(im, '#FF2D55'), x - gl.split, p.to[1], 1, 1);
+          ctx.drawImage(silhouette(im, '#00E5FF'), x + gl.split, p.to[1], 1, 1);
+          ctx.globalAlpha = 1;
+        }
+        drawPiece(landed, x, p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
+      }
     }
     if (mate) {
       // king falls over like it was knocked down: accelerates, hits the board, small rebound
@@ -2803,7 +2967,11 @@ function renderBoard(t) {
     const prevBadge = idx > 0 ? plies[idx-1] : null;
     if (prevBadge && prevBadge.badge) { const a = 1 - clamp((t - p.start) / M.med); if (a > 0) drawBadge(prevBadge, 1, a); }
     if (p.brilliant && t >= p.moveStart && !arrived) drawBadge(p, .75, .75 * clamp((t - p.moveStart) / M.med));
-    if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
+    if (p.badge && p.blunder) {
+      // a blunder's badge falls in from above and bounces (after any promotion), swinging a little
+      const t0 = p.arrive + p.blunderDelay, k = clamp((t - t0) / M.long);
+      if (t >= t0) drawBadge(p, 1, 1, -(1 - bounceOut(k)) * BLUNDER_FX.drop, .35 * (1 - k) * Math.sin(k * 12));
+    } else if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
   }
 
   // overlays in screen space
@@ -2827,6 +2995,32 @@ function renderBoard(t) {
     ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(clip.handle, 54, H - FRAME.bottom);
     ctx.fillStyle = '#fff'; ctx.fillText(clip.handle, 54, H - FRAME.bottom);
   }
+}
+
+// ---------- blunder ----------
+// how strongly ply i's blunder shows at time t: its strength (1 for ??, BLUNDER_FX.light for ?), in over a short
+// beat once it starts, out over a med beat when the next move starts
+function blunderMix(i, t) {
+  const q = clip.plies[i], n = clip.plies[i + 1]; if (!q || !q.blunder) return 0;
+  const t0 = q.arrive + q.blunderDelay; if (t < t0) return 0;
+  const out = n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / clip.M.med) : 1;
+  return q.blunder * EASE.snap(clamp((t - t0) / clip.M.short)) * Math.max(0, out);
+}
+// the blunder's piece glitches for a long beat: bursts of sideways jumps and a red / cyan split, seeded per 1/30s
+// so the same frame always looks the same, dying out as it goes
+function glitch(p, t) {
+  const t0 = p.arrive + p.blunderDelay, k = (t - t0) / clip.M.long;
+  if (!p.blunder || k < 0 || k >= 1) return null;
+  const rnd = seededRandom(Math.round(p.arrive * 1000) * 7 + Math.floor((t - t0) * 30)), on = rnd() < .75 * (1 - k) + .15, f = (1 - k) * p.blunder;
+  return {dx: on ? (rnd() - .5) * 2 * BLUNDER_FX.jump * f : 0, split: BLUNDER_FX.split * f * (on ? 1 : .35)};
+}
+// ease-out bounce (a dropped object bouncing to rest)
+function bounceOut(k) {
+  const n = 7.5625, d = 2.75;
+  if (k < 1 / d) return n * k * k;
+  if (k < 2 / d) return n * (k -= 1.5 / d) * k + .75;
+  if (k < 2.5 / d) return n * (k -= 2.25 / d) * k + .9375;
+  return n * (k -= 2.625 / d) * k + .984375;
 }
 
 // ---------- attack lane drawing ----------
@@ -3002,6 +3196,8 @@ function grayAt(t) {
     const c = p.card;
     if (c && t >= c.start && t < c.end) g = Math.max(g, eout(clamp((t - c.start) / CARD.in)) * (1 - eio(clamp((t - c.out) / CARD.out))));
     if (p.brilliant && t >= p.start && t < p.end + .2) g = Math.max(g, t < p.arrive ? .85 : 1 - clamp((t - (p.end - IMP.exit)) / IMP.exit));
+    // aura: the board greys as the piece rises off it
+    if (p.aura && t >= p.aura.rise0 && t < p.start) g = Math.max(g, .85 * EASE.travel(clamp((t - p.aura.rise0) / Math.max(.01, p.aura.hover0 - p.aura.rise0))));
   }
   return g;
 }
@@ -3093,11 +3289,13 @@ function drawImpact(p, t) {
   if (d < 0) {
     // board stays grey while the piece flies; the waiting square and small badge stay in colour
     dimBoard(.85, .25);
-    if (t >= p.moveStart) {
+    // (an aura piece is already hanging over the board before its move begins, so it is redrawn from p.start on)
+    if (t >= p.moveStart || p.aura) {
       const a = clamp((t - p.moveStart) / .2);
       boardTf(cam);
       ctx.fillStyle = hexA(col, .4 * a); ctx.fillRect(p.to[0], p.to[1], 1, 1);
       ctx.fillStyle = hexA(col, .22 * a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
+      if (p.aura) drawAuraShadow(p, t);
       if (p.badge) drawBadge(p, .75, .8 * a);
       // the spinning piece is redrawn above the dimming so it stays bright
       const mover = clip.boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
@@ -3188,9 +3386,10 @@ function drawImpact(p, t) {
   if (pop + out > 0) { ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = 'rgba(255,255,255,' + (pop + out) + ')'; ctx.fillRect(0,0,W,H); ctx.restore(); }
 }
 
-function drawBadge(p, scale, alpha) {
-  const b = p.badge, x = p.to[0] + .9, y = p.to[1] + .1, r = .23;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+// dy: offset in squares (a blunder's badge falls in from above); rot: swing in radians
+function drawBadge(p, scale, alpha, dy = 0, rot = 0) {
+  const b = p.badge, x = p.to[0] + .9, y = p.to[1] + .1 + dy, r = .23;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
   ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = .12 * clip._s; ctx.shadowOffsetY = .03 * clip._s;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
   ctx.shadowColor = 'transparent';
@@ -3265,6 +3464,16 @@ function boom(when, vol = 1) {
   ng.gain.value = 1.4*vol;
   n.connect(lp); lp.connect(ng); ng.connect(master); n.start(when);
 }
+// short "fail" sting for a blunder: two falling notes, a sawtooth through a low-pass (synthesized, no clip needed)
+function failSound(when, vol = 1) {
+  for (const [dt, f0, f1, len] of [[0, 392, 330, .16], [.17, 311, 196, .42]]) {
+    const o = actx.createOscillator(), g = actx.createGain(), lp = actx.createBiquadFilter(), s = when + dt;
+    o.type = 'sawtooth'; lp.type = 'lowpass'; lp.frequency.value = 1400;
+    o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + len);
+    g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.35 * vol, s + .015); g.gain.exponentialRampToValueAtTime(.001, s + len);
+    o.connect(lp); lp.connect(g); g.connect(master); o.start(s); o.stop(s + len + .05);
+  }
+}
 function playPly(p, when) {
   const mv = p.mv;
   if (sndBuf.move) {
@@ -3287,12 +3496,22 @@ function soundEvents() {
   const ev = [];
   clip.plies.forEach((p, i) => {
     if (p.brilliant && sndBuf.whoosh) {
-      ev.push(['c' + i, p.card.start - .05, w => clipAt(sndBuf.whoosh, w, .55)]);
+      // whoosh as the card (or, in the aura style, the sky) comes in, and as the piece takes off
+      ev.push(['c' + i, (p.card ? p.card.start : p.aura.rise0) - .05, w => clipAt(sndBuf.whoosh, w, .55)]);
       ev.push(['w' + i, p.moveStart - .05, w => clipAt(sndBuf.whoosh, w, .7)]);
+    }
+    // the inserted clip's own sound
+    // the inserted sound plays out in full and ends exactly on the slam; whatever would start before the video
+    // begins is skipped
+    const ins = clip.insertRange;
+    if (p.aura && ins && clip.insertVol > 0) {
+      const len = ins.to - ins.from, a = p.arrive - len, s = Math.max(a, clip.from);
+      if (len - (s - a) > .05) ev.push(['g' + i, s, w => playSegment(insBuf, w, ins.from + (s - a), len - (s - a), clip.insertVol)]);
     }
     ev.push(['m' + i, p.arrive, w => playPly(p, w)]);
     if (p.brilliant) ev.push(['b' + i, p.arrive, w => boom(w)]);
     if (p.mate && sndBuf.mate) ev.push(['k' + i, p.mate.hit, w => clipAt(sndBuf.mate, w)]);
+    if (p.blunder && BLUNDER_FX.sound > 0) ev.push(['x' + i, p.arrive + p.blunderDelay, w => failSound(w, p.blunder * BLUNDER_FX.sound)]);
   });
   return ev;
 }
@@ -3329,6 +3548,45 @@ function loadSong(data) {
   return songLoading;
 }
 function stopMusic() { if (songSrc) { try { songSrc.stop(); } catch {} songSrc = null; } }
+
+// ---------- inserted sound (aura brilliant) ----------
+// the sound of a picked video or audio file (only its sound is used), timed to end exactly on the brilliant's slam.
+// never embedded in the page or published; remembered in this browser (IndexedDB)
+let insBuf = null, insName = null, insReady = false;
+// the part of the sound to use, in its own seconds ("Từ giây" / "Đến giây", empty = to the end)
+function insertRange() {
+  const num = id => parseFloat(String($(id).value).replace(',', '.')), d = insBuf ? insBuf.duration : 0;
+  const from = clamp(num('sndin') || 0, 0, Math.max(0, d - .1));
+  return {from, to: clamp(isFinite(num('sndout')) ? num('sndout') : d, from, d)};
+}
+// tiny IndexedDB key-value store for files
+function idbFiles(mode, fn) {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('chess-move-studio', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files');
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => { const tx = r.result.transaction('files', mode), q = fn(tx.objectStore('files')); tx.oncomplete = () => res(q && q.result); tx.onerror = () => rej(tx.error); };
+  });
+}
+async function loadInsert(blob, name, remember) {
+  audioInit(); if (!actx) return;
+  insReady = false;
+  insBuf = await actx.decodeAudioData(await blob.arrayBuffer());
+  insName = name; insReady = true;
+  if (remember) try { await idbFiles('readwrite', st => st.put({blob, name}, 'insert')); } catch {}
+  insertNote(); rebuild();
+}
+function insertNote() {
+  const r = insertRange();
+  $('clipnote').textContent = insReady
+    ? `Âm thanh chèn: ${insName}, dài ${insBuf.duration.toFixed(1)}s, dùng đoạn ${fmt(r.from)}s → ${fmt(r.to)}s, kết thúc đúng lúc quân Brilliant đập xuống. Chỉ lưu trong trình duyệt này.`
+    : 'Chưa chọn âm thanh chèn (không bắt buộc).';
+}
+// part of a decoded clip's sound, on the effects bus
+function playSegment(buf, when, offset, dur, vol) {
+  const s = actx.createBufferSource(), g = actx.createGain();
+  s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(master); s.start(when, offset, dur);
+}
 // play the song so that song time = video time + musicStart
 function startMusic(fromT, toRecorder, lead) {
   stopMusic();
@@ -3482,6 +3740,12 @@ sndNote();
 // audio can only start after a user gesture; warm it up early so embedded clips are decoded before playback
 document.addEventListener('pointerdown', () => { audioInit(); if (!songLoading) loadSong(SONG_DATA).catch(() => {}); }, {once: true});
 $('mvol').addEventListener('input', () => { $('mvolv').textContent = $('mvol').value; if (musicGain) musicGain.gain.value = +$('mvol').value / 100; });
+// the inserted clip for the aura brilliant: picked here, then remembered in this browser
+$('clipfile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  loadInsert(f, f.name, true).catch(() => { $('err').textContent = 'Không đọc được âm thanh của file: ' + f.name; });
+});
+idbFiles('readonly', st => st.get('insert')).then(r => { if (r && r.blob) return loadInsert(r.blob, r.name, false); }).catch(() => {}).finally(insertNote);
 $('songfile').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   try { songName = f.name; await loadSong(f); await autoDrop(false); }
@@ -3523,7 +3787,8 @@ $('scrub').onchange = () => {
   scrubResume = false;
   start(cur >= clip.to - .05 ? clip.from : cur);
 };
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol'].forEach(id => $(id).addEventListener('input', () => {
+  $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
   rebuild();
@@ -3679,16 +3944,66 @@ $('sample').addEventListener('change', () => {
   cur = 0; rebuild(); syncUI();
 });
 
+// ---------- import a whole game: pasted PGN or a Lichess link ----------
+// the moves box gets the tidied moves, [FEN] becomes the start position, the players the title
+function importPgn(raw, side) {
+  if (recorder) return false;
+  const {text, tags} = cleanPgn(raw);
+  if (!text) return false;
+  if (playing) { playing = false; stopMusic(); }
+  $('moves').value = text; $('fen').value = tags.FEN || ''; $('nplies').value = '0'; $('orient').value = side || 'auto';
+  if (tags.White && tags.Black && tags.White !== '?') $('title').value = tags.White + ' – ' + tags.Black;
+  cur = 0; rebuild(); syncUI(); saveSettings();
+  return true;
+}
+$('moves').addEventListener('paste', e => {
+  const raw = e.clipboardData && e.clipboardData.getData('text');
+  if (!raw || !/^\s*\[\w+\s+"/.test(raw)) return;   // only a full PGN (starts with tag pairs) replaces the box
+  e.preventDefault();
+  if (importPgn(raw)) $('glinknote').textContent = 'Đã dán ván. ' + IMPORT_TIP;
+});
+
+// game links: lichess.org/<8-char id>[/black], or the 12-char link a player gets; studies: lichess.org/study/<id>/<chapter>
+function lichessSource(link) {
+  let u; try { u = new URL(/^https?:\/\//i.test(link) ? link : 'https://' + link); } catch { return null; }
+  if (!/(^|\.)lichess\.org$/i.test(u.hostname)) return null;
+  const p = u.pathname.split('/').filter(Boolean);
+  if (p[0] === 'study' && /^\w{8}$/.test(p[1] || '') && /^\w{8}$/.test(p[2] || ''))
+    return {url: 'https://lichess.org/api/study/' + p[1] + '/' + p[2] + '.pgn?clocks=false'};
+  if (/^\w{8}(\w{4})?$/.test(p[0] || ''))
+    return {url: 'https://lichess.org/game/export/' + p[0].slice(0, 8) + '?clocks=false', side: p[1] === 'black' ? 'b' : p[1] === 'white' ? 'w' : ''};
+  return null;
+}
+const IMPORT_TIP = 'Thêm dấu | trước nước muốn bắt đầu dựng chuyển động, hoặc điền "Số nước dựng chuyển động".';
+$('gload').onclick = async () => {
+  const link = $('glink').value.trim(), note = $('glinknote');
+  if (!link || recorder) return;
+  if (/chess\.com/i.test(link)) { note.textContent = 'Ván Chess.com chưa tải bằng link được: mở ván, bấm Share → PGN → Copy PGN rồi dán vào ô Nước đi.'; return; }
+  const src = lichessSource(link);
+  if (!src) { note.textContent = 'Link chưa đúng. Dán link ván dạng lichess.org/abcd1234, hoặc link chương nghiên cứu lichess.org/study/…/….'; return; }
+  $('gload').disabled = true; note.textContent = 'Đang tải ván từ Lichess…';
+  try {
+    const r = await fetch(src.url);
+    if (!r.ok) throw new Error(r.status === 404 ? 'Không tìm thấy ván này: link sai hoặc ván/nghiên cứu đang để riêng tư.' : 'Lichess báo lỗi ' + r.status + ', thử lại sau giây lát.');
+    if (!importPgn(await r.text(), src.side)) throw new Error('Ván này chưa có nước đi nào.');
+    note.textContent = 'Đã tải ván. ' + IMPORT_TIP;
+  } catch (e) {
+    note.textContent = e instanceof TypeError ? 'Không kết nối được tới Lichess, kiểm tra mạng rồi thử lại.' : e.message;
+  } finally { $('gload').disabled = false; }
+};
+$('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').click(); });
+
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
 function refreshLabels() {
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1);
   $('mspeedv').textContent = (+$('mspeed').value).toFixed(1); $('volv').textContent = $('vol').value; $('mvolv').textContent = $('mvol').value;
+  $('clipvolv').textContent = $('clipvol').value;
 }
 function applySettings(s) {
   for (const id of SAVED_IDS) {
