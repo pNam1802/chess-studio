@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Chess Move Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&family=Montserrat:wght@900&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -33,6 +34,30 @@ label.check{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font
 input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
 .linkrow{display:flex;gap:10px}.linkrow input{flex:1;min-width:0}
+/* move list: numbered chips, dim = placed before the video starts, ▶ = first animated move */
+.movelist{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:10px;max-height:168px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.movelist .mvn{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-left:6px}
+.movelist .cut{color:var(--accent);font-size:12px;margin-left:6px}
+button.mv{font-family:var(--font-mono);font-weight:500;font-size:13px;padding:3px 7px;border-radius:6px;border:0;background:none}
+button.mv.pre{color:var(--muted)}
+button.mv.sel{background:var(--accent);color:var(--accent-ink)}
+button.mv b{font-weight:800}
+button.mv.sel b{color:inherit!important}
+.movelist[hidden],.mvedit[hidden]{display:none}
+.mvedit{display:grid;gap:12px;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:10px}
+.mvhead{font-family:var(--font-mono);font-weight:500}
+.badgepick{display:flex;flex-wrap:wrap;gap:6px}
+.badgepick button,.btns.small button{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:13px;font-weight:500}
+.badgepick button.on{border-color:var(--ink);font-weight:700}
+.badgepick b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;color:#fff;font-size:10px;font-weight:800}
+.btns.small{margin-top:8px}
+.mini{display:grid;grid-template-columns:repeat(8,1fr);width:min(100%,288px);aspect-ratio:1;border-radius:6px;overflow:hidden}
+.mini .sq{all:unset;position:relative;display:block;cursor:pointer}
+.mini .sq img{position:absolute;inset:6%;width:88%;height:88%;pointer-events:none}
+.mini .sq.last{box-shadow:inset 0 0 0 100px rgba(242,194,48,.38)}
+.mini .sq.tg::after{content:"";position:absolute;inset:8%;border:3px solid #E5392B;border-radius:50%}
+.mini .sq:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.syntax summary{cursor:pointer;font-size:13px;color:var(--muted);margin-top:8px}
 button{font:inherit;font-weight:700;border-radius:999px;padding:10px 20px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 button:disabled{opacity:.5;cursor:default}
@@ -61,10 +86,16 @@ canvas{--ar:.5625;--ch:720px;height:min(78vh,var(--ch),calc((100vw - 32px) / var
       <div>
         <label for="moves">Nước đi</label>
         <textarea id="moves" spellcheck="false">e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7</textarea>
-        <p class="hint">Gõ nước kiểu <code>Nf3</code>, <code>exd5</code>, <code>O-O</code>. Phần trước dấu <code>|</code> được xếp sẵn, phần sau mới được dựng chuyển động. Thêm ký hiệu sau nước để gắn huy hiệu:</p>
-        <div class="legend" id="legend"></div>
-        <p class="hint">Ghi mục tiêu trong ngoặc nhọn ngay sau nước để vẽ dải tấn công: <code>Nf5{f7,h6}</code>, <code>Qh5!{f7}</code>; <code>Nf5{}</code> để không vẽ dải. Nước chiếu tự vẽ dải tới Vua.</p>
+        <p class="hint">Gõ hoặc dán nước đi kiểu <code>e4 e5 Nf3</code>, rồi bấm vào một nước bên dưới để gắn huy hiệu, chọn nước bắt đầu dựng chuyển động, hoặc chọn ô bị tấn công.</p>
+        <div class="movelist" id="movelist" hidden></div>
+        <div class="mvedit" id="mvedit" hidden></div>
         <p class="hint" id="movewarn" style="color:var(--danger)"></p>
+        <details class="syntax">
+          <summary>Cú pháp gõ tay</summary>
+          <p class="hint">Phần trước dấu <code>|</code> được xếp sẵn, phần sau mới được dựng chuyển động. Thêm ký hiệu sau nước để gắn huy hiệu:</p>
+          <div class="legend" id="legend"></div>
+          <p class="hint">Ghi mục tiêu trong ngoặc nhọn ngay sau nước để vẽ dải tấn công: <code>Nf5{f7,h6}</code>, <code>Qh5!{f7}</code>; <code>Nf5{}</code> để không vẽ dải. Nước chiếu tự vẽ dải tới Vua.</p>
+        </details>
       </div>
       <div>
         <label for="fen">Thế cờ bắt đầu (FEN, để trống = thế ban đầu)</label>
@@ -2051,11 +2082,14 @@ function cleanPgn(raw) {
   return {text: s, tags};
 }
 
-function parse() {
+// the moves box as a whole game: every move, the placed ones before | too, with its badge and targets.
+// split = how many moves are placed before the first animated one (0 = no |)
+function readGame() {
   const {text, tags} = cleanPgn($('moves').value);
   const fen = $('fen').value.trim() || tags.FEN || '';
   const game = fen ? new Chess(fen) : new Chess();
   if (fen && !game.validate_fen(fen).valid) throw new Error('FEN không hợp lệ.');
+  const startFen = game.fen(), startBoard = game.board();
   let [pre, main] = text.includes('|') ? text.split('|') : ['', text];
   // braces glued to a move are its attack targets: Nf5{f7,h6}, Qh5!{f7}, Nf5{} (= no lane).
   // braces after a space stay PGN comments and are dropped
@@ -2063,7 +2097,7 @@ function parse() {
     .replace(/(^|\s)\{[^}]*\}/g, ' ')
     .split(/\s+/).map(x => x.replace(/^\d+\.+/, '')).filter(x => x && !/^\d+\.+$/.test(x) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(x));
   // move token -> {san, ann, targets}; targets: null = none written, [] = written empty
-  const split = tk => {
+  const readTok = tk => {
     const br = tk.match(/^(.*?)\{([^}]*)\}$/), base = br ? br[1] : tk;
     if (br && !/^([a-h][1-8](,[a-h][1-8])*)?$/i.test(br[2])) throw new Error('Mục tiêu không hợp lệ ở nước ' + tk + ': ghi các ô cách nhau bằng dấu phẩy, ví dụ Nf5{f7,h6}.');
     const m = base.match(/(!!|\?\?|!\?|\?!|!|\?)$/);
@@ -2071,20 +2105,27 @@ function parse() {
   };
   // the bad move is named with its number, e.g. "14... Nxe4", so it can be found in a long game
   const bad = tk => { const f = game.fen().split(' '); return new Error('Nước không hợp lệ: ' + f[5] + (f[1] === 'w' ? '. ' : '... ') + tk); };
-  for (const tk of toks(pre)) {
-    if (!game.move(split(tk).san, {sloppy:true})) throw bad(tk);
-  }
-  const plies = [];
-  const boards = [game.board()];
-  for (const tk of toks(main)) {
-    const {san, ann, targets} = split(tk);
+  const moves = [];
+  const add = tk => {
+    const {san, ann, targets} = readTok(tk);
     const mv = game.move(san, {sloppy:true});
     if (!mv) throw bad(tk);
+    moves.push({mv, ann, targets, board: game.board()});
+  };
+  toks(pre).forEach(add);
+  const split = moves.length;
+  toks(main).forEach(add);
+  return {startFen, startBoard, moves, split};
+}
+
+function parse() {
+  const g = readGame(), main = g.moves.slice(g.split);
+  const plies = main.map(({mv, ann, targets}) => {
     let badge = BADGES[ann] || null;
     if (!badge && mv.san.includes('#')) badge = BADGES['#'];
-    plies.push({mv, badge, targets});
-    boards.push(game.board());
-  }
+    return {mv, badge, targets};
+  });
+  const boards = [g.split ? g.moves[g.split - 1].board : g.startBoard, ...main.map(m => m.board)];
   if (!plies.length) throw new Error('Thêm ít nhất một nước sau dấu |.');
   // keep only the last N moves animated; everything before them is already on the board
   const n = parseInt($('nplies').value, 10), total = plies.length;
@@ -2098,6 +2139,113 @@ function parse() {
   $('npliesnote').textContent = note;
   return {plies, boards};
 }
+
+// ---------- move list: click a move to set its badge, start the animation there, pick its targets ----------
+// edits are written back into the moves box (tidied, numbered), which stays the one source of the clip
+let listGame = null, selMove = -1;
+function writeGame(g) {
+  const f = g.startFen.split(' ');   // placement, side, castling, ep, halfmove, fullmove
+  let n = +f[5], white = f[1] === 'w';
+  const out = [];
+  g.moves.forEach((m, i) => {
+    if (i && i === g.split) out.push('|');
+    if (white) out.push(n + '.'); else if (!i || i === g.split) out.push(n + '...');
+    out.push(m.mv.san + m.ann + (m.targets ? '{' + m.targets.join(',') + '}' : ''));
+    if (!white) n++;
+    white = !white;
+  });
+  // a start position read from a pasted [FEN] tag would go with the tags: keep it in the FEN box
+  if (!$('fen').value.trim() && g.startFen !== new Chess().fen()) $('fen').value = g.startFen;
+  $('moves').value = out.join(' ');
+  $('moves').dispatchEvent(new Event('input'));
+}
+// index of the first animated move: after the |, or later when "Số nước dựng" keeps only the last N
+function firstAnimated(g) {
+  const n = parseInt($('nplies').value, 10), main = g.moves.length - g.split;
+  return n > 0 && n < main ? g.moves.length - n : g.split;
+}
+function renderMoves() {
+  const box = $('movelist'), ed = $('mvedit');
+  try { listGame = readGame(); } catch { listGame = null; }
+  if (!listGame || !listGame.moves.length) { box.hidden = ed.hidden = true; return; }
+  if (selMove >= listGame.moves.length) selMove = -1;
+  const first = firstAnimated(listGame), f = listGame.startFen.split(' ');
+  let n = +f[5], white = f[1] === 'w', html = '';
+  listGame.moves.forEach((m, i) => {
+    if (i === first && i) html += '<span class="cut" title="Bắt đầu dựng chuyển động">▶</span>';
+    if (white) html += '<span class="mvn">' + n + '.</span>'; else if (!i) html += '<span class="mvn">' + n + '…</span>';
+    const b = BADGES[m.ann];
+    html += '<button type="button" class="mv' + (i < first ? ' pre' : '') + (i === selMove ? ' sel' : '') + '" data-i="' + i + '">' +
+      m.mv.san + (b ? '<b style="color:' + b.c + '">' + m.ann + '</b>' : '') + '</button>';
+    if (!white) n++;
+    white = !white;
+  });
+  box.innerHTML = html; box.hidden = false;
+  // keep the selected move (else the first animated one) in view inside the scrolling list, not the page
+  const at = box.querySelector('.sel') || box.querySelector('.cut');
+  if (at && (at.offsetTop < box.scrollTop || at.offsetTop + at.offsetHeight > box.scrollTop + box.clientHeight))
+    box.scrollTop = at.offsetTop - box.clientHeight / 2;
+  renderMoveEditor(first);
+}
+function renderMoveEditor(first) {
+  const ed = $('mvedit');
+  if (selMove < 0) { ed.hidden = true; return; }
+  const m = listGame.moves[selMove], f = listGame.startFen.split(' ');
+  // move number of the selected move, counted from the start position
+  const ply = selMove + (f[1] === 'w' ? 0 : 1), num = +f[5] + Math.floor(ply / 2);
+  let html = '<div class="mvhead">Nước ' + num + (ply % 2 ? '… ' : '. ') + m.mv.san + '</div>';
+  html += '<div class="btns"><button type="button" data-act="start"' + (selMove === first ? ' disabled>Video bắt đầu dựng từ nước này' : '>Bắt đầu dựng từ nước này') + '</button></div>';
+  if (selMove < first) {
+    html += '<p class="hint">Nước này được xếp sẵn lên bàn trước khi video chạy. Huy hiệu và dải tấn công chỉ có ở các nước được dựng chuyển động.</p>';
+  } else {
+    html += '<div><label>Huy hiệu</label><div class="badgepick">' +
+      '<button type="button" data-ann=""' + (m.ann ? '' : ' class="on"') + '>Không</button>' +
+      Object.entries(BADGES).filter(([k]) => k !== '#').map(([k, b]) =>
+        '<button type="button" data-ann="' + k + '"' + (m.ann === k ? ' class="on"' : '') + '><b style="background:' + b.c + '">' + b.t + '</b>' + b.name + '</button>').join('') +
+      '</div></div>';
+    // the board after this move, from the side at the bottom of the video; click squares to toggle targets
+    const flip = clip ? clip.flip : false, th = THEMES[$('theme').value] || THEMES.gray, tg = m.targets || [];
+    let sqs = '';
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const fi = flip ? 7 - c : c, rk = flip ? r + 1 : 8 - r, sq = 'abcdefgh'[fi] + rk, pc = m.board[8 - rk][fi];
+      const cls = (sq === m.mv.from || sq === m.mv.to ? ' last' : '') + (tg.includes(sq) ? ' tg' : '');
+      sqs += '<button type="button" class="sq' + cls + '" data-sq="' + sq + '" aria-label="' + sq + '" style="background-color:' + ((fi + rk) % 2 ? th.light : th.dark) + '">' +
+        (pc ? '<img alt="" src="' + PIECES[pc.color + PNAME[pc.type]] + '">' : '') + '</button>';
+    }
+    const state = m.targets === null ? 'Tự động: nước chiếu tự vẽ dải tới Vua.' : m.targets.length ? 'Dải tấn công tới ' + m.targets.join(', ') + '.' : 'Không vẽ dải tấn công.';
+    html += '<div><label>Ô bị tấn công</label><div class="mini">' + sqs + '</div>' +
+      '<p class="hint">Bấm ô trên bàn để vẽ dải tấn công từ quân vừa đi tới ô đó, bấm lại để bỏ. ' + state + '</p>' +
+      '<div class="btns small"><button type="button" data-act="auto"' + (m.targets === null ? ' disabled' : '') + '>Tự động</button>' +
+      '<button type="button" data-act="none"' + (m.targets && !m.targets.length ? ' disabled' : '') + '>Không vẽ dải</button></div></div>';
+  }
+  ed.innerHTML = html; ed.hidden = false;
+}
+$('movelist').addEventListener('click', e => {
+  const b = e.target.closest('button.mv'); if (!b || !listGame) return;
+  const i = +b.dataset.i;
+  selMove = selMove === i ? -1 : i;
+  renderMoves();
+  // jump the preview to the move when it is animated
+  const p = selMove >= 0 && clip && clip.plies[selMove - firstAnimated(listGame)];
+  if (p && !recorder) {
+    if (playing) { playing = false; stopMusic(); }
+    cur = clamp(p.start, clip.from, clip.to); render(cur); syncUI();
+  }
+});
+$('mvedit').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled || !listGame || selMove < 0 || recorder) return;
+  const m = listGame.moves[selMove];
+  if (b.dataset.act === 'start') { listGame.split = selMove; $('nplies').value = '0'; }
+  else if (b.dataset.act === 'auto') m.targets = null;
+  else if (b.dataset.act === 'none') m.targets = [];
+  else if (b.dataset.ann !== undefined) m.ann = b.dataset.ann;
+  else if (b.dataset.sq) {
+    const t = (m.targets || []).filter(s => s !== b.dataset.sq);
+    if (!m.targets || t.length === m.targets.length) t.push(b.dataset.sq);
+    m.targets = t.length ? t : null;   // removing the last target goes back to automatic
+  } else return;
+  writeGame(listGame);
+});
 
 // ---------- board geometry (shared by the effects) ----------
 // squares are algebraic ('e4'); b is a chess.js board(), b[0] = rank 8
@@ -3684,6 +3832,7 @@ function rebuild() {
   applyAspect();
   try { buildClip(); $('err').textContent = ''; render(Math.min(cur, clip.dur)); }
   catch (e) { $('err').textContent = e.message; }
+  renderMoves();
   saveSettings();   // also catches values the page sets itself (swap role, drop finder)
 }
 // audio is scheduled START_LEAD ahead; the picture clock is pushed back by the same lead, plus the speaker
@@ -3940,7 +4089,7 @@ $('sample').addEventListener('change', () => {
   if (!s || recorder) return;
   if (playing) { playing = false; stopMusic(); }
   $('moves').value = s.moves; $('fen').value = ''; $('nplies').value = '0'; $('orient').value = 'auto';
-  $('title').value = s.title; $('brsub').value = s.brsub;
+  $('title').value = s.title; $('brsub').value = s.brsub; selMove = -1;
   cur = 0; rebuild(); syncUI();
 });
 
@@ -3953,7 +4102,7 @@ function importPgn(raw, side) {
   if (playing) { playing = false; stopMusic(); }
   $('moves').value = text; $('fen').value = tags.FEN || ''; $('nplies').value = '0'; $('orient').value = side || 'auto';
   if (tags.White && tags.Black && tags.White !== '?') $('title').value = tags.White + ' – ' + tags.Black;
-  cur = 0; rebuild(); syncUI(); saveSettings();
+  selMove = -1; cur = 0; rebuild(); syncUI(); saveSettings();
   return true;
 }
 $('moves').addEventListener('paste', e => {
@@ -3974,7 +4123,7 @@ function lichessSource(link) {
     return {url: 'https://lichess.org/game/export/' + p[0].slice(0, 8) + '?clocks=false', side: p[1] === 'black' ? 'b' : p[1] === 'white' ? 'w' : ''};
   return null;
 }
-const IMPORT_TIP = 'Thêm dấu | trước nước muốn bắt đầu dựng chuyển động, hoặc điền "Số nước dựng chuyển động".';
+const IMPORT_TIP = 'Bấm vào nước muốn bắt đầu dựng chuyển động trong danh sách nước bên dưới, rồi chọn "Bắt đầu dựng từ nước này".';
 $('gload').onclick = async () => {
   const link = $('glink').value.trim(), note = $('glinknote');
   if (!link || recorder) return;
