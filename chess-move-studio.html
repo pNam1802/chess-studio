@@ -302,6 +302,11 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
         </div>
       </div>
       <div class="group">
+        <h3>Cảnh chiếu hết</h3>
+        <div class="field"><label for="smate">Kiểu</label><select id="smate" data-seg><option value="fall" data-sub="vua ngã xuống">Vua đổ</option><option value="slash" data-sub="vòng quay vũ khí, chém đôi vua">Chém kiểu anime</option></select></div>
+        <div class="field"><label for="sweapon">Vũ khí</label><select id="sweapon" data-seg><option value="random" data-sub="vòng quay tự chọn">Ngẫu nhiên</option><option value="katana" data-sub="chém xiên">Kiếm</option><option value="spear" data-sub="đâm ngang">Thương</option><option value="scythe" data-sub="chém vòng">Liềm</option><option value="axe" data-sub="bổ dọc">Rìu</option></select></div>
+      </div>
+      <div class="group">
         <h3>Cảnh Brilliant (nước !!)</h3>
         <div class="field"><label for="brstyle">Kiểu cảnh</label><select id="brstyle" data-seg><option value="aura" data-sub="quân xoáy chậm rồi đập xuống">Aura</option><option value="classic" data-sub="thẻ BRILLIANT MOVE">Cổ điển</option><option value="flip" data-sub="quân lật 3D, nền mờ">Lật đồng xu</option></select></div>
         <div class="field"><label for="brsub">Chữ phụ</label><input type="text" id="brsub" value="IN KNIGHT OPENING"></div>
@@ -2702,10 +2707,10 @@ function layout(boost = 1, dropAt = null) {
         if (shift > 0 && shift < bar) { p.start += shift; p.moveStart += shift; p.arrive += shift; p.end += shift; p.mate.fall += shift; }
       }
       if (p.mate) {
-        p.mate.hit = p.mate.fall + M.long;
         p.mate.dir = p.mate.sq[0] >= p.to[0] ? 1 : -1;
         p.cam = [(p.to[0] + p.mate.sq[0]) / 2 + .5, (p.to[1] + p.mate.sq[1]) / 2 + .5];
-        p.end = Math.max(p.end, p.mate.hit + 1.0);
+        // the mate style (MATE_STYLES) sets hit (the mate sound) and its own times, and extends p.end
+        p.mate.style = STYLE.mate; STYLE.mate.plan(p, M);
       }
     }
     // opponent moves, by the "camera khi bên kia đi" setting:
@@ -3098,7 +3103,11 @@ function render(t) {
   const sh = clip.M.med;
   const hit = clip.plies.find(p => p.brilliant && t >= p.arrive && t < p.arrive + sh);
   const th = clip.titleHit != null && t >= clip.titleHit && t < clip.titleHit + sh;
-  if (hit || th) { const k = (t - (hit ? hit.arrive : clip.titleHit)) / sh, a = 22 * (1 - k) * (1 - k); shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)]; }
+  const cut = clip.plies.find(p => p.mate && p.mate.slash != null && t >= p.mate.slash && t < p.mate.slash + sh);
+  if (hit || th || cut) {
+    const t0 = hit ? hit.arrive : th ? clip.titleHit : cut.mate.slash, k = (t - t0) / sh, a = 22 * (1 - k) * (1 - k);
+    shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)];
+  }
   else shk = [0, 0];
   // a brilliant scene can hold the board still (the teaser card) or take a piece off it (the aura) before its move
   let boardT = t;
@@ -3184,6 +3193,16 @@ function fxCanvas(name, w, h) {
 // impact frames: the first frames after the brilliant lands turn into an inverted, hard black-and-white image;
 // then an RGB split that closes over BRILLIANT_FX.aberration seconds
 function postFx(t) {
+  // the anime slash: a few inverted, hard black-and-white frames as the blade cuts
+  const cut = clip.plies.find(q => q.mate && q.mate.slash != null && t >= q.mate.slash && t < q.mate.slash + MATE_FX.impactFrames / 60);
+  if (cut) {
+    const buf = fxCanvas('buf', W, H), b = buf.getContext('2d');
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
+    ctx.globalCompositeOperation = 'copy'; ctx.filter = 'grayscale(1) invert(1) contrast(5)';
+    ctx.drawImage(buf, 0, 0); ctx.filter = 'none'; ctx.restore();
+    return;
+  }
   const p = clip.plies.find(q => q.brilliant && t >= q.arrive && t < q.arrive + Math.max(BRILLIANT_FX.aberration, BRILLIANT_FX.impactFrames / 60));
   if (!p) return;
   const d = t - p.arrive, buf = fxCanvas('buf', W, H), b = buf.getContext('2d');
@@ -3278,7 +3297,7 @@ function renderBoard(t) {
   // checkmate: the losing king's square turns red as the king starts to tip
   const mate = p && arrived && p.mate ? p.mate : null;
   if (mate) {
-    const a = clamp((t - mate.fall) / M.med);
+    const a = mate.style.square(p, t);
     ctx.fillStyle = hexA(PALETTE.mate, .7*a); ctx.fillRect(mate.sq[0], mate.sq[1], 1, 1);
   }
 
@@ -3332,18 +3351,7 @@ function renderBoard(t) {
         drawPiece(landed, x, p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
       }
     }
-    if (mate) {
-      // king falls over like it was knocked down: accelerates, hits the board, small rebound
-      const king = sqAt(mate.sq[0], mate.sq[1]);
-      const k = clamp((t - mate.fall) / (mate.hit - mate.fall));
-      let ang = (Math.PI / 2) * k * k;
-      const after = t - mate.hit;
-      if (after > 0) ang -= .16 * Math.exp(-7 * after) * Math.abs(Math.sin(after * 16));
-      // shift toward the fall side so the lying king stays inside its square; before falling it hops with the lane
-      const hop = laneHop(p, mate.sq[0], mate.sq[1], t) || {lift: 0, sx: 1, sy: 1};
-      drawPiece(king, mate.sq[0] + mate.dir * .06 * (ang / (Math.PI/2)), mate.sq[1] + .08 * (ang / (Math.PI/2)),
-                {rot: mate.dir * ang, sx: .92 * hop.sx, sy: .92 * hop.sy, lift: hop.lift, shadow: k > 0 && k < 1});
-    }
+    if (mate) mate.style.king(p, t, sqAt(mate.sq[0], mate.sq[1]), landed);
     // a lane style's part that goes over the pieces (the path's line)
     for (const i of [idx - 1, idx]) { const out = laneAlpha(i, t); if (out > 0 && STYLE.lane.over) STYLE.lane.over(plies[i], t, out); }
     // badge
@@ -3352,6 +3360,8 @@ function renderBoard(t) {
     if (p.brilliant && t >= p.moveStart && !arrived) drawBadge(p, .75, .75 * clamp((t - p.moveStart) / M.med));
     if (p.badge && p.blunder) STYLE.blunder.badge(p, t);
     else if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
+    // the mate style's scene over everything on the board (the weapon wheel, the slash)
+    if (mate && mate.style.over) mate.style.over(p, t, landed);
   }
 
   // a brilliant scene may soften the board behind its piece (under the title)
@@ -4112,27 +4122,221 @@ const FLASH_STYLES = {
     },
   },
 };
+// ---------- checkmate styles ----------
+// a variant has plan(p, M) (sets p.mate.hit and its own times, extends p.end), square(p, t) (0..1, the red of
+// the mated king's square), king(p, t, king, attacker) (draws the king) and optionally over(p, t, attacker)
+// (drawn over everything on the board)
+// slash: a weapon wheel spins round the mating piece (spin s, ending turns + a seeded bit), stops on a weapon;
+// the weapon winds up (show s) and cuts through the king, the halves slide apart along the cut after delay s
+const MATE_FX = {spin: 1.9, turns: 3, show: .8, delay: .12, after: 1.9, impactFrames: 3, wheel: 1.45, size: 2.1};
+const WEAPONS = ['katana', 'spear', 'scythe', 'axe'];
+// each weapon's cut: angle of the line through the king (radians, 0 = left to right, y down), the trail's bend
+const WEAPON_CUT = {katana: {ang: .62, bend: 0}, spear: {ang: 0, bend: 0}, scythe: {ang: -.5, bend: .55}, axe: {ang: 1.42, bend: 0}};
+// a weapon in a unit box, pointing up (handle at +y): white for the wheel's icons, or in its colours
+function drawWeapon(kind, icon) {
+  const steel = icon ? '#fff' : '#E9EEF2', dark = icon ? '#fff' : '#2B2B2B', wood = icon ? '#fff' : '#8B5A2B', gold = icon ? '#fff' : '#C9A227';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const thick = icon ? 1.7 : 1;   // the wheel's small icons need heavier strokes to read
+  const shaft = (y0, y1, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w * thick; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(0, y1); ctx.stroke(); };
+  if (kind === 'katana') {
+    ctx.fillStyle = steel; ctx.beginPath(); ctx.moveTo(-.035, .1); ctx.quadraticCurveTo(-.02, -.25, .07, -.5);
+    ctx.quadraticCurveTo(.05, -.22, .035, .1); ctx.closePath(); ctx.fill();
+    if (!icon) { ctx.strokeStyle = '#9AA6B0'; ctx.lineWidth = .012; ctx.beginPath(); ctx.moveTo(.02, .08); ctx.quadraticCurveTo(.03, -.22, .065, -.46); ctx.stroke(); }
+    ctx.fillStyle = gold; ctx.beginPath(); ctx.ellipse(0, .12, .08, .025, 0, 0, Math.PI * 2); ctx.fill();
+    shaft(.15, .48, .065, dark);
+    if (!icon) { ctx.strokeStyle = 'rgba(226,217,195,.55)'; ctx.lineWidth = .008; for (let y = .19; y < .46; y += .06) { ctx.beginPath(); ctx.moveTo(-.03, y); ctx.lineTo(.03, y + .03); ctx.moveTo(.03, y); ctx.lineTo(-.03, y + .03); ctx.stroke(); } }
+  } else if (kind === 'spear') {
+    shaft(.5, -.24, .05, wood);
+    ctx.fillStyle = steel; ctx.beginPath(); ctx.moveTo(0, -.5); ctx.quadraticCurveTo(.09, -.36, 0, -.22); ctx.quadraticCurveTo(-.09, -.36, 0, -.5); ctx.fill();
+    ctx.fillStyle = icon ? '#fff' : '#D32F2F'; ctx.beginPath(); ctx.moveTo(0, -.22); ctx.lineTo(.07, -.08); ctx.lineTo(0, -.13); ctx.lineTo(-.07, -.08); ctx.closePath(); ctx.fill();
+  } else if (kind === 'scythe') {
+    ctx.strokeStyle = wood; ctx.lineWidth = .05 * thick; ctx.beginPath(); ctx.moveTo(.04, .5); ctx.quadraticCurveTo(-.05, 0, .02, -.44); ctx.stroke();
+    ctx.fillStyle = steel; ctx.beginPath(); ctx.moveTo(.02, -.46); ctx.quadraticCurveTo(-.3, -.52, -.48, -.18);
+    ctx.quadraticCurveTo(-.28, -.36, .03, -.34); ctx.closePath(); ctx.fill();
+  } else {
+    shaft(.5, -.42, .055, wood);
+    ctx.fillStyle = steel; ctx.beginPath(); ctx.moveTo(.02, -.42); ctx.quadraticCurveTo(.36, -.5, .36, -.26);
+    ctx.quadraticCurveTo(.36, -.04, .02, -.14); ctx.closePath(); ctx.fill();
+    if (!icon) { ctx.fillStyle = '#5E6870'; ctx.fillRect(-.03, -.42, .07, .28); }
+  }
+}
+const MATE_STYLES = {
+  // the king tips over like it was knocked down: accelerates, hits the board, small rebound
+  fall: {
+    plan(p, M) { p.mate.hit = p.mate.fall + M.long; p.end = Math.max(p.end, p.mate.hit + 1.0); },
+    square: (p, t) => clamp((t - p.mate.fall) / clip.M.med),
+    king(p, t, king) {
+      const mate = p.mate, k = clamp((t - mate.fall) / (mate.hit - mate.fall));
+      let ang = (Math.PI / 2) * k * k;
+      const after = t - mate.hit;
+      if (after > 0) ang -= .16 * Math.exp(-7 * after) * Math.abs(Math.sin(after * 16));
+      // shift toward the fall side so the lying king stays inside its square; before falling it hops with the lane
+      const hop = laneHop(p, mate.sq[0], mate.sq[1], t) || {lift: 0, sx: 1, sy: 1};
+      drawPiece(king, mate.sq[0] + mate.dir * .06 * (ang / (Math.PI/2)), mate.sq[1] + .08 * (ang / (Math.PI/2)),
+                {rot: mate.dir * ang, sx: .92 * hop.sx, sy: .92 * hop.sy, lift: hop.lift, shadow: k > 0 && k < 1});
+    },
+  },
+  // anime finish: weapon wheel, wind-up, one cut, the king in two halves
+  slash: {
+    plan(p, M) {
+      const m = p.mate, rnd = seededRandom(Math.round(p.arrive * 1000) * 17 + 5), pick = $('sweapon').value;
+      m.weapon = WEAPONS.includes(pick) ? pick : WEAPONS[Math.floor(rnd() * WEAPONS.length)];
+      const seg = Math.PI * 2 / WEAPONS.length, i = WEAPONS.indexOf(m.weapon);
+      // the wheel's final angle puts weapon i under the pointer, a little off centre
+      m.spinTo = MATE_FX.turns * Math.PI * 2 - i * seg + (rnd() - .5) * seg * .6;
+      m.wheel0 = m.fall; m.pick = m.wheel0 + MATE_FX.spin; m.slash = m.pick + MATE_FX.show; m.hit = m.slash;
+      // which way the cut runs (u) and which side the grip is on (gs): whichever keeps the weapon's start, its
+      // grip and its body on the board, so a king on an edge is cut from the inside
+      const cut = WEAPON_CUT[m.weapon], kx = m.sq[0] + .5, ky = m.sq[1] + .5, out = q => Math.max(0, .3 - q[0], q[0] - 7.7) + Math.max(0, .3 - q[1], q[1] - 7.7);
+      let best = null;
+      for (const su of [1, -1]) for (const gs of [1, -1]) {
+        const u = [Math.cos(cut.ang) * su, Math.sin(cut.ang) * su], n = [-u[1] * gs, u[0] * gs];
+        const A = [kx - u[0] * 1.3, ky - u[1] * 1.3], grip = m.weapon === 'spear' ? [A[0] - u[0] * 1.6, A[1] - u[1] * 1.6] : [kx - n[0] * 1.1, ky - n[1] * 1.1];
+        const body = [(A[0] + grip[0]) / 2, (A[1] + grip[1]) / 2], sc = out(A) + out(grip) + out(body) + (su < 0 ? .01 : 0) + (gs < 0 ? .005 : 0);
+        if (!best || sc < best.sc) best = {sc, u, gs};
+      }
+      m.u = best.u; m.gs = best.gs;
+      // a tick each time a segment edge passes the pointer
+      m.ticks = [];
+      let prev = Math.floor((seg / 2) / seg);
+      for (let j = 1; j <= 240; j++) {
+        const u = j / 240, a = this.spinAt(m, m.wheel0 + u * MATE_FX.spin), c = Math.floor((a + seg / 2) / seg);
+        if (c !== prev) { m.ticks.push(m.wheel0 + u * MATE_FX.spin); prev = c; }
+      }
+      p.end = Math.max(p.end, m.slash + MATE_FX.after);
+    },
+    spinAt: (m, t) => m.spinTo * (1 - Math.pow(1 - clamp((t - m.wheel0) / MATE_FX.spin), 3)),
+    square: (p, t) => clamp((t - p.mate.slash) / clip.M.tick),
+    king(p, t, king) {
+      const m = p.mate, [x, y] = m.sq;
+      if (t < m.slash + MATE_FX.delay) {
+        const hop = laneHop(p, x, y, t) || {lift: 0, sx: 1, sy: 1};
+        drawPiece(king, x, y, {sx: .92 * hop.sx, sy: .92 * hop.sy, lift: hop.lift});
+        return;
+      }
+      // two halves, each clipped to its side of the cut, sliding apart along it and dropping a little
+      const u = m.u, n = [-u[1], u[0]], cx = x + .5, cy = y + .5;
+      const s = t - m.slash - MATE_FX.delay, e = EASE.snap(clamp(s / .35)), fade = 1 - .45 * clamp((s - 1) / .6);
+      for (const side of [-1, 1]) {
+        const slide = side * .3 * e, drop = .16 * e * e, dx = u[0] * slide + n[0] * side * .05 * e, dy = u[1] * slide + n[1] * side * .05 * e + drop;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx + dx - u[0] * 2, cy + dy - u[1] * 2); ctx.lineTo(cx + dx + u[0] * 2, cy + dy + u[1] * 2);
+        ctx.lineTo(cx + dx + u[0] * 2 + n[0] * side * 2, cy + dy + u[1] * 2 + n[1] * side * 2);
+        ctx.lineTo(cx + dx - u[0] * 2 + n[0] * side * 2, cy + dy - u[1] * 2 + n[1] * side * 2); ctx.closePath(); ctx.clip();
+        drawPiece(king, x + dx, y + dy, {sx: .92, sy: .92, rot: side * .12 * e, alpha: fade});
+        ctx.restore();
+      }
+      // the fresh cut glows for a moment
+      const g = 1 - clamp(s / .35);
+      if (g > 0) {
+        ctx.save(); ctx.strokeStyle = `rgba(255,255,255,${.9 * g})`; ctx.lineWidth = .03; ctx.shadowColor = '#fff'; ctx.shadowBlur = .2 * clip._s;
+        ctx.beginPath(); ctx.moveTo(cx - u[0] * .45, cy - u[1] * .45); ctx.lineTo(cx + u[0] * .45, cy + u[1] * .45); ctx.stroke(); ctx.restore();
+      }
+    },
+    over(p, t, attacker) {
+      const m = p.mate, M = clip.M, N = WEAPONS.length, seg = Math.PI * 2 / N, [ax, ay] = [p.to[0] + .5, p.to[1] + .5];
+      const [kx, ky] = [m.sq[0] + .5, m.sq[1] + .5], cut = WEAPON_CUT[m.weapon], u = m.u;
+      if (t < m.wheel0) return;
+      // the board darkens round the wheel, back to normal after the cut
+      const dim = .55 * EASE.snap(clamp((t - m.wheel0) / M.short)) * (1 - clamp((t - m.slash - .1) / M.med));
+      if (dim > 0) { ctx.fillStyle = `rgba(8,10,14,${dim})`; ctx.fillRect(-20, -20, 48, 48); }
+      // the wheel: pops in, spins, the chosen segment lights up, then it shrinks away
+      const grow = EASE.pop(clamp((t - m.wheel0) / M.short)), shrink = 1 - EASE.travel(clamp((t - m.pick - .12) / .22)), ws = grow * shrink;
+      if (ws > 0) {
+        const R = MATE_FX.wheel, r0 = .62, rot = this.spinAt(m, t), lit = t >= m.pick ? EASE.snap(clamp((t - m.pick) / .1)) : 0;
+        ctx.save(); ctx.translate(ax, ay); ctx.scale(ws, ws);
+        ctx.fillStyle = 'rgba(16,20,26,.88)'; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+        for (let i = 0; i < N; i++) {
+          const mid = i * seg + rot - Math.PI / 2, chosen = WEAPONS[i] === m.weapon;
+          ctx.fillStyle = chosen && lit ? hexA(BR.glow, .35 + .5 * lit) : i % 2 ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.13)';
+          ctx.beginPath(); ctx.arc(0, 0, R - .04, mid - seg / 2 + .03, mid + seg / 2 - .03); ctx.arc(0, 0, r0, mid + seg / 2 - .05, mid - seg / 2 + .05, true); ctx.closePath(); ctx.fill();
+          const ir = (R + r0) / 2;
+          ctx.save(); ctx.translate(Math.cos(mid) * ir, Math.sin(mid) * ir); ctx.scale(.72, .72); ctx.rotate(.6);
+          ctx.globalAlpha = lit && !chosen ? 1 - .7 * lit : 1; drawWeapon(WEAPONS[i], true); ctx.restore();
+        }
+        // pointer at the top, and the mating piece in the hub
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -R + .02); ctx.lineTo(-.12, -R - .2); ctx.lineTo(.12, -R - .2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(16,20,26,.95)'; ctx.beginPath(); ctx.arc(0, 0, r0 - .04, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        if (attacker) drawPiece(attacker, p.to[0], p.to[1], {sx: .9 * Math.max(ws, .001), sy: .9 * Math.max(ws, .001)});
+      }
+      // the weapon: grows out of the wheel, winds up beside the king, then its tip runs along the cut line while
+      // its handle swings about a grip off to one side (straight behind for the spear: a thrust); gone after
+      const w0 = m.pick + .1, swing = clamp((t - (m.slash - .07)) / .13), gone = 1 - clamp((t - m.slash - .2) / .25);
+      if (t >= w0 && gone > 0) {
+        const L = 1.3, nx = -u[1] * m.gs, ny = u[0] * m.gs, k = EASE.pop(clamp((t - w0) / .25)), size = MATE_FX.size;
+        const A = [kx - u[0] * L, ky - u[1] * L], B = [kx + u[0] * L, ky + u[1] * L];
+        const grip = m.weapon === 'spear' ? [A[0] - u[0] * 1.6, A[1] - u[1] * 1.6] : [kx - nx * 1.1, ky - ny * 1.1];
+        // where the tip is at swing progress e (wind-up pulls it back a little before the start)
+        const tipAt = e => e > 0 ? [lerp(A[0], B[0], e), lerp(A[1], B[1], e)]
+                             : [A[0] - u[0] * .25 * k, A[1] - u[1] * .25 * k];
+        const pose = e => {
+          const tip = tipAt(e), g = m.weapon === 'spear' && e > 0 ? [grip[0] + (tip[0] - A[0]), grip[1] + (tip[1] - A[1])] : grip;
+          const dx = tip[0] - g[0], dy = tip[1] - g[1], d = Math.hypot(dx, dy) || 1;
+          return {c: [tip[0] - dx / d * .5 * size * k, tip[1] - dy / d * .5 * size * k], r: Math.atan2(dy, dx) + Math.PI / 2};
+        };
+        // it grows out of the wheel's hub on the attacker's square
+        const born = EASE.travel(clamp((t - w0) / .25)), wob = swing > 0 ? 0 : Math.sin((t - w0) * 9) * .04;
+        const ghosts = swing > 0 && swing < 1 ? 5 : 0;
+        for (let j = ghosts; j >= 0; j--) {
+          const e = j ? EASE.travel(clamp(swing - j * .05)) : EASE.travel(swing), q = pose(e);
+          const c = born < 1 ? [lerp(ax, q.c[0], born), lerp(ay, q.c[1], born)] : q.c;
+          ctx.save(); ctx.globalAlpha = (j ? .16 : 1) * gone; ctx.translate(c[0], c[1]); ctx.rotate(q.r + wob); ctx.scale(size * k, size * k);
+          if (!j) { ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = .2 * clip._s; }
+          drawWeapon(m.weapon, false); ctx.restore();
+        }
+      }
+      // the slash: a bright line (bent for the scythe) drawn across in a blink, thinning out
+      const sl = t - (m.slash - .04);
+      if (sl > 0 && sl < .6) {
+        const grow2 = EASE.snap(clamp(sl / .06)), thin = 1 - clamp((sl - .06) / .54), L = 1.7, nx = -u[1], ny = u[0];
+        const a = [kx - u[0] * L, ky - u[1] * L], b = [kx + u[0] * L, ky + u[1] * L], c = [kx + nx * cut.bend, ky + ny * cut.bend];
+        const tip = [lerp(a[0], b[0], grow2), lerp(a[1], b[1], grow2)];
+        ctx.save(); ctx.lineCap = 'round';
+        for (const [w, col, blur] of [[.16 * thin, hexA('#FF3B30', .55 * thin), .5], [.05 * thin + .01, `rgba(255,255,255,${thin})`, .25]]) {
+          ctx.strokeStyle = col; ctx.lineWidth = w; ctx.shadowColor = col; ctx.shadowBlur = blur * clip._s;
+          ctx.beginPath(); ctx.moveTo(a[0], a[1]);
+          if (cut.bend) ctx.quadraticCurveTo(lerp(a[0], c[0], grow2), lerp(a[1], c[1], grow2), tip[0], tip[1]); else ctx.lineTo(tip[0], tip[1]);
+          ctx.stroke();
+        }
+        ctx.restore();
+        // speed lines bursting out of the king, in screen space
+        const sp = clamp(sl / .35);
+        if (sp < 1) {
+          const [sx, sy] = toScreen(clip._cam, kx, ky), rnd = seededRandom(Math.round(m.slash * 1000)), S = clip._cam.s;
+          ctx.save(); ctx.setTransform(1, 0, 0, 1, shk[0], shk[1]); ctx.strokeStyle = `rgba(255,255,255,${.75 * (1 - sp)})`;
+          for (let j = 0; j < 22; j++) {
+            const ang = rnd() * Math.PI * 2, r1 = S * (.7 + rnd() * .5 + sp * 1.4), r2 = r1 + S * (.4 + rnd() * .9) * (1 - sp * .5);
+            ctx.lineWidth = 2 + rnd() * 4; ctx.beginPath(); ctx.moveTo(sx + Math.cos(ang) * r1, sy + Math.sin(ang) * r1); ctx.lineTo(sx + Math.cos(ang) * r2, sy + Math.sin(ang) * r2); ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+    },
+  },
+};
 // ---------- style slots ----------
 // each slot holds named variants with the same functions (BADGE_STYLES, HIGHLIGHT_STYLES, LANE_STYLES,
 // BRILLIANT_STYLES, BLUNDER_STYLES); the
 // drawing code only calls STYLE.<slot>, so a new look for a slot is a new entry in its registry
 let STYLE = {badge: BADGE_STYLES.round, highlight: HIGHLIGHT_STYLES.glow, lane: LANE_STYLES.squares,
-             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch, flash: FLASH_STYLES.none};
+             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch, flash: FLASH_STYLES.none, mate: MATE_STYLES.fall};
 // the slots as the settings pick them (the board colours come from THEMES through clip.theme)
 function pickStyle() {
   const v = (reg, id, def) => reg[$(id).value] || reg[def];
   STYLE = {badge: v(BADGE_STYLES, 'sbadge', 'round'), highlight: v(HIGHLIGHT_STYLES, 'shigh', 'glow'),
            lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.glitch,
-           flash: v(FLASH_STYLES, 'sflash', 'none')};
+           flash: v(FLASH_STYLES, 'sflash', 'none'), mate: v(MATE_STYLES, 'smate', 'fall')};
 }
 // a preset is one choice per setting; picking one fills them in, changing one of them shows the preset that
 // matches (or Tùy chỉnh)
 const PRESETS = {
-  studio: {theme: 'gray',  brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'round',   sflash: 'none'},
-  online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
-  night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker', sflash: 'tint'},
-  wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
-  tiktok: {theme: 'gray',  brstyle: 'flip',    shigh: 'flat',    slane: 'path',    sbadge: 'round',   sflash: 'tint'},
+  studio: {theme: 'gray',  brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'round',   sflash: 'none', smate: 'fall'},
+  online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round',   sflash: 'none', smate: 'fall'},
+  night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker', sflash: 'tint', smate: 'fall'},
+  wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round',   sflash: 'none', smate: 'fall'},
+  tiktok: {theme: 'gray',  brstyle: 'flip',    shigh: 'flat',    slane: 'path',    sbadge: 'round',   sflash: 'tint', smate: 'slash'},
 };
 const PRESET_KEYS = Object.keys(PRESETS.studio);
 const matchPreset = () => Object.keys(PRESETS).find(n => PRESET_KEYS.every(k => PRESETS[n][k] === $(k).value)) || 'custom';
@@ -4277,6 +4481,8 @@ function soundEvents() {
     ev.push(['m' + i, p.arrive, w => playPly(p, w)]);
     if (p.brilliant) ev.push(['b' + i, p.arrive, w => boom(w)]);
     if (p.mate && sndBuf.mate) ev.push(['k' + i, p.mate.hit, w => clipAt(sndBuf.mate, w)]);
+    if (p.mate && p.mate.ticks) p.mate.ticks.forEach((tt, j) => ev.push(['t' + i + '.' + j, tt, w => knock(w, .35, 2.4)]));
+    if (p.mate && p.mate.slash != null && sndBuf.whoosh) ev.push(['s' + i, p.mate.slash - .14, w => clipAt(sndBuf.whoosh, w, .9)]);
     if (p.blunder && BLUNDER_FX.sound > 0) ev.push(['x' + i, p.arrive + p.blunderDelay, w => failSound(w, p.blunder * BLUNDER_FX.sound)]);
   });
   return ev;
@@ -4764,7 +4970,7 @@ $('preset').addEventListener('input', () => {
   syncSegs();
 });
 PRESET_KEYS.forEach(k => $(k).addEventListener('input', () => { $('preset').value = matchPreset(); syncSegs(); saveSettings(); }));
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon'].forEach(id => $(id).addEventListener('input', () => {
   $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
@@ -5061,7 +5267,7 @@ $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));

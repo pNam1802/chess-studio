@@ -23,6 +23,8 @@ Khung xem trước dùng như trình phát video: bấm vào video hoặc phím 
 
 Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*, *TikTok*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ, mũi tên, hoặc *lộ trình*: đường đỏ phát sáng theo đúng đường quân đi, chữ L cho mã), loé màn hình khi đáp (đỏ khi chiếu, xanh khi ăn quân), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant (Aura, Cổ điển, *Lật đồng xu*: quân dày lật 3D trên nền mờ, có vòng đánh dấu ô đích).
 
+**Cảnh chiếu hết:** *Vua đổ* (vua ngã xuống) hoặc *Chém kiểu anime*: một vòng quay vũ khí (kiếm, thương, liềm, rìu) quay quanh quân chiếu hết rồi dừng ở một món, vũ khí lấy đà rồi chém qua vua (vệt chém sáng, vài khung hình đảo màu, tia tốc độ, rung màn hình), vua đứt làm đôi. Mỗi vũ khí có đường chém riêng: kiếm chém xiên, thương đâm ngang, liềm chém vòng, rìu bổ dọc. Chọn *Ngẫu nhiên* (cố định theo ván) hoặc một vũ khí cụ thể.
+
 Huy hiệu ghi sau nước: `!!` `!` `*` (★ tốt nhất) `=` (📖 lý thuyết) `!?` `?!` `?` `??`.
 
 Trong code, mỗi phần là một "khe" có nhiều biến thể cùng giao diện hàm: `BADGE_STYLES`, `HIGHLIGHT_STYLES`, `LANE_STYLES`, `BRILLIANT_STYLES`, `BLUNDER_STYLES`; màu và font nằm ở `PALETTE`, `FONT`, `THEMES`, `BADGES`. Thêm một kiểu mới là thêm một mục vào khe đó (và một nút trong ô chọn), bộ phong cách nằm ở `PRESETS`.
