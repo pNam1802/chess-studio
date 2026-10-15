@@ -186,7 +186,7 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
 .empty .btns{justify-content:center;margin-top:6px}
 /* quick mode: the same settings in three numbered steps, above them the Nhanh | Tùy chỉnh switch */
 .modebar{padding:16px 0 4px}
-.tabs[hidden],.btns[hidden]{display:none}
+.tabs[hidden],.btns[hidden],.btns button[hidden]{display:none}
 .qstep{display:grid;gap:14px}
 .qstep h3{display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:700}
 .qstep h3 b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px}
@@ -264,11 +264,12 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
           <p class="hint" id="qnote"></p>
         </div>
         <p class="qsum" id="qsum"></p>
-        <div class="qana" id="qana" hidden>
-          <div class="head"><span class="loading"><span class="kload"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span><span id="qanatext">Đang phân tích…</span></span><button type="button" class="link" id="qanastop">Huỷ</button></div>
-          <div class="track"><div class="fill" id="qanafill"></div></div>
+        <div class="btns small"><button type="button" data-ana="go">Tự tìm nước hay</button><button type="button" class="link" data-ana="clear" hidden>Xoá đánh giá tự động</button></div>
+        <div class="qana" data-ana="box" hidden>
+          <div class="head"><span class="loading"><span class="kload"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span><span data-ana="text">Đang phân tích…</span></span><button type="button" class="link" data-ana="stop">Huỷ</button></div>
+          <div class="track"><div class="fill" data-ana="fill"></div></div>
         </div>
-        <div class="btns small" id="qanabtns" hidden><button type="button" id="qanalyze">Tự tìm nước hay</button><button type="button" class="link" id="qunann" hidden>Xoá đánh giá tự động</button></div>
+        <p class="hint" data-ana="note"></p>
         <div class="field"><label for="qlen">Độ dài video</label><select id="qlen" data-seg><option value="short" data-sub="~20 giây">Ngắn</option><option value="mid" selected data-sub="~35 giây">Vừa</option><option value="long" data-sub="~60 giây">Dài</option></select>
           <p class="hint" id="qdur"></p></div>
       </div>
@@ -310,6 +311,12 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
         <textarea id="moves" spellcheck="false">e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7</textarea>
         <p class="hint">Gõ hoặc dán nước đi, rồi bấm vào một nước bên dưới để gắn huy hiệu, chọn nước bắt đầu dựng, hoặc chọn ô bị tấn công.</p>
         <div class="movelist" id="movelist" hidden></div>
+        <div class="btns small"><button type="button" data-ana="go">Tự tìm nước hay</button><button type="button" class="link" data-ana="clear" hidden>Xoá đánh giá tự động</button></div>
+        <div class="qana" data-ana="box" hidden>
+          <div class="head"><span class="loading"><span class="kload"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span><span data-ana="text">Đang phân tích…</span></span><button type="button" class="link" data-ana="stop">Huỷ</button></div>
+          <div class="track"><div class="fill" data-ana="fill"></div></div>
+        </div>
+        <p class="hint" data-ana="note"></p>
         <div class="mvedit" id="mvedit" hidden></div>
         <p class="hint" id="movewarn" style="color:var(--danger)"></p>
       </div>
@@ -5671,6 +5678,7 @@ function importPgn(raw, side) {
   if (!text) return false;
   if (playing) { playing = false; stopAudio(); }
   importResult = tags.Result || '';
+  harvestEvals(raw, tags.FEN);
   $('moves').value = text; $('fen').value = tags.FEN || ''; $('nplies').value = '0'; $('orient').value = side || 'auto';
   if (tags.White && tags.Black && tags.White !== '?') $('title').value = tags.White + ' – ' + tags.Black;
   selMove = -1; cur = 0; rebuild(); syncUI(); saveSettings();
@@ -5691,7 +5699,7 @@ function lichessSource(link) {
   if (p[0] === 'study' && /^\w{8}$/.test(p[1] || '') && /^\w{8}$/.test(p[2] || ''))
     return {url: 'https://lichess.org/api/study/' + p[1] + '/' + p[2] + '.pgn?clocks=false'};
   if (/^\w{8}(\w{4})?$/.test(p[0] || ''))
-    return {url: 'https://lichess.org/game/export/' + p[0].slice(0, 8) + '?clocks=false', side: p[1] === 'black' ? 'b' : p[1] === 'white' ? 'w' : ''};
+    return {url: 'https://lichess.org/game/export/' + p[0].slice(0, 8) + '?clocks=false&evals=true', side: p[1] === 'black' ? 'b' : p[1] === 'white' ? 'w' : ''};
   return null;
 }
 const IMPORT_TIP = 'Bấm vào nước muốn bắt đầu dựng chuyển động trong danh sách nước bên dưới, rồi chọn "Bắt đầu dựng từ nước này".';
@@ -5774,6 +5782,250 @@ $('resetcfg').onclick = () => {
   rebuild(); syncUI();   // rebuild stores the defaults in place of the old settings
 };
 
+// ---------- finding the good and bad moves ----------
+// each move is judged by how much of its side's winning chance it gives away, the way Lichess does. the
+// evaluations come from the game's own Lichess analysis ([%eval] comments) when it has one, else from Stockfish
+// running here in a worker: stockfish.js 10 (wasm, one thread: a page opened from file:// has no
+// SharedArrayBuffer), loaded from the CDN the first time it is needed. only moves without a badge get one; the
+// ones added are remembered so "Xoá đánh giá tự động" removes just those
+const SF_URL = 'https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/';
+const ENGINE = {depth: 14, movetime: 300};   // per position, whichever comes first; 2 best lines (MultiPV)
+// thresholds in Win% (see winPct): the loss that makes a move ?! / ? / ??; a !! or ! loses less than best, comes
+// while the game is still open (the mover's chance between lost and decided), not out of check nor as a simple
+// take-back, and the next best move is clearly worse (by brilliantGap / onlyGap); a !! also gives up at least
+// sac pawns of material
+const JUDGE = {inaccuracy: 10, mistake: 20, blunder: 30, best: 2, lost: 25, decided: 90, brilliantGap: 10, onlyGap: 15, sac: 2};
+const PIECE_VAL = {p: 1, n: 3, b: 3, r: 5, q: 9, k: 0};
+// Lichess's curve from centipawns (side to move) to winning chance; mates count as 1000
+const winPct = cp => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamp(cp, -1000, 1000))) - 1);
+// position (FEN without the move counters) -> {cp, best, second, pv}: cp and second in centipawns for White,
+// best and pv as UCI moves. a Lichess evaluation has cp only; a game-over position has no best move
+const evalCache = new Map();
+const fenKey = fen => fen.split(' ').slice(0, 4).join(' ');
+const uciOf = mv => mv.from + mv.to + (mv.promotion || '');
+const uciMove = u => ({from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4]});
+// [%eval] comments of a PGN's main line, stored for the positions they follow
+function harvestEvals(raw, fen) {
+  let s = raw.replace(/\[\s*\w+\s+"(?:[^"\\]|\\.)*"\s*\]/g, ' ')
+    .replace(/\{([^}]*)\}/g, (_, c) => { const m = c.match(/\[%eval\s+(#?-?[\d.]+)/); return m ? ' %' + m[1] + ' ' : ' '; })
+    .replace(/(^|\s);[^\n]*/g, ' ');
+  for (let prev; prev !== s; ) { prev = s; s = s.replace(/\([^()]*\)/g, ' '); }
+  let game; try { game = fen ? new Chess(fen) : new Chess(); } catch { return 0; }
+  let n = 0;
+  for (const tk of s.split(/\s+/)) {
+    if (tk[0] === '%') {
+      const v = tk.slice(1), cp = v[0] === '#' ? (v[1] === '-' ? -1000 : 1000) : Math.round(parseFloat(v) * 100);
+      const k = fenKey(game.fen());
+      if (!isNaN(cp) && !evalCache.has(k)) { evalCache.set(k, {cp: clamp(cp, -1000, 1000)}); n++; }
+      continue;
+    }
+    const san = tk.replace(/^\d+\.+/, '').replace(/[!?]+$/, '');
+    if (!san || san[0] === '$' || /^(1-0|0-1|1\/2-1\/2|\*)$/.test(san)) continue;
+    if (!game.move(san, {sloppy: true})) break;
+  }
+  return n;
+}
+// the engine: one worker for the page, started on first use
+let sfReady = null;
+function engine() {
+  if (sfReady) return sfReady;
+  sfReady = new Promise((res, rej) => {
+    // the engine fetches stockfish.wasm next to the page (a blob: here): send it to the CDN instead
+    const src = 'const F = self.fetch.bind(self); self.fetch = (u, o) => F(/stockfish\\.wasm$/.test(String(u)) ? "' + SF_URL + 'stockfish.wasm" : u, o);\n' +
+                'importScripts("' + SF_URL + 'stockfish.wasm.js");';
+    let w;
+    const fail = e => { clearTimeout(t); if (w) w.terminate(); sfReady = null; rej(e); };
+    const t = setTimeout(() => fail(new Error('timeout')), 30000);
+    try { w = new Worker(URL.createObjectURL(new Blob([src], {type: 'text/javascript'}))); } catch (e) { fail(e); return; }
+    w.onerror = e => { e.preventDefault(); fail(new Error(e.message || 'load')); };
+    w.onmessage = e => {
+      if (e.data !== 'uciok') return;
+      clearTimeout(t); w.onmessage = null;
+      w.postMessage('setoption name MultiPV value 2');
+      res(w);
+    };
+    w.postMessage('uci');
+  });
+  return sfReady;
+}
+// the two best lines of a position, stored in evalCache
+function sfAnalyse(w, fen) {
+  return new Promise(res => {
+    const lines = {}, white = fen.split(' ')[1] === 'w' ? 1 : -1;
+    w.onmessage = e => {
+      const s = String(e.data);
+      const m = s.startsWith('info') && s.match(/ multipv (\d) .*?score (cp|mate) (-?\d+).*? pv (.*)$/);
+      if (m) lines[m[1]] = {cp: white * (m[2] === 'cp' ? +m[3] : (+m[3] > 0 ? 1000 : -1000)), pv: m[4].split(' ')};
+      else if (s.startsWith('bestmove')) {
+        w.onmessage = null;
+        const a = lines[1], b = lines[2];
+        const e = a ? {cp: clamp(a.cp, -1000, 1000), best: a.pv[0], second: b ? clamp(b.cp, -1000, 1000) : null, pv: a.pv.slice(0, 4)} : null;
+        if (e) evalCache.set(fenKey(fen), e);
+        res(e);
+      }
+    };
+    w.postMessage('position fen ' + fen);
+    w.postMessage('go depth ' + ENGINE.depth + ' movetime ' + ENGINE.movetime);
+  });
+}
+// material of `color` minus the other side's, in pawns
+function material(c, color) {
+  let s = 0;
+  for (const row of c.board()) for (const pc of row) if (pc) s += (pc.color === color ? 1 : -1) * PIECE_VAL[pc.type];
+  return s;
+}
+// static exchange on a square: what the side to move wins by capturing there, cheapest piece first (0 = leave it)
+function see(c, sq) {
+  const caps = c.moves({verbose: true}).filter(m => m.to === sq && m.captured);
+  if (!caps.length) return 0;
+  const m = caps.reduce((a, b) => (PIECE_VAL[b.piece] || 99) < (PIECE_VAL[a.piece] || 99) ? b : a);
+  const gain = PIECE_VAL[m.captured] + (m.promotion ? PIECE_VAL[m.promotion] - 1 : 0);
+  c.move(m); const r = gain - see(c, sq); c.undo();
+  return Math.max(0, r);
+}
+// the most the side not to move could win by exchanging on one square, were it its turn (null move)
+function hanging(fen, color) {
+  const f = fen.split(' '); f[1] = color === 'w' ? 'b' : 'w'; f[3] = '-';
+  let c; try { c = new Chess(f.join(' ')); } catch { return 0; }
+  const b = c.board(); let most = 0;
+  for (let r = 0; r < 8; r++) for (let x = 0; x < 8; x++) {
+    const pc = b[r][x];
+    if (pc && pc.color === color && pc.type !== 'k') most = Math.max(most, see(c, 'abcdefgh'[x] + (8 - r)));
+  }
+  return most;
+}
+// a sacrifice: after the move the other side can win more material than before it (and than the move took), or
+// the engine's line keeps the mover down by JUDGE.sac after the reply and the reply after that
+function isSacrifice(fenBefore, fenAfter, mv, pv) {
+  const took = mv.captured ? PIECE_VAL[mv.captured] : 0;
+  if (hanging(fenAfter, mv.color) - took - hanging(fenBefore, mv.color) >= JUDGE.sac) return true;
+  if (!pv || !pv.length) return false;
+  const c = new Chess(fenAfter);
+  const before = material(new Chess(fenBefore), mv.color), marks = [];
+  for (let k = 0; k < Math.min(3, pv.length); k++) {
+    if (!c.move(uciMove(pv[k]))) break;
+    if (k % 2 === 0) marks.push(material(c, mv.color) - before);
+  }
+  return marks.length > 0 && Math.max(...marks) <= -JUDGE.sac;
+}
+// the badges this browser added (move index, move, badge), with the game they belong to
+const AUTO_KEY = 'chess-move-studio:auto';
+let autoAnn = {start: '', moves: []};
+try { autoAnn = JSON.parse(localStorage.getItem(AUTO_KEY)) || autoAnn; } catch {}
+function saveAuto() { try { localStorage.setItem(AUTO_KEY, JSON.stringify(autoAnn)); } catch {} }
+// the badges still standing where they were put
+function autoLeft(g) {
+  if (!g || autoAnn.start !== g.startFen) return [];
+  return autoAnn.moves.filter(a => g.moves[a.i] && g.moves[a.i].mv.san === a.san && g.moves[a.i].ann === a.ann);
+}
+const anaEls = k => document.querySelectorAll('[data-ana="' + k + '"]');
+function anaNote(text) { anaEls('note').forEach(e => e.textContent = text); }
+function anaProgress(text, k) {
+  anaEls('box').forEach(e => e.hidden = text === null);
+  anaEls('go').forEach(e => e.disabled = text !== null);
+  if (text === null) return;
+  anaEls('text').forEach(e => e.textContent = text);
+  anaEls('fill').forEach(e => e.style.width = (clamp(k) * 100).toFixed(1) + '%');
+}
+function anaSync() {
+  let g = null; try { g = readGame(); } catch {}
+  anaEls('clear').forEach(e => e.hidden = !autoLeft(g).length);
+}
+let anaRun = 0, anaBusy = false;
+anaEls('stop').forEach(b => b.onclick = () => { anaRun++; sfReady && sfReady.then(w => w.postMessage('stop'), () => {}); });
+// judge the animated moves (whole: every move of the game), add the badges, report. resolves when done
+async function findMoves(whole) {
+  if (recorder || anaBusy) return;
+  let g; try { g = readGame(); } catch (e) { anaNote(e.message); return; }
+  const n = g.moves.length; if (!n) return;
+  const run = ++anaRun, first = whole ? 0 : firstAnimated(g), sans = g.moves.map(m => m.mv.san).join(' ');
+  // fens[i] = the position before move i, fens[n] = after the last one; game-over positions need no engine
+  const fens = [g.startFen], c = new Chess(g.startFen);
+  for (const m of g.moves) {
+    c.move({from: m.mv.from, to: m.mv.to, promotion: m.mv.promotion}); fens.push(c.fen());
+    if (c.game_over()) evalCache.set(fenKey(c.fen()), {cp: c.in_checkmate() ? (c.turn() === 'w' ? -1000 : 1000) : 0, best: null, second: null, pv: []});
+  }
+  if (g.startFen === new Chess().fen() && !evalCache.has(fenKey(g.startFen))) evalCache.set(fenKey(g.startFen), {cp: 20});
+  const get = i => evalCache.get(fenKey(fens[i]));
+  const lossOf = i => {
+    const m = g.moves[i].mv, pov = m.color === 'w' ? 1 : -1, eb = get(i), ea = get(i + 1);
+    if (!eb || !ea) return null;
+    const bestW = winPct(pov * eb.cp);
+    return {bestW, loss: eb.best === uciOf(m) ? 0 : Math.max(0, bestW - winPct(pov * ea.cp)), pov, eb, ea};
+  };
+  const mistake = l => l.loss >= JUDGE.blunder ? '??' : l.loss >= JUDGE.mistake ? '?' : l.loss >= JUDGE.inaccuracy ? '?!' : '';
+  // a move that might be ! or !!: as good as the best, the game still open, not out of check, not a take-back
+  // nor a capture that just wins material
+  const isCandidate = (i, l) => {
+    if (!l || l.loss >= JUDGE.best || l.bestW < JUDGE.lost || l.bestW >= JUDGE.decided || /[+#]/.test(i ? g.moves[i - 1].mv.san : '')) return false;
+    const m = g.moves[i].mv, prev = g.moves[i - 1];
+    return !m.captured || !(prev && prev.mv.captured && prev.mv.to === m.to) && see(new Chess(fens[i]), m.to) < 1;
+  };
+  let engineErr = null, done = 0, total = 0;
+  // fill in the positions in `list` that lack an evaluation (full: also the best lines), counting progress
+  const analyse = async (list, full) => {
+    const todo = list.filter(i => { const e = get(i); return !e || (full && !('best' in e)); });
+    total += todo.length;
+    for (const i of todo) {
+      if (run !== anaRun || engineErr) return;
+      anaProgress('Đang phân tích ' + (done + 1) + '/' + total + '…', done / total);
+      try { await sfAnalyse(await engine(), fens[i]); } catch (e) { engineErr = e; return; }
+      done++;
+    }
+  };
+  anaBusy = true; anaNote('');
+  const added = [];
+  // writes the badges found so far into the moves box, on moves that have none
+  const apply = labels => {
+    let g2; try { g2 = readGame(); } catch { return false; }
+    if (g2.moves.map(m => m.mv.san).join(' ') !== sans) return false;   // the moves changed meanwhile
+    const fresh = [];
+    for (const [i, ann] of labels) if (!g2.moves[i].ann) { g2.moves[i].ann = ann; fresh.push({i, san: g2.moves[i].mv.san, ann}); }
+    if (fresh.length) {
+      added.push(...fresh);
+      autoAnn = autoAnn.start === g2.startFen ? autoAnn : {start: g2.startFen, moves: []};
+      autoAnn.moves = autoAnn.moves.filter(a => !fresh.some(b => b.i === a.i)).concat(fresh);
+      saveAuto(); writeGame(g2);
+    }
+    return true;
+  };
+  try {
+    const plies = []; for (let i = first; i < n; i++) plies.push(i);
+    anaProgress('Đang chuẩn bị…', 0);
+    // 1) mistakes: an evaluation of every position (Lichess's when the game has them, else the engine's)
+    await analyse([...plies, n], false);
+    if (run !== anaRun) { anaNote('Đã huỷ.'); return; }
+    const marks = new Map();
+    for (const i of plies) { const l = lossOf(i); const a = l && mistake(l); if (a) marks.set(i, a); }
+    if (!apply(marks)) { anaNote('Nước đi vừa thay đổi, hãy bấm Tự tìm nước hay lại.'); return; }
+    // 2) brilliant and only moves: the best lines before the move, and after it (for the sacrifice)
+    const cands = plies.filter(i => !marks.has(i) && isCandidate(i, lossOf(i)));
+    await analyse(cands, true);
+    await analyse(cands.map(i => i + 1), true);
+    if (run !== anaRun) { anaNote('Đã huỷ.'); return; }
+    const good = new Map();
+    for (const i of cands) {
+      const l = lossOf(i); if (!isCandidate(i, l) || l.eb.second == null) continue;
+      const gap = l.bestW - winPct(l.pov * l.eb.second), sac = isSacrifice(fens[i], fens[i + 1], g.moves[i].mv, l.ea.pv);
+      if (sac && gap >= JUDGE.brilliantGap) good.set(i, '!!');
+      else if (!sac && gap >= JUDGE.onlyGap) good.set(i, '!');
+    }
+    if (!apply(good)) { anaNote('Nước đi vừa thay đổi, hãy bấm Tự tìm nước hay lại.'); return; }
+    const count = Object.keys(BADGES).map(k => [k, added.filter(a => a.ann === k).length]).filter(([, k]) => k);
+    anaNote(engineErr
+      ? 'Không tải được Stockfish (cần mạng ở lần dùng đầu). ' + (added.length ? 'Đã gắn ' + count.map(([k, x]) => x + ' ' + k).join(', ') + ' theo phân tích của Lichess; chưa tìm được nước !! và !.' : 'Chưa đánh giá được ván này; các phần khác vẫn dùng bình thường.')
+      : added.length ? 'Đã gắn ' + count.map(([k, x]) => x + ' ' + k).join(', ') + ' cho các nước chưa có ký hiệu.' : 'Không có nước nào cần gắn thêm ký hiệu.');
+  } finally { anaBusy = false; anaProgress(null); anaSync(); }
+}
+anaEls('go').forEach(b => b.onclick = async () => { await findMoves(quick()); if (quick()) quickSpan(); });
+anaEls('clear').forEach(b => b.onclick = () => {
+  let g; try { g = readGame(); } catch { return; }
+  const left = autoLeft(g); if (!left.length || recorder) return;
+  left.forEach(a => g.moves[a.i].ann = '');
+  autoAnn.moves = autoAnn.moves.filter(a => !left.includes(a)); saveAuto();
+  writeGame(g); anaNote('Đã xoá ' + left.length + ' ký hiệu tự động.');
+});
+
 // ---------- quick mode: three steps (game, look, music & export) over the same settings ----------
 // it keeps no settings of its own: every control writes the fields of the full settings (Tùy chỉnh), so switching
 // back and forth loses nothing and both give the same video. QUICK_LEN: target video length (seconds) per choice
@@ -5795,7 +6047,7 @@ function fieldName(id) {
 // called by rebuild(): the quick steps follow whatever the full settings hold
 function quickSync() {
   if (!$('pane-quick').dataset.ready) return;
-  applyMode();
+  applyMode(); anaSync();
   for (const [q, id] of QUICK_MIRROR) if ($(q) !== document.activeElement) $(q).value = $(id).value;
   document.querySelectorAll('#qstyles .qcard').forEach(b => { const on = b.dataset.p === $('preset').value; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   $('qdur').textContent = clip ? 'Video dài khoảng ' + Math.round(clip.to - clip.from) + ' giây.' : '';
