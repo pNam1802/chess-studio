@@ -4298,7 +4298,7 @@ function drawZan(g, x, y, k) {
 // the anime finish, before the mating move (FINISH_SCENE, a p.scene like the brilliant's): the mating piece lifts
 // off its square (rise), the weapon wheel spins round it faster and faster (spin) and locks on a weapon (lock),
 // then the piece dives onto its square (dive x a normal flight) and the slash cuts the king (MATE_STYLES.slash)
-const FIN_T = {flip: .5, rise: .3, spin: .76, lock: .79, fold: .22, dive: .55, lift: .9, grow: 1.45, wheel: 1.55, turns: 1.6,
+const FIN_T = {rise: .45, slowSpin: 1.6, spin: .76, lock: .79, fold: .22, dive: .7, lift: 1.3, grow: 1.6, wheel: 1.55, turns: 1.6,
   tick0: .05, tick: .07, ticks: 10};
 // the wheel's angle: fast at once, slowing down (ease-out) onto the weapon under the arrow, a small overshoot after
 function finSpin(p, t) {
@@ -4335,11 +4335,11 @@ function drawOrbit(g, M, R, ang, front, a) {
   }
   g.restore();
 }
-// where the piece hovers (board point of its centre): above its square, pulled in from the edges so the whole
+// where the piece hovers (board point of its centre): above its target, pulled in from the edges so the whole
 // wheel stays on the board
 function finHover(p) {
   const m = FIN_T.wheel * 1.18 + .1;
-  return [clamp(p.from[0] + .5, m, 8 - m), clamp(p.from[1] + .5 - FIN_T.lift, m, 8 - m)];
+  return [clamp(p.to[0] + .5, m, 8 - m), clamp(p.to[1] + .5 - FIN_T.lift, m, 8 - m)];
 }
 const fromPiece = p => { const idx = clip.plies.indexOf(p); return clip.boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]]; };
 const FINISH_SCENE = {
@@ -4362,16 +4362,20 @@ const FINISH_SCENE = {
   // hovering above its square (growing, bobbing) until the move begins, then diving onto its target, faster and
   // faster; returns {x, y, h (height above the board), opt} like auraPose
   pose(p, t) {
-    const f = p.fin, [fx, fy] = p.from, [tx, ty] = p.to;
-    const [hx, hy] = finHover(p);
-    if (t < p.moveStart) {
-      const up = EASE.travel(clamp((t - f.rise0) / FIN_T.rise)), bob = t > f.spin0 ? Math.sin((t - f.spin0) * 3) * .05 * up : 0;
-      const h = FIN_T.lift * up + bob, g = lerp(1, FIN_T.grow, up);
-      const flip = -Math.PI * 2 * EASE.travel(clamp((t - f.rise0) / FIN_T.flip));
-      return {x: lerp(fx, hx - .5, up), y: lerp(fy, hy - .5, up) - bob, h, opt: {sx: g, sy: g, rot: flip, shadow: true}};
+    const f = p.fin, [fx, fy] = p.from, [tx, ty] = p.to, [hx, hy] = finHover(p), Hh = FIN_T.lift, G = FIN_T.grow;
+    const hover0 = f.rise0 + FIN_T.rise, hoverLen = Math.max(.01, p.moveStart - hover0), r0 = Math.PI * 2 + hoverLen * FIN_T.slowSpin;
+    if (t < hover0) {
+      const k = clamp((t - f.rise0) / FIN_T.rise), sq = k < .2 ? EASE.snap(k / .2) : 0, e = EASE.travel(clamp((k - .2) / .8)), g = lerp(1, G, e);
+      // launched up and over to the hover point in an arc
+      return {x: lerp(fx, hx - .5, e), y: lerp(fy, hy - .5, e) - Hh * .35 * Math.sin(Math.PI * e), h: Hh * e, opt: {sx: lerp(1, ANTIC.sxSpin, sq) * g, sy: lerp(1, ANTIC.sySpin, sq) * g, rot: e * e * Math.PI * 2, shadow: e > 0}};
     }
-    const d = Math.pow(clamp((t - p.moveStart) / p.dur), 1.7), h = FIN_T.lift * (1 - d), g = lerp(FIN_T.grow, 1, d);
-    return {x: lerp(hx - .5, tx, d), y: lerp(hy - .5, ty, d), h, opt: {sx: g, sy: g, shadow: true}};
+    if (t < p.moveStart) {
+      const u = t - hover0, bob = Math.sin(u * 2.4) * .06;
+      return {x: hx - .5, y: hy - .5 - bob, h: Hh + bob, opt: {sx: G, sy: G, rot: Math.PI * 2 + u * FIN_T.slowSpin, shadow: true}};
+    }
+    // the dive: a fast spiral down to the next whole turn and one more, landing upright
+    const d = Math.pow(clamp((t - p.moveStart) / p.dur), 2.2), r1 = Math.ceil(r0 / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2;
+    return {x: lerp(hx - .5, tx, d), y: lerp(hy - .5, ty, d), h: Hh * (1 - d), opt: {sx: lerp(G, 1, d), sy: lerp(G, 1, d), rot: lerp(r0, r1, d), shadow: true}};
   },
   camSquares: p => {
     // the wheel's squares round the hover point
@@ -4431,6 +4435,8 @@ const FINISH_SCENE = {
           }
           ctx.restore(); ctx.restore();
         };
+        const k = clamp((t - f.rise0) / FIN_T.rise);
+        ctx.fillStyle = hexA(FIN.teal, .5 * Math.sin(Math.PI * clamp(k / .7))); ctx.fillRect(p.from[0], p.from[1], 1, 1);
         wheel(false);
         this.shadow(p, t);
         drawPiece(pc, q.x, q.y, q.opt);
@@ -4439,6 +4445,7 @@ const FINISH_SCENE = {
         this.shadow(p, t);
         drawPiece(pc, q.x, q.y, q.opt);
       }
+      for (let j = 3; j >= 1; j--) { const g = this.pose(p, t - j * .06); drawPiece(pc, g.x, g.y, {...g.opt, shadow: false, alpha: .16 * (1 - j / 4)}); }
     } else drawMover(p, pc, t);   // the dive, redrawn over the dark
     ctx.restore();
   },
