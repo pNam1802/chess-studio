@@ -2459,7 +2459,7 @@ $('movelist').addEventListener('click', e => {
   // jump the preview to the move when it is animated
   const p = selMove >= 0 && clip && clip.plies[selMove - firstAnimated(listGame)];
   if (p && !recorder) {
-    if (playing) { playing = false; stopMusic(); }
+    if (playing) { playing = false; stopAudio(); }
     cur = clamp(p.start, clip.from, clip.to); render(cur); syncUI();
   }
 });
@@ -3974,6 +3974,11 @@ function sndNote() {
   $('sndnote').textContent = `Tiếng đi quân: ${f('move')}. Tiếng ăn quân: ${sndSrc.capture ? sndSrc.capture : sndSrc.move ? 'dùng tiếng đi quân' : 'chưa có (dùng tiếng tổng hợp)'}.`;
 }
 let actx = null, master = null, recDest = null, noiseBuf = null;
+// effects of the running preview (knocks, whoosh, the inserted clip, the mate sound) go through fxSession, a gain
+// made fresh by every playback, so stopAudio() can silence what is already scheduled; offline renders and sounds
+// outside a playback (the volume test) go straight to master
+let fxSession = null;
+function fxOut() { return fxSession && fxSession.context === actx ? fxSession : master; }
 function audioInit() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -3996,7 +4001,7 @@ function fxChain(c) {
 function clipAt(buf, when, vol = 1) {
   const s = actx.createBufferSource(), g = actx.createGain();
   s.buffer = buf; g.gain.value = vol;
-  s.connect(g); g.connect(master); s.start(when);
+  s.connect(g); g.connect(fxOut()); s.start(when);
 }
 function knock(when, vol = 1, pitch = 1) {
   // body: a short pitched thump that drops fast, like wood on wood
@@ -4004,12 +4009,12 @@ function knock(when, vol = 1, pitch = 1) {
   o.type = 'triangle';
   o.frequency.setValueAtTime(520*pitch, when); o.frequency.exponentialRampToValueAtTime(190*pitch, when + .05);
   og.gain.setValueAtTime(0, when); og.gain.linearRampToValueAtTime(.75*vol, when + .002); og.gain.exponentialRampToValueAtTime(.001, when + .11);
-  o.connect(og); og.connect(master); o.start(when); o.stop(when + .13);
+  o.connect(og); og.connect(fxOut()); o.start(when); o.stop(when + .13);
   // click: band-passed noise for the hard contact
   const n = actx.createBufferSource(), bp = actx.createBiquadFilter(), ng = actx.createGain();
   n.buffer = noiseBuf; bp.type = 'bandpass'; bp.frequency.value = 2100*pitch; bp.Q.value = 2.5;
   ng.gain.value = .9*vol;
-  n.connect(bp); bp.connect(ng); ng.connect(master); n.start(when);
+  n.connect(bp); bp.connect(ng); ng.connect(fxOut()); n.start(when);
 }
 // deep cinematic hit layered under the landing sound of a slam
 function boom(when, vol = 1) {
@@ -4017,11 +4022,11 @@ function boom(when, vol = 1) {
   o.type = 'sine';
   o.frequency.setValueAtTime(140, when); o.frequency.exponentialRampToValueAtTime(38, when + .35);
   og.gain.setValueAtTime(0, when); og.gain.linearRampToValueAtTime(1.3*vol, when + .004); og.gain.exponentialRampToValueAtTime(.001, when + .7);
-  o.connect(og); og.connect(master); o.start(when); o.stop(when + .75);
+  o.connect(og); og.connect(fxOut()); o.start(when); o.stop(when + .75);
   const n = actx.createBufferSource(), lp = actx.createBiquadFilter(), ng = actx.createGain();
   n.buffer = noiseBuf; lp.type = 'lowpass'; lp.frequency.value = 900;
   ng.gain.value = 1.4*vol;
-  n.connect(lp); lp.connect(ng); ng.connect(master); n.start(when);
+  n.connect(lp); lp.connect(ng); ng.connect(fxOut()); n.start(when);
 }
 // short "fail" sting for a blunder: two falling notes, a sawtooth through a low-pass (synthesized, no clip needed)
 function failSound(when, vol = 1) {
@@ -4030,7 +4035,7 @@ function failSound(when, vol = 1) {
     o.type = 'sawtooth'; lp.type = 'lowpass'; lp.frequency.value = 1400;
     o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + len);
     g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.35 * vol, s + .015); g.gain.exponentialRampToValueAtTime(.001, s + len);
-    o.connect(lp); lp.connect(g); g.connect(master); o.start(s); o.stop(s + len + .05);
+    o.connect(lp); lp.connect(g); g.connect(fxOut()); o.start(s); o.stop(s + len + .05);
   }
 }
 function playPly(p, when) {
@@ -4107,6 +4112,16 @@ function loadSong(data) {
   return songLoading;
 }
 function stopMusic() { if (songSrc) { try { songSrc.stop(); } catch {} songSrc = null; } }
+// only one thing plays at a time: the song, the effects of the last playback and the drop picker's listening all
+// stop together before anything else starts (pause, seek, replay, a setting changed while playing, "Nghe thử")
+function stopAudio() {
+  stopMusic(); stopListen();
+  if (fxSession) {
+    const g = fxSession; fxSession = null;
+    try { g.gain.setTargetAtTime(0, actx.currentTime, .01); } catch {}
+    setTimeout(() => g.disconnect(), 120);
+  }
+}
 
 // ---------- inserted sound (aura brilliant) ----------
 // the sound of a picked video or audio file (only its sound is used), timed to end exactly on the brilliant's slam.
@@ -4144,11 +4159,12 @@ function insertNote() {
 // part of a decoded clip's sound, on the effects bus
 function playSegment(buf, when, offset, dur, vol) {
   const s = actx.createBufferSource(), g = actx.createGain();
-  s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(master); s.start(when, offset, dur);
+  s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(fxOut()); s.start(when, offset, dur);
 }
 // play the song so that song time = video time + musicStart
 function startMusic(fromT, toRecorder, lead) {
-  stopMusic();
+  stopAudio();
+  if (actx) { fxSession = actx.createGain(); fxSession.connect(master); }
   if (!clip || !clip.sync || !songBuf || !actx) return;
   musicInit();
   try { musicGain.disconnect(recDest); } catch {}
@@ -4272,7 +4288,7 @@ async function audioReady() {
 
 async function togglePlay() {
   if (recorder || !clip) return;   // no clip yet: the moves box was empty from the start
-  if (playing) { playing = false; stopMusic(); syncUI(); return; }
+  if (playing) { playing = false; stopAudio(); syncUI(); return; }
   stopListen();
   rebuild(); if (!clip) return;
   await audioReady();
@@ -4465,7 +4481,8 @@ async function listenRange(from, to, whole) {
   await audioReady();
   if (!songBuf) { if (!songLoading) loadSong(SONG_DATA); try { await songLoading; } catch {} }
   if (!songBuf || !actx || recorder) return;
-  if (playing) { playing = false; stopMusic(); syncUI(); }
+  if (playing) { playing = false; syncUI(); }
+  stopAudio();
   musicInit();
   from = clamp(from, 0, songBuf.duration); to = clamp(to, from, songBuf.duration);
   const src = actx.createBufferSource(); src.buffer = songBuf; src.connect(musicGain);
@@ -4518,7 +4535,7 @@ $('swaprole').onclick = () => {
 let scrubResume = false;
 $('scrub').oninput = e => {
   if (recorder || !clip) { syncUI(); return; }
-  if (playing) { scrubResume = true; playing = false; stopMusic(); }
+  if (playing) { scrubResume = true; playing = false; stopAudio(); }
   cur = +e.target.value; render(cur); syncUI();
 };
 $('scrub').onchange = () => {
@@ -4628,7 +4645,7 @@ $('rec').onclick = async () => {
   if (recorder || !clip) return;
   await audioReady();
   rebuild(); if (!clip || recorder) return;
-  if (playing) { playing = false; stopMusic(); }
+  if (playing) { playing = false; stopAudio(); }
   audioInit();
   const withMusic = !!clip.sync && $('recmusic').value === 'with';
   if (withMusic && !songBuf) {
@@ -4771,7 +4788,7 @@ const SAMPLES = {
 $('sample').addEventListener('change', () => {
   const s = SAMPLES[$('sample').value]; $('sample').value = '';
   if (!s || recorder) return;
-  if (playing) { playing = false; stopMusic(); }
+  if (playing) { playing = false; stopAudio(); }
   $('moves').value = s.moves; $('fen').value = ''; $('nplies').value = '0'; $('orient').value = 'auto';
   $('title').value = s.title; $('brsub').value = s.brsub; selMove = -1;
   cur = 0; rebuild(); syncUI();
@@ -4783,7 +4800,7 @@ function importPgn(raw, side) {
   if (recorder) return false;
   const {text, tags} = cleanPgn(raw);
   if (!text) return false;
-  if (playing) { playing = false; stopMusic(); }
+  if (playing) { playing = false; stopAudio(); }
   $('moves').value = text; $('fen').value = tags.FEN || ''; $('nplies').value = '0'; $('orient').value = side || 'auto';
   if (tags.White && tags.Black && tags.White !== '?') $('title').value = tags.White + ' – ' + tags.Black;
   selMove = -1; cur = 0; rebuild(); syncUI(); saveSettings();
@@ -4874,7 +4891,7 @@ $('resetcfg').onclick = () => {
     return;
   }
   clearTimeout(resetArmed); resetArmed = null; b.textContent = 'Về mặc định'; b.classList.remove('confirm');
-  if (playing) { playing = false; stopMusic(); }
+  if (playing) { playing = false; stopAudio(); }
   applySettings(DEFAULTS);
   rebuild(); syncUI();   // rebuild stores the defaults in place of the old settings
 };
