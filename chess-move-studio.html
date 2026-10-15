@@ -2163,8 +2163,8 @@ const MOTION_BLUR = {ghosts: 4, spacing: 1 / 120, minSpeed: 6, alpha: .3};
 // (`sound` = its volume, 0 = off)
 const BLUNDER_FX = {gray: .6, red: .16, split: .08, jump: .12, drop: 1, light: .4, sound: 1};
 // promotion: a white flash on the square while the pawn shrinks away (a short beat), then the new piece pops in
-// (a med beat) inside a soft glow of `glow` colour, `glowSize` squares across
-const PROMO_FX = {flash: .8, glow: '#F5CD3A', glowSize: 1.6};
+// (a med beat) inside a soft glow of PALETTE.promo, `glowSize` squares across
+const PROMO_FX = {flash: .8, glowSize: 1.6};
 // when effects meet on one move: the brilliant (!!) owns its move, nothing else runs on it; otherwise they run one
 // after another from the landing: promotion, then the blunder, then the attack lane, then a checkmate's fall
 let FRAME = ASPECTS['9:16'], W = FRAME.w, H = FRAME.h;
@@ -2174,6 +2174,31 @@ function applyAspect() {
   FRAME = f; W = cv.width = f.w; H = cv.height = f.h;
   cv.style.setProperty('--ar', W / H); cv.style.setProperty('--ch', f.css + 'px');
 }
+// ---------- style: colours and fonts ----------
+// every colour and typeface the video draws with, in one place, so a look can change without touching the drawing
+// code. board themes and badges are registries: an entry added here shows up in the settings and the move list
+const FONT = {
+  ui: '"Be Vietnam Pro", system-ui, sans-serif',                   // title, channel name, badge glyphs
+  display: 'Montserrat, "Be Vietnam Pro", system-ui, sans-serif',  // BRILLIANT MOVE, callouts like FORK!
+};
+const font = (weight, size, family = FONT.ui) => `${weight} ${size}px ${family}`;
+const PALETTE = {
+  text: '#fff',                           // text and rings drawn over colour: badges, title, channel name
+  textOutline: 'rgba(0,0,0,.55)',         // outline of the channel name
+  titleBox: 'rgba(20,20,18,.82)',         // pill / box behind the title
+  glow: '#F5CD3A',                        // highlight of a move without a badge
+  lane: '#E24B4A',                        // attack lanes and the tiles they hit
+  mate: '#E5392B',                        // the mated king's square
+  blunder: '#E5392B',                     // red wash over the board under a blunder
+  glitch: ['#FF2D55', '#00E5FF'],         // RGB split of a blunder's piece (left, right)
+  promo: '#F5CD3A',                       // glow around a promoted piece
+  flash: '#FFFFFF',                       // white silhouettes: bloom and the impact's landed piece
+  rim: '#F4F4F2', ghost: '#3C3C3A',       // x-ray: outline and body of the pieces around the impact
+  brilliant: {glow: '#2FE3D0', text: '#7FF5E8', badge: '#1FB5A0', sub: '#F2F2F0', subGlow: 'rgba(255,255,255,.5)'},
+  callout: {red: {fill: '#FF5A4F', glow: '#FF3B30', outline: 'rgba(70,6,4,.8)'}},
+};
+// hex colour + alpha as an rgba() string (hexA below does the same, greyed with the brilliant's dimmed board)
+function withAlpha(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
 const THEMES = {
   gray:  {light:'#F4F4F2', dark:'#C3C3C0', bg:'#E3E3E0'},
   green: {light:'#EBECD0', dark:'#739552', bg:'#D9DCC3'},
@@ -2189,7 +2214,6 @@ const BADGES = {
   '??': {c:'#E5392B', t:'??', name:'Sai lầm nghiêm trọng'},
   '#':  {c:'#2A2A28', t:'#',  name:'Chiếu hết (tự động)'}
 };
-const DEFAULT_GLOW = '#F5CD3A';
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 
@@ -2461,7 +2485,7 @@ function lanePath(type, from, to) {
 // timing comes from the motion tokens: the lane starts a short beat after landing (a med beat on a capture,
 // once the taken piece has faded), squares light up a short beat apart and fade in over a short beat, the lane
 // fades out over a med beat when the next move begins. cam: camera pull-back time (seconds); max: lanes per move
-const LANE = {col: '#E24B4A', cam: .8, max: 2};
+const LANE = {cam: .8, max: 2};
 const LANE_VAL = {k: 100, q: 9, r: 5, b: 3, n: 3, p: 1};
 // which lanes a move shows, as [attacker, target] square pairs on the board after the move:
 //   a) targets written in braces after the move, from the moved piece (empty braces = none)
@@ -2582,7 +2606,7 @@ function layout(boost = 1, dropAt = null) {
       p.rook = {from: sqxy((ks?'h':'a') + r), to: sqxy((ks?'f':'d') + r)};
     }
     p.cam = [lerp(p.from[0], p.to[0], .62) + .5, lerp(p.from[1], p.to[1], .62) + .5];
-    p.glow = p.badge ? p.badge.c : DEFAULT_GLOW;
+    p.glow = p.badge ? p.badge.c : PALETTE.glow;
     // promotion and blunder run on landing, one after the other (see the order under PROMO_FX); `before` is how
     // long they take, so an attack lane starts after them
     p.promo = !p.brilliant && mv.flags.includes('p') ? {shrink: M.short, grow: M.med} : null;
@@ -2725,7 +2749,7 @@ function titleLayout() {
   if (!clip.title) return null;
   if (FRAME.side) {
     const size = 54, lh = 66, boxW = FRAME.side - 80, maxW = boxW - 48;
-    ctx.font = `800 ${size}px "Be Vietnam Pro", system-ui, sans-serif`;
+    ctx.font = font(800, size);
     const lines = [];
     for (const word of clip.title.split(/\s+/)) {
       const joined = lines.length ? lines[lines.length - 1] + ' ' + word : null;
@@ -2733,7 +2757,7 @@ function titleLayout() {
     }
     return {font: ctx.font, lines, lh, box: [40, FRAME.top, boxW, 40 + lines.length * lh], radius: 28};
   }
-  ctx.font = '800 66px "Be Vietnam Pro", system-ui, sans-serif';
+  ctx.font = font(800, 66);
   const tw = Math.min(ctx.measureText(clip.title).width + 80, W - 80);
   return {font: ctx.font, lines: [clip.title], lh: 112, box: [W/2 - tw/2, FRAME.top, tw, 112], radius: 56};
 }
@@ -2742,7 +2766,7 @@ function overlayRects() {
   const out = [], tl = titleLayout();
   if (tl) out.push([tl.box[0], tl.box[1], tl.box[0] + tl.box[2], tl.box[1] + tl.box[3]]);
   if (clip.handle) {
-    ctx.font = '700 40px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.font = font(700, 40);
     out.push([54, H - FRAME.bottom - 32, 54 + ctx.measureText(clip.handle).width, H - FRAME.bottom + 10]);
   }
   return out;
@@ -3086,7 +3110,7 @@ function drawAuraTitle(p, t) {
   const k = EASE.pop(clamp((t - a.hover0) / clip.M.med)), out = 1 - clamp((t - p.moveStart) / clip.M.med), R = safeRect();
   ctx.save(); ctx.setTransform(1, 0, 0, 1, (R.x0 + R.x1) / 2 + shk[0], R.y1 - 130 + shk[1]); ctx.globalAlpha = out; ctx.scale(k, k);
   glowText('BRILLIANT MOVE', 0, 0, 88, BR.text, BR.glow, 30, 2);
-  if (clip.brsub) glowText(clip.brsub.toUpperCase(), 0, 84, 54, '#F2F2F0', 'rgba(255,255,255,.5)', 14, 2);
+  if (clip.brsub) glowText(clip.brsub.toUpperCase(), 0, 84, 54, BR.sub, BR.subGlow, 14, 2);
   ctx.restore();
 }
 
@@ -3131,7 +3155,7 @@ function bloomPiece(p, pc, alpha) {
   g.setTransform(cam.s / 4, 0, 0, cam.s / 4, (cam.ox + shk[0] - cam.cx * cam.s) / 4, (cam.oy + shk[1] - cam.cy * cam.s) / 4);
   g.filter = `blur(${BRILLIANT_FX.bloomBlur}px)`;
   g.fillStyle = p.glow; g.fillRect(tx, ty, 1, 1);
-  const im = pc && pimg(pc); if (im) g.drawImage(silhouette(im, '#FFFFFF'), tx - .05, ty - .05, 1.1, 1.1);
+  const im = pc && pimg(pc); if (im) g.drawImage(silhouette(im, PALETTE.flash), tx - .05, ty - .05, 1.1, 1.1);
   g.filter = 'none';
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = alpha;
   ctx.drawImage(bl, 0, 0, W, H); ctx.restore();
@@ -3168,7 +3192,7 @@ function renderBoard(t) {
     ctx.fillStyle = bm > 0 ? shade(c, BLUNDER_FX.gray * bm, 0) : c;
     ctx.fillRect(x, y, 1.002, 1.002);
   }
-  if (bm > 0) { ctx.fillStyle = `rgba(229,57,43,${BLUNDER_FX.red * bm})`; ctx.fillRect(0, 0, 8, 8); }
+  if (bm > 0) { ctx.fillStyle = withAlpha(PALETTE.blunder, BLUNDER_FX.red * bm); ctx.fillRect(0, 0, 8, 8); }
 
   const M = clip.M;
   // fading highlight of the previous ply
@@ -3208,7 +3232,7 @@ function renderBoard(t) {
   const mate = p && arrived && p.mate ? p.mate : null;
   if (mate) {
     const a = clamp((t - mate.fall) / M.med);
-    ctx.fillStyle = hexA('#E5392B', .7*a); ctx.fillRect(mate.sq[0], mate.sq[1], 1, 1);
+    ctx.fillStyle = hexA(PALETTE.mate, .7*a); ctx.fillRect(mate.sq[0], mate.sq[1], 1, 1);
   }
 
   // pieces
@@ -3248,7 +3272,7 @@ function renderBoard(t) {
         const kg = (d - pr.shrink) / (pr.grow * 2);
         if (kg > 0 && kg < 1) {
           const r = PROMO_FX.glowSize / 2 * (.6 + .4 * EASE.snap(kg)), g = ctx.createRadialGradient(cx, cy, .05, cx, cy, r);
-          g.addColorStop(0, hexA(PROMO_FX.glow, .75 * (1 - kg))); g.addColorStop(1, hexA(PROMO_FX.glow, 0));
+          g.addColorStop(0, hexA(PALETTE.promo, .75 * (1 - kg))); g.addColorStop(1, hexA(PALETTE.promo, 0));
           ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
         }
       }
@@ -3261,8 +3285,8 @@ function renderBoard(t) {
         if (gl && gl.split > 0) {
           const im = pimg(landed);
           ctx.globalAlpha = .75;
-          ctx.drawImage(silhouette(im, '#FF2D55'), x - gl.split, p.to[1], 1, 1);
-          ctx.drawImage(silhouette(im, '#00E5FF'), x + gl.split, p.to[1], 1, 1);
+          ctx.drawImage(silhouette(im, PALETTE.glitch[0]), x - gl.split, p.to[1], 1, 1);
+          ctx.drawImage(silhouette(im, PALETTE.glitch[1]), x + gl.split, p.to[1], 1, 1);
           ctx.globalAlpha = 1;
         }
         drawPiece(landed, x, p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
@@ -3299,18 +3323,18 @@ function renderBoard(t) {
   if (tl) {
     const [bx, by, bw, bh] = tl.box;
     ctx.globalAlpha = fadeIn;
-    ctx.fillStyle = 'rgba(20,20,18,.82)'; rr(bx, by, bw, bh, tl.radius); ctx.fill();
-    ctx.font = tl.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+    ctx.fillStyle = PALETTE.titleBox; rr(bx, by, bw, bh, tl.radius); ctx.fill();
+    ctx.font = tl.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = PALETTE.text;
     // one line centred in the pill (+2px optical offset), or wrapped lines in the side box
     if (tl.lines.length === 1 && !FRAME.side) ctx.fillText(tl.lines[0], bx + bw / 2, by + 58, W - 140);
     else tl.lines.forEach((ln, i) => ctx.fillText(ln, bx + bw / 2, by + 20 + tl.lh * (i + .5), bw - 40));
     ctx.globalAlpha = 1;
   }
   if (clip.handle) {
-    ctx.font = '700 40px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.font = font(700, 40);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(clip.handle, 54, H - FRAME.bottom);
-    ctx.fillStyle = '#fff'; ctx.fillText(clip.handle, 54, H - FRAME.bottom);
+    ctx.lineWidth = 6; ctx.strokeStyle = PALETTE.textOutline; ctx.strokeText(clip.handle, 54, H - FRAME.bottom);
+    ctx.fillStyle = PALETTE.text; ctx.fillText(clip.handle, 54, H - FRAME.bottom);
   }
 }
 
@@ -3374,8 +3398,8 @@ function drawLane(i, t) {
     const [x, y] = key.split(',').map(Number);
     const tb = fill && tileBump(q, x, y, t);
     if (tb && tb.scale < 1) drawTile(x, y, {...tb, red: a * out}, tint((x + y) % 2 ? clip.theme.dark : clip.theme.light));
-    else if (fill) { ctx.fillStyle = hexA(LANE.col, a * out); ctx.fillRect(x, y, 1, 1); }
-    else { ctx.strokeStyle = hexA(LANE.col, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
+    else if (fill) { ctx.fillStyle = hexA(PALETTE.lane, a * out); ctx.fillRect(x, y, 1, 1); }
+    else { ctx.strokeStyle = hexA(PALETTE.lane, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
   }
 }
 // the "lego" hit when a lane reaches its target (see LANE_FX.bump): the target's tile is pressed down for a short
@@ -3391,7 +3415,7 @@ function bumpHit(p) {
   if (p.brilliant) return BRILLIANT_FX.bricks ? {t0: p.arrive + BRILLIANT_FX.impactFrames / 60, targets: [p.to], flat: [],
     rings: B.rings + 1, lift: B.lift * 1.5, tint: .5, col: p.glow, press: false} : null;
   if (p.lane && p.lane.hop) return {t0: p.arrive + p.lane.reach, targets: p.lane.lanes.map(l => l[l.length - 1]),
-    flat: p.lane.lanes.flat(), rings: B.rings, lift: B.lift, tint: B.tint, col: LANE.col, press: true};
+    flat: p.lane.lanes.flat(), rings: B.rings, lift: B.lift, tint: B.tint, col: PALETTE.lane, press: true};
   return null;
 }
 function tileBump(p, x, y, t) {
@@ -3431,7 +3455,7 @@ function drawTile(x, y, b, color) {
   }
   ctx.translate(x + .5, y + .5 - b.lift); ctx.scale(b.scale, b.scale);
   ctx.fillStyle = color; ctx.fillRect(-.5, -.5, 1, 1);
-  if (b.red > 0) { ctx.fillStyle = hexA(b.col || LANE.col, b.red); ctx.fillRect(-.5, -.5, 1, 1); }
+  if (b.red > 0) { ctx.fillStyle = hexA(b.col || PALETTE.lane, b.red); ctx.fillRect(-.5, -.5, 1, 1); }
   ctx.restore();
 }
 // a targeted piece hops when its lane reaches it: up LANE_FX.hopLift squares growing to hopScale and down (a med beat), a squash on
@@ -3451,15 +3475,14 @@ function laneHop(p, x, y, t) {
 // screen space: the lane's callout (FORK!, DOUBLE CHECK) above the attacker
 function drawFork(i, t) {
   const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
-  drawCallout(q.lane.text, CALLOUT.red, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
+  drawCallout(q.lane.text, PALETTE.callout.red, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
 }
 // shared callout: a word in the BRILLIANT MOVE font that pops up with a bounce over a board point, glowing in
 // its colour over a dark outline, kept inside the safe area. for FORK!, DOUBLE CHECK and the tactics to come
-const CALLOUT = {red: {fill: '#FF5A4F', glow: '#FF3B30', outline: 'rgba(70,6,4,.8)'}};
 function drawCallout(text, color, at, t0, t, alpha) {
   const cam = clip._cam, R = safeRect(), [sx, sy] = toScreen(cam, at[0], at[1]);
   let size = clamp(cam.s * .55, 64, 130);
-  ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
+  ctx.font = font(900, size, FONT.display); ctx.letterSpacing = '3px';
   // long words shrink to fit the safe area's width
   const tw = ctx.measureText(text).width, maxW = (R.x1 - R.x0) - 60;
   if (tw > maxW) size *= maxW / tw;
@@ -3467,7 +3490,7 @@ function drawCallout(text, color, at, t0, t, alpha) {
   const x = clamp(sx, R.x0 + half, R.x1 - half), y = Math.max(sy, R.y0 + size * .7);
   const k = EASE.pop(clamp((t - t0) / clip.M.med));
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.scale(k, k);
-  ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`; ctx.letterSpacing = '3px';
+  ctx.font = font(900, size, FONT.display); ctx.letterSpacing = '3px';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   ctx.lineWidth = size * .14; ctx.strokeStyle = color.outline; ctx.strokeText(text, 0, 0, W - 60);
   glowText(text, 0, 0, size, color.fill, color.glow, 30, 3);
@@ -3481,11 +3504,11 @@ const CARD = {in: .45, hold: 1.6, out: .35};
 const RV = {zoom: .7, hold: .6, view: 8.4};
 // impact: white pop, x-ray negative with a fisheye grid that fades back, then a dark spotlight hold
 const IMP = {flash: .07, xray: .9, hold: 1.7, exit: .25};
-const BR = {glow: '#2FE3D0', text: '#7FF5E8', badge: '#1FB5A0'};
+const BR = PALETTE.brilliant;
 let shk = [0, 0];
 
 function glowText(txt, x, y, size, fill, glow, blur, spacing = 0) {
-  ctx.font = `900 ${size}px Montserrat, "Be Vietnam Pro", system-ui, sans-serif`;
+  ctx.font = font(900, size, FONT.display);
   ctx.letterSpacing = spacing + 'px';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.shadowColor = glow;
@@ -3550,9 +3573,9 @@ function drawCard(p, t) {
     ctx.save(); ctx.globalAlpha = a; ctx.translate(px + 210, py - 30); ctx.scale(eback(kb), eback(kb));
     ctx.shadowColor = BR.glow; ctx.shadowBlur = 34;
     ctx.beginPath(); ctx.arc(0, 0, 62, 0, Math.PI*2); ctx.fillStyle = BR.badge; ctx.fill();
-    ctx.shadowBlur = 0; ctx.lineWidth = 7; ctx.strokeStyle = '#fff'; ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '900 70px Montserrat, system-ui, sans-serif'; ctx.fillText('!!', 0, 4);
+    ctx.shadowBlur = 0; ctx.lineWidth = 7; ctx.strokeStyle = PALETTE.text; ctx.stroke();
+    ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = font(900, 70, FONT.display); ctx.fillText('!!', 0, 4);
     ctx.restore();
   }
   // title slides in from the right with wide letter spacing that tightens; subtitle comes from the left.
@@ -3562,7 +3585,7 @@ function drawCard(p, t) {
   smear(-(vin * 1.6) - vout, a, dx => glowText('BRILLIANT MOVE', W/2 + tx + dx, H/2 + 90, 88, BR.text, BR.glow, 30, sp));
   if (clip.brsub) {
     const sx = lerp(-420, 0, kin) - 900 * kout;
-    smear(vin * 1.6 + vout, a, dx => glowText(clip.brsub.toUpperCase(), W/2 + sx + dx, H/2 + 180, 58, '#F2F2F0', 'rgba(255,255,255,.5)', 14, sp * .8));
+    smear(vin * 1.6 + vout, a, dx => glowText(clip.brsub.toUpperCase(), W/2 + sx + dx, H/2 + 180, 58, BR.sub, BR.subGlow, 14, sp * .8));
   }
   ctx.restore();
   // white flash the instant the title slams in (this is the moment synced to the music drop)
@@ -3594,7 +3617,7 @@ function rimSilhouette(im) {
   if (!c) {
     const S = 96, P = Math.round(RIM.pad * S), o = RIM.offset * S;
     c = document.createElement('canvas'); c.width = c.height = S + 2 * P;
-    const g = c.getContext('2d'), sil = silhouette(im, '#F4F4F2');
+    const g = c.getContext('2d'), sil = silhouette(im, PALETTE.rim);
     for (const [ox, oy] of [[o,0],[-o,0],[0,o],[0,-o],[o*.7,o*.7],[-o*.7,o*.7],[o*.7,-o*.7],[-o*.7,-o*.7]]) g.drawImage(sil, P + ox, P + oy, S, S);
     silCache.set(key, c);
   }
@@ -3662,7 +3685,7 @@ function drawImpact(p, t) {
       ctx.drawImage(rimSilhouette(im), x - RIM.pad, ly - RIM.pad, 1 + 2 * RIM.pad, 1 + 2 * RIM.pad);
       // body stays opaque until late in the fade so the white rim reads as an outline
       ctx.globalAlpha = clamp(xr * 2.5);
-      ctx.drawImage(silhouette(im, '#3C3C3A'), x, ly, 1, 1);
+      ctx.drawImage(silhouette(im, PALETTE.ghost), x, ly, 1, 1);
     }
     ctx.globalAlpha = 1;
   }
@@ -3680,7 +3703,7 @@ function drawImpact(p, t) {
       // squash on contact, then settle
       const s = clamp(d / .3), wob = Math.exp(-6*s) * Math.cos(14*s);
       ctx.translate(tx + .5, ty + .5); ctx.scale(1 + .2*wob, 1 - .24*wob);
-      ctx.drawImage(silhouette(im, '#FFFFFF'), -.53, -.53, 1.06, 1.06);
+      ctx.drawImage(silhouette(im, PALETTE.flash), -.53, -.53, 1.06, 1.06);
       ctx.drawImage(im, -.5, -.5, 1, 1);
     }
     ctx.restore();
@@ -3710,9 +3733,9 @@ function drawBadge(p, scale, alpha, dy = 0, rot = 0) {
   ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = .12 * clip._s; ctx.shadowOffsetY = .03 * clip._s;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
   ctx.shadowColor = 'transparent';
-  ctx.lineWidth = .035; ctx.strokeStyle = '#fff'; ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `800 ${b.t.length > 1 ? .23 : .28}px "Be Vietnam Pro", system-ui, sans-serif`;
+  ctx.lineWidth = .035; ctx.strokeStyle = PALETTE.text; ctx.stroke();
+  ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = font(800, b.t.length > 1 ? .23 : .28);
   ctx.fillText(b.t, 0, .015);
   ctx.restore();
 }
