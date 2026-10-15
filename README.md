@@ -4,7 +4,31 @@ Dựng video nước cờ kiểu TikTok ngay trong trình duyệt: camera bám q
 
 Toàn bộ là một file `chess-move-studio.html`, không cần cài đặt hay server.
 
-## Cách dùng
+## Chế độ Nhanh
+
+Lần đầu mở trang sẽ vào chế độ **Nhanh**: 3 bước thay cho 3 thẻ cài đặt.
+
+1. **Ván cờ:** dán link Lichess, PGN (kể cả từ Chess.com) hoặc chuỗi nước đi vào một ô, hoặc thử ván mẫu. Trang tự nhận loại, hiện tóm tắt (*"42 nước · Trắng thắng · 1 nước !!, 2 nước ??"*), tự tìm nước hay và nước hỏng (xem dưới), rồi tự chọn đoạn dựng: bắt đầu 2 nước trước nước hay nhất (`!!`, nếu không có thì `??`) đến hết ván, dài gần nhất với lựa chọn **Ngắn / Vừa / Dài** (khoảng 20 / 35 / 60 giây).
+2. **Phong cách:** chọn một bộ phong cách theo ảnh xem trước, sửa chữ phía trên, tên kênh và tỉ lệ khung hình.
+3. **Nhạc & xuất:** chọn file nhạc (không bắt buộc, cao trào được tự tìm), rồi bấm **Xuất video**.
+
+Chế độ Nhanh chỉ ghi vào các cài đặt của chế độ **Tùy chỉnh**, nên chuyển qua lại không mất gì và video ra giống hệt nhau. Mục nào chỉnh riêng ở Tùy chỉnh mà Nhanh không hiện sẽ được ghi chú ở cuối.
+
+## Tự tìm nước hay
+
+Nút **Tự tìm nước hay** (tự chạy khi nạp ván ở chế độ Nhanh) gắn huy hiệu cho các nước **chưa có ký hiệu**, theo mức một nước làm mất cơ hội thắng (Win%, cùng công thức với Lichess):
+
+| Ký hiệu | Khi nào |
+|---|---|
+| `??` / `?` / `?!` | mất ≥ 30 / ≥ 20 / ≥ 10 điểm Win% |
+| `!!` | tốt như nước tốt nhất, có thí quân, ván chưa ngã ngũ, nước tốt thứ hai kém hơn rõ |
+| `!` | nước duy nhất giữ thế (nước thứ hai mất ≥ 15), không thí quân |
+
+Ván Lichess đã được phân tích thì dùng luôn đánh giá của Lichess (`[%eval]`), ra `?!` `?` `??` ngay lập tức. Còn lại dùng Stockfish chạy trong trình duyệt (khoảng 0,3 giây mỗi thế cờ, ván 40 nước chừng 20–25 giây, có thanh tiến độ và nút Huỷ). Stockfish được tải từ CDN ở lần dùng đầu nên cần mạng; không có mạng thì các phần khác vẫn chạy bình thường. Nút **Xoá đánh giá tự động** chỉ xoá các ký hiệu do máy gắn.
+
+Máy chấm theo đúng thực lực của nước đi, nên vài nước nổi tiếng được gắn khác sách vở: trong bẫy Blackburne Shilling, `4.Nxe5` và `4...Qg5` thực ra gần cân bằng (Trắng có `5.Bxf7+`), chỉ `5.Nxf7??` mới thua; `24.Rxd4` của Kasparov bị Stockfish đánh giá là không chính xác. Muốn giữ `!!` cho những nước này thì gắn tay, máy không ghi đè.
+
+## Cách dùng (chế độ Tùy chỉnh)
 
 1. Mở `chess-move-studio.html` bằng Chrome hoặc Edge trên máy tính.
 2. Gõ nước đi, ví dụ `e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7`.
@@ -49,3 +73,4 @@ Bản trên GitHub không nhúng sẵn bài hát nào vì lý do bản quyền: 
 
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2-Clause), nhúng sẵn
 - [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) 5.1.3 (MIT), nhúng sẵn
+- [stockfish.js](https://github.com/niklasf/stockfish.js) 10.0.2 (GPLv3), không nhúng: tải từ jsDelivr khi bấm Tự tìm nước hay

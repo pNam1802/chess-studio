@@ -6098,7 +6098,8 @@ async function quickSpan() {
   $('nplies').value = best >= n ? '0' : String(best);
   selMove = -1; cur = 0; rebuild(); syncUI();
 }
-function quickAfterLoad() { quickSpan(); }
+// after a game is loaded: find its good and bad moves, then the span around the best one
+async function quickAfterLoad() { await findMoves(true); quickSpan(); }
 async function quickLoad() {
   const raw = $('qsrc').value.trim(), note = $('qnote');
   if (!raw || recorder) return;
