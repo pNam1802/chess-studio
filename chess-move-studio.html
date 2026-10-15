@@ -2897,7 +2897,16 @@ function buildCamTrack() {
     if (p.reveal) go(p.reveal.start, full, RV.zoom);
     if (p.fin) go(p.fin.rise0, frameSquares(sqs, .5, view), FIN_T.rise + .2);
     const opp = p.mv.color !== me && !p.brilliant && !p.mate && i > 0;
-    if (p.mate) go(p.start, frameSquares([p.from, p.to, p.mate.sq], .25, view, p.cam), flight, mine);
+    if (p.mate) {
+      go(p.start, frameSquares([p.from, p.to, p.mate.sq], .25, view, p.cam), flight, mine);
+      // the kill: close in on the king for the flurry, back out as the board returns
+      const m = p.mate;
+      if (m.cutT) {
+        const [kx, ky] = m.sq, near = [[kx - 1, ky - 1], [kx + 1, ky + 1]].map(([x, y]) => [clamp(x, 0, 7), clamp(y, 0, 7)]);
+        go(m.slash - .04, frameSquares(near, .2, Math.min(view, 3.6)), .22);
+        go(m.slash + KILL.back, frameSquares([p.from, p.to, m.sq], .25, view, p.cam), KILL.backDur + .3);
+      }
+    }
     else if (opp && mode === 'wide') go(p.start, full, p.pan, theirs);
     else if (opp && mode === 'still') go(p.start, clampFrame(p.cam, view), flight);
     else {
@@ -3109,9 +3118,9 @@ function render(t) {
   const sh = clip.M.med;
   const hit = clip.plies.find(p => p.brilliant && t >= p.arrive && t < p.arrive + sh);
   const th = clip.titleHit != null && t >= clip.titleHit && t < clip.titleHit + sh;
-  const cut = clip.plies.find(p => p.mate && p.mate.slash != null && t >= p.mate.slash && t < p.mate.slash + sh);
+  const cut = clip.plies.find(p => p.mate && p.mate.kill != null && t >= p.mate.kill && t < p.mate.kill + sh);
   if (hit || th || cut) {
-    const t0 = hit ? hit.arrive : th ? clip.titleHit : cut.mate.slash, k = (t - t0) / sh, a = 22 * (1 - k) * (1 - k);
+    const t0 = hit ? hit.arrive : th ? clip.titleHit : cut.mate.kill, k = (t - t0) / sh, a = 22 * (1 - k) * (1 - k);
     shk = [a * Math.sin(k * 70), a * Math.cos(k * 53)];
   }
   else shk = [0, 0];
@@ -3200,7 +3209,7 @@ function fxCanvas(name, w, h) {
 // then an RGB split that closes over BRILLIANT_FX.aberration seconds
 function postFx(t) {
   // the anime slash: a few inverted, hard black-and-white frames as the blade cuts
-  const cut = clip.plies.find(q => q.mate && q.mate.slash != null && t >= q.mate.slash && t < q.mate.slash + MATE_FX.impactFrames / 60);
+  const cut = clip.plies.find(q => q.mate && q.mate.kill != null && t >= q.mate.kill && t < q.mate.kill + MATE_FX.impactFrames / 60);
   if (cut) {
     const buf = fxCanvas('buf', W, H), b = buf.getContext('2d');
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -4349,7 +4358,9 @@ const FINISH_SCENE = {
   },
   // over the board: the dark, the target ring on the king, the wheel round the hovering piece, the piece itself
   under(p, t) {
-    const f = p.fin; if (t < f.rise0 || t >= p.arrive) return;
+    const f = p.fin;
+    if (p.mate && p.mate.cutT && t >= p.moveStart) { if (t < p.mate.slash + KILL.back + KILL.backDur) drawKill(p, t); return; }
+    if (t < f.rise0 || t >= p.arrive) return;
     // the board behind turns a little, zooms in and blurs, then the dark comes over it
     const back = EASE.snap(clamp((t - f.rise0) / .25)) * (1 - EASE.travel(clamp((t - p.moveStart) / .2)));
     if (back > 0) {
@@ -4390,14 +4401,24 @@ const FINISH_SCENE = {
   // the chosen weapon in the piece's hand: raised overhead once the wheel locks, swung down through the cut as
   // it lands, mirrored when the king is to its left
   over(p, t) {
-    const f = p.fin, hold = EASE.pop(clamp((t - f.pick - .2) / .3)), sw = clamp((t - (p.arrive - .06)) / .12), gone = 1 - clamp((t - p.arrive - .25) / .25);
+    const f = p.fin, m = p.mate, col = p.mv.color;
+    if (m && m.cutT && t >= m.slash) {
+      const k = killPos(p, t), a = 1 - clamp((t - (m.shatter + KILL.home)) / .12);
+      if (a <= 0) return;
+      ctx.save(); boardTf(clip._cam); ctx.globalAlpha = a;
+      ctx.translate(k.x + Math.cos(k.ang) * .35, k.y + Math.sin(k.ang) * .35); ctx.rotate(k.ang + Math.PI / 2); ctx.scale(1.7, 1.7);
+      ctx.shadowColor = col === 'b' ? 'rgba(255,255,255,.75)' : 'rgba(0,0,0,.45)'; ctx.shadowBlur = 14 * (clip._s / 135);
+      drawWeaponArt(ctx, f.weapon, col);
+      ctx.restore();
+      return;
+    }
+    const hold = EASE.pop(clamp((t - f.pick - .2) / .3)), sw = clamp((t - (p.arrive - .06)) / .12), gone = 1 - clamp((t - p.arrive - .25) / .25);
     if (t < f.pick + .2 || gone <= 0) return;
     const q = this.pose(p, Math.min(t, p.arrive)), g = q.opt.sx, side = p.mate && p.mate.sq[0] < p.to[0] ? -1 : 1;
     ctx.save(); boardTf(clip._cam);
     ctx.translate(q.x + .5 + side * .25 * g, q.y + .5 - .1 * g); ctx.scale(side, 1);
     ctx.rotate(lerp(-.75, 2.25, EASE.travel(sw))); ctx.globalAlpha = gone;
     ctx.translate(0, -.75 * hold); ctx.scale(2 * hold, 2 * hold);
-    const col = p.mv.color;
     ctx.shadowColor = col === 'b' ? 'rgba(255,255,255,.75)' : 'rgba(0,0,0,.45)'; ctx.shadowBlur = 14 * (clip._s / 135);
     drawWeaponArt(ctx, f.weapon, col);
     ctx.restore();
@@ -4406,9 +4427,140 @@ const FINISH_SCENE = {
     const f = p.fin;
     if (sndBuf.whoosh) { ev.push(['fr' + i, f.rise0 - .05, w => clipAt(sndBuf.whoosh, w, .5)]); ev.push(['fd' + i, p.moveStart - .05, w => clipAt(sndBuf.whoosh, w, .8)]); }
     f.ticks.forEach((tt, j) => ev.push(['ft' + i + '.' + j, tt, w => sndBuf.tick ? clipAt(sndBuf.tick, w, .8) : knock(w, .32, 2.6)]));
-    ev.push(['fb' + i, p.arrive, w => boom(w)]);
+    const m = p.mate;
+    if (!m || !m.cutT) { ev.push(['fb' + i, p.arrive, w => boom(w)]); return; }
+    // the flurry, the last cut, the king breaking
+    m.cutT.slice(0, -1).forEach((tt, j) => ev.push(['fc' + i + '.' + j, tt, w => slice(w, .9)]));
+    if (sndBuf.whoosh) ev.push(['fw' + i, m.kill - .08, w => clipAt(sndBuf.whoosh, w, .8)]);
+    ev.push(['fk' + i, m.kill, w => { slice(w, 1.3); boom(w); }]);
+    ev.push(['fs' + i, m.shatter, w => shatterSnd(w, Math.round(m.shatter * 1000))]);
   },
 };
+// the kill, from the dive on: the board goes dark under a red light, only the king and its killer left on it.
+// The killer dashes through the king again and again (flurry: seconds after the first cut, which is on the
+// landing), a breath, the last cut (final), then the king breaks into shards that fly off and crumble to dust
+// (shatter); the killer blinks back to its square (home) and the board comes back (back, backDur)
+const KILL = {flurry: [0, .09, .17, .24, .3, .36], final: .62, shatter: .8, fly: 1.05, home: .45, back: 2.05, backDur: .4, r: .9, dash: .05};
+// where the killer is: dashing from one side of the king to the other on every cut
+function killPos(p, t) {
+  const m = p.mate, T = m.cutT, D = m.dash;
+  let j = T.length - 1; while (j > 0 && t < T[j]) j--;
+  const k = t < T[0] ? 0 : clamp((t - T[j]) / (j === T.length - 1 ? KILL.dash * 1.6 : KILL.dash)), a = D[j], b = D[j + 1];
+  let x = lerp(a[0], b[0], EASE.travel(k)), y = lerp(a[1], b[1], EASE.travel(k));
+  const home = EASE.travel(clamp((t - (m.shatter + KILL.home)) / .12));
+  if (home > 0) { x = lerp(x, D[0][0], home); y = lerp(y, D[0][1], home); }
+  return {x, y, ang: Math.atan2(b[1] - a[1], b[0] - a[0]), j, k, a, b, home};
+}
+// the king's shards: pizza slices round its centre, each cut again by a ring; in board units from the centre
+function kingShards(seed) {
+  const rnd = seededRandom(seed), N = 9, angs = [], rin = [], out = [];
+  for (let i = 0; i < N; i++) { angs.push((i + .2 + rnd() * .6) / N * Math.PI * 2); rin.push(.14 + rnd() * .14); }
+  const pt = (a, r) => [Math.cos(a) * r, Math.sin(a) * r];
+  for (let i = 0; i < N; i++) {
+    const a0 = angs[i], a1 = i === N - 1 ? angs[0] + Math.PI * 2 : angs[i + 1], r0 = rin[i], r1 = rin[(i + 1) % N];
+    for (const pts of [[[0, 0], pt(a0, r0), pt(a1, r1)], [pt(a0, r0), pt(a0, .8), pt(a1, .8), pt(a1, r1)]]) {
+      const c = [pts.reduce((v, q) => v + q[0], 0) / pts.length, pts.reduce((v, q) => v + q[1], 0) / pts.length];
+      const d = Math.hypot(c[0], c[1]) || 1, sp = (pts.length === 3 ? .7 : 1.4) + rnd() * 2;
+      out.push({pts, c, v: [c[0] / d * sp + (rnd() - .5) * .6, c[1] / d * sp - .6 - rnd() * .8], w: (rnd() - .5) * 14, delay: rnd() * .04});
+    }
+  }
+  return out;
+}
+function drawKill(p, t) {
+  const m = p.mate, cam = clip._cam, S = cam.s, [kx, ky] = [m.sq[0] + .5, m.sq[1] + .5];
+  const rin = EASE.snap(clamp((t - p.moveStart) / .12)), out = 1 - EASE.travel(clamp((t - m.slash - KILL.back) / KILL.backDur));
+  // the dark, then the red light: a glow round the king and a band along its rank
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = `rgba(14,2,5,${(lerp(.5, .93, rin) * out).toFixed(3)})`; ctx.fillRect(0, 0, W, H);
+  const [sx, sy] = toScreen(cam, kx, ky), lg = ctx.createRadialGradient(sx, sy, 0, sx, sy, S * 3.4);
+  lg.addColorStop(0, `rgba(235,25,45,${.5 * rin * out})`); lg.addColorStop(.45, `rgba(170,0,22,${.28 * rin * out})`); lg.addColorStop(1, 'rgba(120,0,15,0)');
+  ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  ctx.save(); boardTf(cam);
+  ctx.globalCompositeOperation = 'screen';
+  const band = ctx.createLinearGradient(0, ky - .9, 0, ky + .9);
+  band.addColorStop(0, 'rgba(200,10,30,0)'); band.addColorStop(.5, `rgba(220,20,40,${.4 * rin * out})`); band.addColorStop(1, 'rgba(200,10,30,0)');
+  ctx.fillStyle = band; ctx.fillRect(-2, ky - .9, 12, 1.8);
+  ctx.globalCompositeOperation = 'source-over';
+  const king = clip.boards[clip.plies.indexOf(p) + 1][7 - (clip.flip ? m.sq[1] : 7 - m.sq[1])][clip.flip ? 7 - m.sq[0] : m.sq[0]];
+  const T = m.cutT, nCut = T.filter(c => t >= c).length, last = nCut ? T[nCut - 1] : null;
+  // the king: shoved and flashing white on each cut, the cuts glowing across it, then shards
+  if (t < m.shatter) {
+    let ox = 0, oy = 0, flash = 0;
+    if (last != null) {
+      const d = t - last, D = m.dash[nCut - 1], E = m.dash[nCut], L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1;
+      ox = (E[0] - D[0]) / L * .08 * Math.exp(-d * 30); oy = (E[1] - D[1]) / L * .08 * Math.exp(-d * 30); flash = 1 - clamp(d / .07);
+      if (t > T[T.length - 2] + .05 && t < m.kill) { ox += .018 * Math.sin(t * 95); oy += .012 * Math.cos(t * 83); }
+    }
+    drawPiece(king, m.sq[0] + ox, m.sq[1] + oy, {sx: .92, sy: .92});
+    if (flash > 0) { ctx.save(); ctx.globalAlpha = flash; ctx.drawImage(silhouette(pimg(king), '#fff'), m.sq[0] + ox + .04, m.sq[1] + oy + .04, .92, .92); ctx.restore(); }
+    ctx.save(); ctx.beginPath(); ctx.arc(kx + ox, ky + oy, .4, 0, Math.PI * 2); ctx.clip();
+    ctx.lineCap = 'round'; ctx.shadowColor = '#fff'; ctx.shadowBlur = .12 * S;
+    for (let j = 0; j < nCut; j++) {
+      const D = m.dash[j], E = m.dash[j + 1], L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1, u = [(E[0] - D[0]) / L, (E[1] - D[1]) / L], o = m.offs[j];
+      const hot = j === T.length - 1 ? 1 : .55 + .45 * Math.exp(-(t - T[j]) * 8);
+      ctx.strokeStyle = `rgba(255,${j === T.length - 1 ? 255 : 220},${j === T.length - 1 ? 255 : 225},${hot})`; ctx.lineWidth = j === T.length - 1 ? .035 : .018;
+      ctx.beginPath(); ctx.moveTo(kx + ox - u[0] * .5 - u[1] * o, ky + oy - u[1] * .5 + u[0] * o); ctx.lineTo(kx + ox + u[0] * .5 - u[1] * o, ky + oy + u[1] * .5 + u[0] * o); ctx.stroke();
+    }
+    ctx.restore();
+  } else {
+    const s0 = t - m.shatter;
+    for (const sh of m.shards) {
+      const s2 = Math.max(0, s0 - sh.delay), k = clamp(s2 / KILL.fly); if (k >= 1) continue;
+      const sc = 1 - .7 * k * k;
+      ctx.save(); ctx.translate(kx + sh.c[0] + sh.v[0] * s2, ky + sh.c[1] + sh.v[1] * s2 + 2.4 * s2 * s2); ctx.rotate(sh.w * s2); ctx.scale(sc, sc); ctx.translate(-sh.c[0], -sh.c[1]);
+      ctx.beginPath(); sh.pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.clip();
+      drawPiece(king, -.5, -.5, {sx: .92, sy: .92, alpha: 1 - k * k});
+      if (k < .35) { ctx.globalAlpha = 1 - k / .35; ctx.drawImage(silhouette(pimg(king), '#ff3355'), -.46, -.46, .92, .92); }
+      ctx.restore();
+    }
+    // the dust they crumble into
+    const rnd = seededRandom(Math.round(m.shatter * 1000) + 7);
+    for (let i = 0; i < 90; i++) {
+      const a = rnd() * Math.PI * 2, r0 = rnd() * .38, sp = .4 + rnd() * 1.6, life = .5 + rnd() * .9, st = .05 + rnd() * .35, s2 = s0 - st;
+      const sz = .015 + rnd() * .035, colr = rnd(); if (s2 <= 0 || s2 >= life) continue;
+      const k = s2 / life;
+      ctx.fillStyle = colr < .45 ? `rgba(255,60,80,${1 - k})` : colr < .75 ? `rgba(255,255,255,${1 - k})` : `rgba(40,30,35,${1 - k})`;
+      ctx.fillRect(kx + Math.cos(a) * (r0 + sp * s2), ky + Math.sin(a) * (r0 + sp * s2) - .5 * s2 * s2 * (1 + rnd()), sz * (1 - k * .5), sz * (1 - k * .5));
+    }
+  }
+  // the killer: diving, then dashing through the king with after-images
+  const pc = fromPiece(p);
+  if (t < m.slash) drawMover(p, pc, t);
+  else {
+    const q = killPos(p, t);
+    if (q.k < 1 && t < m.shatter) for (let g = 3; g >= 1; g--) {
+      const u = Math.max(0, EASE.travel(q.k) - g * .18);
+      drawPiece(pc, lerp(q.a[0], q.b[0], u) - .5, lerp(q.a[1], q.b[1], u) - .5, {alpha: .18 * (4 - g) / 3});
+    }
+    drawPiece(pc, q.x - .5, q.y - .5);
+  }
+  // the cuts: a slash along each dash, the last one big, with sparks
+  for (let j = 0; j < nCut; j++) {
+    const D = m.dash[j], E = m.dash[j + 1], fin = j === T.length - 1, sl = t - T[j], life = fin ? .6 : .22;
+    if (sl > life) continue;
+    const L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1, u = [(E[0] - D[0]) / L, (E[1] - D[1]) / L], o = m.offs[j], c = [kx - u[1] * o, ky + u[0] * o], ext = fin ? 2 : 1.3;
+    drawSlashArc(ctx, [c[0] - u[0] * ext, c[1] - u[1] * ext], [c[0] + u[0] * ext, c[1] + u[1] * ext], (fin ? .2 : .1) * (j % 2 ? 1 : -1),
+      EASE.snap(clamp(sl / .06)), 1 - clamp((sl - (fin ? .1 : .04)) / (life - (fin ? .1 : .04))), fin ? 'rgba(255,45,85,.9)' : 'rgba(255,90,110,.7)');
+    drawSparks(ctx, kx, ky, sl / (fin ? .55 : .3), Math.round(T[j] * 1000), Math.atan2(u[1], u[0]));
+  }
+  // the last cut: 斬 and speed lines
+  const sl = t - m.kill;
+  if (sl > 0) {
+    drawZan(ctx, clamp(kx + 1.1, .7, 7.3), clamp(ky - .7, .7, 7.3), (sl - .05) / 1.4);
+    const sp = clamp(sl / .35);
+    if (sp < 1) {
+      const rnd = seededRandom(Math.round(m.kill * 1000));
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, shk[0], shk[1]); ctx.strokeStyle = `rgba(255,255,255,${.75 * (1 - sp)})`;
+      for (let j = 0; j < 22; j++) {
+        const ang = rnd() * Math.PI * 2, r1 = S * (.7 + rnd() * .5 + sp * 1.4), r2 = r1 + S * (.4 + rnd() * .9) * (1 - sp * .5);
+        ctx.lineWidth = 2 + rnd() * 4; ctx.beginPath(); ctx.moveTo(sx + Math.cos(ang) * r1, sy + Math.sin(ang) * r1); ctx.lineTo(sx + Math.cos(ang) * r2, sy + Math.sin(ang) * r2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
 const MATE_STYLES = {
   // the king tips over like it was knocked down: accelerates, hits the board, small rebound
   fall: {
@@ -4434,11 +4586,24 @@ const MATE_STYLES = {
       // the cut starts on the attacker's side of the king
       const c = WEAPON_CUT[m.weapon], u = [Math.cos(c.ang), Math.sin(c.ang)], d = [p.to[0] - m.sq[0], p.to[1] - m.sq[1]];
       m.u = u[0] * d[0] + u[1] * d[1] > 0 ? [-u[0], -u[1]] : u;
-      p.end = Math.max(p.end, m.slash + MATE_FX.after);
+      // the flurry: each dash goes through the king to the far side, a little off its last line
+      m.cutT = [...KILL.flurry.map(c => m.slash + c), m.slash + KILL.final];
+      m.kill = m.slash + KILL.final; m.shatter = m.slash + KILL.shatter; m.hit = m.kill;
+      const rnd = seededRandom(Math.round(p.arrive * 1000) ^ 0x5eed), kx = m.sq[0] + .5, ky = m.sq[1] + .5;
+      let th = Math.atan2(p.to[1] - m.sq[1], p.to[0] - m.sq[0]);
+      m.dash = [[p.to[0] + .5, p.to[1] + .5]]; m.offs = [];
+      for (let j = 0; j < m.cutT.length; j++) {
+        th += Math.PI + (rnd() - .5) * 1.4;
+        m.dash.push([clamp(kx + Math.cos(th) * KILL.r, .45, 7.55), clamp(ky + Math.sin(th) * KILL.r, .45, 7.55)]);
+        m.offs.push(j === m.cutT.length - 1 ? 0 : (rnd() - .5) * .22);
+      }
+      m.shards = kingShards(Math.round(p.arrive * 1000) + 3);
+      p.end = Math.max(p.end, m.slash + KILL.back + KILL.backDur + .4);
     },
     square: (p, t) => clamp((t - p.mate.slash) / clip.M.tick),
     king(p, t, king) {
       const m = p.mate, [x, y] = m.sq;
+      if (m.cutT) { if (t < p.moveStart) drawPiece(king, x, y, {sx: .92, sy: .92}); return; }
       if (t < m.slash + .1) { drawPiece(king, x, y, {sx: .92, sy: .92}); return; }
       // two halves, each clipped to its side of the cut, sliding apart along it and dropping a little
       const u = m.u, n = [-u[1], u[0]], cx = x + .5, cy = y + .5;
@@ -4461,7 +4626,7 @@ const MATE_STYLES = {
     },
     // the slash across the king, sparks, 斬, and speed lines bursting out of it
     over(p, t) {
-      const m = p.mate; if (m.slash == null) return;
+      const m = p.mate; if (m.slash == null || m.cutT) return;
       const sl = t - (m.slash - .03); if (sl <= 0) return;
       const u = m.u, cut = WEAPON_CUT[m.weapon], [kx, ky] = [m.sq[0] + .5, m.sq[1] + .5];
       drawSlashArc(ctx, [kx - u[0] * 1.8, ky - u[1] * 1.8], [kx + u[0] * 1.8, ky + u[1] * 1.8], cut.bend, EASE.snap(clamp(sl / .07)), 1 - clamp((sl - .1) / .5), 'rgba(255,45,85,.85)');
@@ -4585,6 +4750,32 @@ function knock(when, vol = 1, pitch = 1) {
   n.buffer = noiseBuf; bp.type = 'bandpass'; bp.frequency.value = 2100*pitch; bp.Q.value = 2.5;
   ng.gain.value = .9*vol;
   n.connect(bp); bp.connect(ng); ng.connect(fxOut()); n.start(when);
+}
+// a blade cut: a bright hiss falling in pitch and a short metallic ring
+function slice(when, vol = 1) {
+  const n = actx.createBufferSource(), bp = actx.createBiquadFilter(), g = actx.createGain();
+  n.buffer = noiseBuf; bp.type = 'bandpass'; bp.Q.value = 1.2;
+  bp.frequency.setValueAtTime(7500, when); bp.frequency.exponentialRampToValueAtTime(2200, when + .07);
+  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(.9 * vol, when + .004); g.gain.exponentialRampToValueAtTime(.001, when + .078);
+  n.connect(bp); bp.connect(g); g.connect(fxOut()); n.start(when);
+  const o = actx.createOscillator(), og = actx.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(2600, when); o.frequency.exponentialRampToValueAtTime(1900, when + .14);
+  og.gain.setValueAtTime(0, when); og.gain.linearRampToValueAtTime(.1 * vol, when + .003); og.gain.exponentialRampToValueAtTime(.001, when + .16);
+  o.connect(og); og.connect(fxOut()); o.start(when); o.stop(when + .17);
+}
+// the king breaking: a noise crash and a spray of small glassy pings
+function shatterSnd(when, seed = 1) {
+  const n = actx.createBufferSource(), hp = actx.createBiquadFilter(), g = actx.createGain();
+  n.buffer = noiseBuf; n.loop = true; hp.type = 'highpass'; hp.frequency.value = 1800;
+  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(.8, when + .005); g.gain.exponentialRampToValueAtTime(.001, when + .45);
+  n.connect(hp); hp.connect(g); g.connect(fxOut()); n.start(when); n.stop(when + .5);
+  const rnd = seededRandom(seed);
+  for (let i = 0; i < 14; i++) {
+    const w = when + rnd() * rnd() * .3, o = actx.createOscillator(), og = actx.createGain();
+    o.type = 'sine'; o.frequency.value = 2800 + rnd() * 4200;
+    og.gain.setValueAtTime(0, w); og.gain.linearRampToValueAtTime(.12 * (1 - i / 20), w + .002); og.gain.exponentialRampToValueAtTime(.001, w + .05 + rnd() * .06);
+    o.connect(og); og.connect(fxOut()); o.start(w); o.stop(w + .13);
+  }
 }
 // deep cinematic hit layered under the landing sound of a slam
 function boom(when, vol = 1) {
