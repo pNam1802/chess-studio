@@ -2248,6 +2248,8 @@ const THEMES = {
 const BADGES = {
   '!!': {c:'#1FB5A0', t:'!!', name:'Thiên tài'},
   '!':  {c:'#5B8BB8', t:'!',  name:'Tuyệt vời'},
+  '*':  {c:'#81B64C', t:'★',  name:'Tốt nhất'},
+  '=':  {c:'#A88865', t:'📖', name:'Lý thuyết', icon: 'book'},
   '!?': {c:'#8F6BC9', t:'!?', name:'Thú vị'},
   '?!': {c:'#F2BE2E', t:'?!', name:'Chưa chính xác'},
   '?':  {c:'#F08C3A', t:'?',  name:'Sai lầm'},
@@ -2333,8 +2335,8 @@ function readGame() {
   const readTok = tk => {
     const br = tk.match(/^(.*?)\{([^}]*)\}$/), base = br ? br[1] : tk;
     if (br && !/^([a-h][1-8](,[a-h][1-8])*)?$/i.test(br[2])) throw new Error('Mục tiêu không hợp lệ ở nước ' + tk + ': ghi các ô cách nhau bằng dấu phẩy, ví dụ Nf5{f7,h6}.');
-    const m = base.match(/(!!|\?\?|!\?|\?!|!|\?)$/);
-    return {san: base.replace(/(!!|\?\?|!\?|\?!|!|\?)$/, ''), ann: m ? m[1] : '', targets: br ? (br[2] ? br[2].toLowerCase().split(',') : []) : null};
+    const m = base.match(/(!!|\?\?|!\?|\?!|!|\?|\*|=)$/);
+    return {san: base.replace(/(!!|\?\?|!\?|\?!|!|\?|\*|=)$/, ''), ann: m ? m[1] : '', targets: br ? (br[2] ? br[2].toLowerCase().split(',') : []) : null};
   };
   // the bad move is named with its number, e.g. "14... Nxe4", so it can be found in a long game
   const bad = tk => { const f = game.fen().split(' '); return new Error('Nước không hợp lệ: ' + f[5] + (f[1] === 'w' ? '. ' : '... ') + tk); };
@@ -3894,6 +3896,22 @@ function drawImpact(p, t) {
 
 // dy: offset in squares (a blunder's badge falls in from above); rot: swing in radians
 function drawBadge(p, scale, alpha, dy = 0, rot = 0) { STYLE.badge.draw(p, scale, alpha, dy, rot); }
+// a badge's glyph at the origin, white, size ~ the glyph height in board units
+function badgeGlyph(b, size, family = FONT.ui, weight = 800) {
+  ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (b.icon === 'book') {
+    // an open book: two pages bent down at the spine
+    const w = size * .52, h = size * .36;
+    ctx.beginPath();
+    for (const sd of [-1, 1]) {
+      ctx.moveTo(0, -h * .55); ctx.quadraticCurveTo(sd * w * .45, -h * .85, sd * w, -h * .6);
+      ctx.lineTo(sd * w, h * .6); ctx.quadraticCurveTo(sd * w * .45, h * .35, 0, h * .65); ctx.closePath();
+    }
+    ctx.fill(); return;
+  }
+  ctx.font = font(weight, b.t.length > 1 ? size * .82 : size, family);
+  ctx.fillText(b.t, 0, .015);
+}
 const BADGE_STYLES = {
   // a disc in the badge's colour on the target square's top-right corner, white ring and glyph
   round: {
@@ -3904,9 +3922,12 @@ const BADGE_STYLES = {
       ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
       ctx.shadowColor = 'transparent';
       ctx.lineWidth = .035; ctx.strokeStyle = PALETTE.text; ctx.stroke();
-      ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = font(800, b.t.length > 1 ? .23 : .28);
-      ctx.fillText(b.t, 0, .015);
+      if (b.icon || b.t === '★') badgeGlyph(b, .28);
+      else {
+        ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = font(800, b.t.length > 1 ? .23 : .28);
+        ctx.fillText(b.t, 0, .015);
+      }
       ctx.restore();
     },
   },
@@ -4067,9 +4088,7 @@ Object.assign(BADGE_STYLES, {
       ctx.beginPath(); ctx.roundRect(-r, -r, 2 * r, 2 * r, .09); ctx.fillStyle = PALETTE.text; ctx.fill();
       ctx.shadowColor = 'transparent';
       ctx.beginPath(); ctx.roundRect(-r + .05, -r + .05, 2 * r - .1, 2 * r - .1, .06); ctx.fillStyle = tint(b.c); ctx.fill();
-      ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = font(900, b.t.length > 1 ? .24 : .3, FONT.display);
-      ctx.fillText(b.t, 0, .02);
+      badgeGlyph(b, .3, b.t === '★' ? FONT.ui : FONT.display, 900);
       ctx.restore();
     },
   },
