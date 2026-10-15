@@ -262,12 +262,20 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
 
     <section class="pane" id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden>
       <div class="group">
+        <h3>Phong cách</h3>
+        <div class="field"><label for="preset">Bộ phong cách</label><select id="preset" data-seg><option value="studio" data-sub="mặc định">Studio</option><option value="online" data-sub="như chơi online">Bàn online</option><option value="night" data-sub="nền tối">Đêm</option><option value="wood" data-sub="gọn, ít hiệu ứng">Gỗ</option><option value="custom" data-sub="tự chọn">Tùy chỉnh</option></select>
+          <p class="hint">Mỗi bộ chọn sẵn màu bàn cờ, kiểu cảnh Brilliant và ba mục dưới đây. Đổi riêng mục nào thì bộ chuyển sang Tùy chỉnh.</p></div>
+        <div class="field"><label for="shigh">Ô vừa đi</label><select id="shigh" data-seg><option value="glow" data-sub="phát sáng">Sáng</option><option value="flat" data-sub="tô màu">Phẳng</option><option value="outline" data-sub="viền ô">Viền</option></select></div>
+        <div class="field"><label for="slane">Dải tấn công</label><select id="slane" data-seg><option value="squares" data-sub="ô bật đỏ">Ô</option><option value="arrow" data-sub="mũi tên">Mũi tên</option></select></div>
+        <div class="field"><label for="sbadge">Huy hiệu</label><select id="sbadge" data-seg><option value="round" data-sub="tròn">Tròn</option><option value="sticker" data-sub="nhãn dán">Sticker</option></select></div>
+      </div>
+      <div class="group">
         <h3>Khung hình</h3>
         <div class="field"><label for="aspect">Tỉ lệ</label><select id="aspect" data-seg="aspect"><option value="9:16" data-sub="TikTok">9:16</option><option value="4:5" data-sub="Instagram">4:5</option><option value="1:1" data-sub="Vuông">1:1</option><option value="16:9" data-sub="YouTube">16:9</option></select></div>
         <div class="field"><label for="orient">Mình cầm quân (nằm phía dưới)</label><select id="orient" data-seg><option value="auto" data-sub="bên đi !!">Tự động</option><option value="w">Trắng</option><option value="b">Đen</option></select>
           <button id="swaprole" type="button" hidden>Đổi vai</button><p class="hint" id="rolenote"></p></div>
         <div class="grid2">
-          <div class="field"><label for="theme">Màu bàn cờ</label><select id="theme" data-seg="swatch"><option value="gray">Trắng xám</option><option value="green">Xanh lá</option><option value="brown">Nâu gỗ</option><option value="blue">Xanh xám</option></select></div>
+          <div class="field"><label for="theme">Màu bàn cờ</label><select id="theme" data-seg="swatch"><option value="gray">Trắng xám</option><option value="green">Xanh lá</option><option value="brown">Nâu gỗ</option><option value="blue">Xanh xám</option><option value="night">Đêm</option></select></div>
           <div class="field"><label for="zoom">Độ zoom: <span id="zoomv">5</span> ô</label><input type="range" id="zoom" min="3.5" max="8" step="0.5" value="5"></div>
         </div>
       </div>
@@ -2203,7 +2211,8 @@ const THEMES = {
   gray:  {light:'#F4F4F2', dark:'#C3C3C0', bg:'#E3E3E0'},
   green: {light:'#EBECD0', dark:'#739552', bg:'#D9DCC3'},
   brown: {light:'#F0D9B5', dark:'#B58863', bg:'#E2CBA6'},
-  blue:  {light:'#E3E8EB', dark:'#8CA2AD', bg:'#D3DADF'}
+  blue:  {light:'#E3E8EB', dark:'#8CA2AD', bg:'#D3DADF'},
+  night: {light:'#56657A', dark:'#2F3A4A', bg:'#1A2029'}
 };
 const BADGES = {
   '!!': {c:'#1FB5A0', t:'!!', name:'Thiên tài'},
@@ -2554,7 +2563,7 @@ function layout(boost = 1, dropAt = null) {
   let titleHit = null, slamHit = null;   // slamHit: the brilliant piece hitting the board = the music drop
   const view = parseFloat($('zoom').value), laneOn = $('clane').checked, oppMode = $('oppcam').value;
   const bounceOn = $('lbounce').checked, forkOn = $('lfork').checked, warn = [];
-  STYLE.brilliant = BRILLIANT_STYLES[$('brstyle').value] || BRILLIANT_STYLES.aura;
+  pickStyle();
   for (const p of plies) {
     const mv = p.mv;
     p.speed = accel(++pi);
@@ -3813,12 +3822,104 @@ const HIGHLIGHT_STYLES = {
     },
   },
 };
+Object.assign(HIGHLIGHT_STYLES, {
+  // both squares filled flat, like an online board; the target a little stronger
+  flat: {
+    fade(q, a) {
+      ctx.fillStyle = hexA(q.glow, .5*a); ctx.fillRect(q.to[0], q.to[1], 1, 1); ctx.fillStyle = hexA(q.glow, .35*a); ctx.fillRect(q.from[0], q.from[1], 1, 1);
+    },
+    move(p, t, arrived) {
+      const M = clip.M;
+      ctx.fillStyle = hexA(p.glow, .35 * EASE.snap(clamp((t - p.moveStart) / M.short))); ctx.fillRect(p.from[0], p.from[1], 1, 1);
+      if (arrived) { ctx.fillStyle = hexA(p.glow, .5 * EASE.snap(clamp((t - p.arrive) / M.short))); ctx.fillRect(p.to[0], p.to[1], 1, 1); }
+    },
+  },
+  // a frame inside each square, the board's colours left as they are
+  outline: {
+    w: .07,
+    frame(sq, col, a) {
+      const w = this.w; ctx.strokeStyle = hexA(col, a); ctx.lineWidth = w; ctx.strokeRect(sq[0] + w / 2, sq[1] + w / 2, 1 - w, 1 - w);
+    },
+    fade(q, a) { this.frame(q.to, q.glow, .9*a); this.frame(q.from, q.glow, .5*a); },
+    move(p, t, arrived) {
+      const M = clip.M;
+      this.frame(p.from, p.glow, .55 * EASE.snap(clamp((t - p.moveStart) / M.short)));
+      if (arrived) this.frame(p.to, p.glow, .95 * EASE.snap(clamp((t - p.arrive) / M.short)));
+    },
+  },
+});
+Object.assign(LANE_STYLES, {
+  // an arrow grows from the attacker to each target, its tip reaching the target as the lane would; the target
+  // square pulses under it and the board dims a little less than with squares
+  arrow: {
+    callout: PALETTE.callout.red,
+    draw(q, t, out) {
+      const t0 = q.arrive + q.lane.start, fade = clip.M.short;
+      const dim = LANE_FX.dim * .6 * EASE.snap(clamp((t - t0) / fade)) * out;
+      if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, 8, 8); }
+      q.lane.lanes.forEach((l, li) => {
+        const n = l.length - 1, since = t - t0, len = n * q.lane.steps[li];
+        if (since <= 0) return;
+        const k = EASE.travel(clamp(since / Math.max(len, fade))), [ax, ay] = l[0], [bx, by] = l[n];
+        // the target square: pressed by the hit (drawn here, as in squares), then pulsing
+        if (k >= 1) {
+          const tb = tileBump(q, bx, by, t), pulse = .62 + .18 * Math.cos((since - len) * Math.PI * 3.2);
+          if (tb && tb.scale < 1) drawTile(bx, by, {...tb, red: pulse * out}, tint((bx + by) % 2 ? clip.theme.dark : clip.theme.light));
+          else { ctx.fillStyle = hexA(PALETTE.lane, pulse * out); ctx.fillRect(bx, by, 1, 1); }
+        }
+        // shaft from the attacker's centre, the head ending just inside the target square
+        const x0 = ax + .5, y0 = ay + .5, dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy), ux = dx / d, uy = dy / d;
+        const reach = (d - .2) * k, hl = Math.min(.42, reach), hw = .27, sw = .14;
+        const tx = x0 + ux * reach, ty = y0 + uy * reach, nx = -uy, ny = ux, bxh = tx - ux * hl, byh = ty - uy * hl;
+        ctx.fillStyle = hexA(PALETTE.lane, .88 * out * EASE.snap(clamp(since / fade)));
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * sw / 2, y0 + ny * sw / 2); ctx.lineTo(bxh + nx * sw / 2, byh + ny * sw / 2);
+        ctx.lineTo(bxh + nx * hw, byh + ny * hw); ctx.lineTo(tx, ty); ctx.lineTo(bxh - nx * hw, byh - ny * hw);
+        ctx.lineTo(bxh - nx * sw / 2, byh - ny * sw / 2); ctx.lineTo(x0 - nx * sw / 2, y0 - ny * sw / 2);
+        ctx.closePath(); ctx.fill();
+      });
+    },
+  },
+});
+Object.assign(BADGE_STYLES, {
+  // a tilted rounded square with a thick white border and a drop shadow, like a sticker slapped on the corner
+  sticker: {
+    draw(p, scale, alpha, dy, rot) {
+      const b = p.badge, x = p.to[0] + .86, y = p.to[1] + .14 + dy, r = .25;
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot - .14); ctx.scale(scale, scale);
+      ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = .1 * clip._s; ctx.shadowOffsetY = .045 * clip._s;
+      ctx.beginPath(); ctx.roundRect(-r, -r, 2 * r, 2 * r, .09); ctx.fillStyle = PALETTE.text; ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.beginPath(); ctx.roundRect(-r + .05, -r + .05, 2 * r - .1, 2 * r - .1, .06); ctx.fillStyle = tint(b.c); ctx.fill();
+      ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = font(900, b.t.length > 1 ? .24 : .3, FONT.display);
+      ctx.fillText(b.t, 0, .02);
+      ctx.restore();
+    },
+  },
+});
 // ---------- style slots ----------
 // each slot holds named variants with the same functions (BADGE_STYLES, HIGHLIGHT_STYLES, LANE_STYLES,
 // BRILLIANT_STYLES, BLUNDER_STYLES); the
 // drawing code only calls STYLE.<slot>, so a new look for a slot is a new entry in its registry
 let STYLE = {badge: BADGE_STYLES.round, highlight: HIGHLIGHT_STYLES.glow, lane: LANE_STYLES.squares,
              brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch};
+// the slots as the settings pick them (the board colours come from THEMES through clip.theme)
+function pickStyle() {
+  const v = (reg, id, def) => reg[$(id).value] || reg[def];
+  STYLE = {badge: v(BADGE_STYLES, 'sbadge', 'round'), highlight: v(HIGHLIGHT_STYLES, 'shigh', 'glow'),
+           lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.glitch};
+}
+// a preset is one choice per setting; picking one fills them in, changing one of them shows the preset that
+// matches (or Tùy chỉnh)
+const PRESETS = {
+  studio: {theme: 'gray',  brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'round'},
+  online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round'},
+  night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker'},
+  wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round'},
+};
+const PRESET_KEYS = Object.keys(PRESETS.studio);
+const matchPreset = () => Object.keys(PRESETS).find(n => PRESET_KEYS.every(k => PRESETS[n][k] === $(k).value)) || 'custom';
 
 // ---------- sound: real recorded clips when available, synthesized knock as fallback ----------
 // embedded clips (data: URIs) are filled in by the embed step; null = not embedded
@@ -4210,7 +4311,15 @@ $('scrub').onchange = () => {
   scrubResume = false;
   start(cur >= clip.to - .05 ? clip.from : cur);
 };
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol'].forEach(id => $(id).addEventListener('input', () => {
+// a preset fills in its settings before the rebuild below runs; any of those settings changed by hand shows
+// the matching preset
+$('preset').addEventListener('input', () => {
+  const pr = PRESETS[$('preset').value]; if (!pr || recorder) return;
+  for (const k of PRESET_KEYS) $(k).value = pr[k];
+  syncSegs();
+});
+PRESET_KEYS.forEach(k => $(k).addEventListener('input', () => { $('preset').value = matchPreset(); syncSegs(); saveSettings(); }));
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge'].forEach(id => $(id).addEventListener('input', () => {
   $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
@@ -4505,7 +4614,7 @@ $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
@@ -4521,6 +4630,7 @@ function applySettings(s) {
     if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === v)) continue;
     if (el.type === 'checkbox') el.checked = v === 'true'; else el.value = v;
   }
+  $('preset').value = matchPreset();   // settings saved before presets existed
   refreshLabels();
   if (master) master.gain.value = +$('vol').value / 100;
   if (musicGain) musicGain.gain.value = +$('mvol').value / 100;

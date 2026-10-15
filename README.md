@@ -19,6 +19,12 @@ Cài đặt được tự lưu trong trình duyệt; nút **Về mặc định**
 
 Khung xem trước dùng như trình phát video: bấm vào video hoặc phím Space để phát/dừng, kéo thanh để tua, phím ← → tua 1 giây.
 
+## Phong cách
+
+Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ hoặc mũi tên), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant.
+
+Trong code, mỗi phần là một "khe" có nhiều biến thể cùng giao diện hàm: `BADGE_STYLES`, `HIGHLIGHT_STYLES`, `LANE_STYLES`, `BRILLIANT_STYLES`, `BLUNDER_STYLES`; màu và font nằm ở `PALETTE`, `FONT`, `THEMES`, `BADGES`. Thêm một kiểu mới là thêm một mục vào khe đó (và một nút trong ô chọn), bộ phong cách nằm ở `PRESETS`.
+
 ## Hiệu ứng và camera
 
 - **Dải chiếu:** khi chiếu Vua, các ô từ quân chiếu tới Vua lần lượt bật đỏ, camera lùi ra cho thấy cả dải (có tính chiếu mở và chiếu đôi). Bật/tắt bằng ô tick "Dải chiếu".
