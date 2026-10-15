@@ -2751,7 +2751,7 @@ function layout(boost = 1, dropAt = null) {
   let musicStart = null;
   if (sync && slamHit != null) musicStart = sync.drop - slamHit;
   else if (sync) { const P = sync.period, a = anchor != null ? anchor : 0; musicStart = ((sync.drop - a) % P + P) % P; }
-  clip = {plies, boards, T, M, HOP, flip, insertVol: +$('clipvol').value / 100, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
+  clip = {plies, boards, T, M, HOP, flip, insertVol: +$('clipvol').value / 100, dur: t + (plies.length && plies[plies.length - 1].final ? 0 : T.outro), sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
           view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim()};
   // optionally drop the silence before the song comes in (never a move). the end is never cut: a video longer
   // than the rest of the song plays it again from the start (see startMusic), fading out with the video
@@ -2902,9 +2902,7 @@ function buildCamTrack() {
       // the kill: close in on the king for the flurry, back out as the board returns
       const m = p.mate;
       if (m.cutT) {
-        const [kx, ky] = m.sq, near = [[kx - 1, ky - 1], [kx + 1, ky + 1]].map(([x, y]) => [clamp(x, 0, 7), clamp(y, 0, 7)]);
-        go(m.slash - .04, frameSquares(near, .2, Math.min(view, 3.6)), .22);
-        go(m.slash + KILL.back, frameSquares([p.from, p.to, m.sq], .25, view, p.cam), KILL.backDur + .3);
+        go(m.slash - .04, frameSquares([m.sq], .9, Math.min(view, 2.8)), .2);
       }
     }
     else if (opp && mode === 'wide') go(p.start, full, p.pan, theirs);
@@ -4359,7 +4357,7 @@ const FINISH_SCENE = {
   // over the board: the dark, the target ring on the king, the wheel round the hovering piece, the piece itself
   under(p, t) {
     const f = p.fin;
-    if (p.mate && p.mate.cutT && t >= p.moveStart) { if (t < p.mate.slash + KILL.back + KILL.backDur) drawKill(p, t); return; }
+    if (p.mate && p.mate.cutT && t >= p.moveStart) { drawKill(p, t); return; }
     if (t < f.rise0 || t >= p.arrive) return;
     // the board behind turns a little, zooms in and blurs, then the dark comes over it
     const back = EASE.snap(clamp((t - f.rise0) / .25)) * (1 - EASE.travel(clamp((t - p.moveStart) / .2)));
@@ -4402,16 +4400,7 @@ const FINISH_SCENE = {
   // it lands, mirrored when the king is to its left
   over(p, t) {
     const f = p.fin, m = p.mate, col = p.mv.color;
-    if (m && m.cutT && t >= m.slash) {
-      const k = killPos(p, t), a = 1 - clamp((t - (m.shatter + KILL.home)) / .12);
-      if (a <= 0) return;
-      ctx.save(); boardTf(clip._cam); ctx.globalAlpha = a;
-      ctx.translate(k.x + Math.cos(k.ang) * .35, k.y + Math.sin(k.ang) * .35); ctx.rotate(k.ang + Math.PI / 2); ctx.scale(1.7, 1.7);
-      ctx.shadowColor = col === 'b' ? 'rgba(255,255,255,.75)' : 'rgba(0,0,0,.45)'; ctx.shadowBlur = 14 * (clip._s / 135);
-      drawWeaponArt(ctx, f.weapon, col);
-      ctx.restore();
-      return;
-    }
+    if (m && m.cutT && t >= m.slash) return;
     const hold = EASE.pop(clamp((t - f.pick - .2) / .3)), sw = clamp((t - (p.arrive - .06)) / .12), gone = 1 - clamp((t - p.arrive - .25) / .25);
     if (t < f.pick + .2 || gone <= 0) return;
     const q = this.pose(p, Math.min(t, p.arrive)), g = q.opt.sx, side = p.mate && p.mate.sq[0] < p.to[0] ? -1 : 1;
@@ -4436,21 +4425,11 @@ const FINISH_SCENE = {
     ev.push(['fs' + i, m.shatter, w => shatterSnd(w, Math.round(m.shatter * 1000))]);
   },
 };
-// the kill, from the dive on: the board goes dark under a red light, only the king and its killer left on it.
-// The killer dashes through the king again and again (flurry: seconds after the first cut, which is on the
-// landing), a breath, the last cut (final), then the king breaks into shards that fly off and crumble to dust
-// (shatter); the killer blinks back to its square (home) and the board comes back (back, backDur)
-const KILL = {flurry: [0, .09, .17, .24, .3, .36], final: .62, shatter: .8, fly: 1.05, home: .45, back: 2.05, backDur: .4, r: .9, dash: .05};
-// where the killer is: dashing from one side of the king to the other on every cut
-function killPos(p, t) {
-  const m = p.mate, T = m.cutT, D = m.dash;
-  let j = T.length - 1; while (j > 0 && t < T[j]) j--;
-  const k = t < T[0] ? 0 : clamp((t - T[j]) / (j === T.length - 1 ? KILL.dash * 1.6 : KILL.dash)), a = D[j], b = D[j + 1];
-  let x = lerp(a[0], b[0], EASE.travel(k)), y = lerp(a[1], b[1], EASE.travel(k));
-  const home = EASE.travel(clamp((t - (m.shatter + KILL.home)) / .12));
-  if (home > 0) { x = lerp(x, D[0][0], home); y = lerp(y, D[0][1], home); }
-  return {x, y, ang: Math.atan2(b[1] - a[1], b[0] - a[0]), j, k, a, b, home};
-}
+// the kill, from the dive on: the camera closes in on the king and the screen goes dark under a red light, only
+// the king left. Red cuts streak across the whole screen from every side through it (flurry: seconds after the
+// first, which is on the landing), a breath, the last cut (final), then the king breaks into shards that fly off
+// and crumble to dust (shatter) and the video ends (end: seconds after the shatter)
+const KILL = {flurry: [0, .1, .19, .27, .34, .4], final: .62, shatter: .78, fly: 1.05, end: 1.15};
 // the king's shards: pizza slices round its centre, each cut again by a ring; in board units from the centre
 function kingShards(seed) {
   const rnd = seededRandom(seed), N = 9, angs = [], rin = [], out = [];
@@ -4466,43 +4445,58 @@ function kingShards(seed) {
   }
   return out;
 }
+// one cut streaking across the screen (screen px): a red needle with a white core runs from a to b (head 0..1,
+// tail 0..1 behind it), leaving a thin glowing line (trace 0..1)
+function drawStreak(a, b, head, tail, w, trace, white) {
+  const P = u => [lerp(a[0], b[0], u), lerp(a[1], b[1], u)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy), n = [-dy / L, dx / L];
+  ctx.save(); ctx.lineCap = 'round';
+  if (trace > 0) {
+    const e = P(head);
+    ctx.shadowColor = '#ff1a3a'; ctx.shadowBlur = w * .6;
+    ctx.strokeStyle = white ? `rgba(255,255,255,${trace})` : `rgba(255,40,70,${trace})`; ctx.lineWidth = Math.max(1.5, w * (white ? .16 : .09));
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+  }
+  if (head > tail) {
+    const t0 = P(tail), h = P(head), m = P(lerp(tail, head, .72));
+    const needle = (ww, col, blur) => {
+      ctx.beginPath(); ctx.moveTo(t0[0], t0[1]); ctx.lineTo(m[0] + n[0] * ww / 2, m[1] + n[1] * ww / 2); ctx.lineTo(h[0], h[1]);
+      ctx.lineTo(m[0] - n[0] * ww / 2, m[1] - n[1] * ww / 2); ctx.closePath(); ctx.fillStyle = col; ctx.shadowColor = '#ff1a3a'; ctx.shadowBlur = blur; ctx.fill();
+    };
+    needle(w, 'rgba(255,30,60,.95)', w * 1.2);
+    needle(w * .38, '#fff', w * .4);
+  }
+  ctx.restore();
+}
 function drawKill(p, t) {
   const m = p.mate, cam = clip._cam, S = cam.s, [kx, ky] = [m.sq[0] + .5, m.sq[1] + .5];
-  const rin = EASE.snap(clamp((t - p.moveStart) / .12)), out = 1 - EASE.travel(clamp((t - m.slash - KILL.back) / KILL.backDur));
+  const rin = EASE.snap(clamp((t - p.moveStart) / .12)), T = m.cutT, nCut = T.filter(c => t >= c).length, last = nCut ? T[nCut - 1] : null;
+  const end = clamp((t - (m.shatter + KILL.end - .35)) / .35);   // the last moments sink into black
   // the dark, then the red light: a glow round the king and a band along its rank
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = `rgba(14,2,5,${(lerp(.5, .93, rin) * out).toFixed(3)})`; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = `rgba(10,1,4,${lerp(.5, .93, rin).toFixed(3)})`; ctx.fillRect(0, 0, W, H);
   const [sx, sy] = toScreen(cam, kx, ky), lg = ctx.createRadialGradient(sx, sy, 0, sx, sy, S * 3.4);
-  lg.addColorStop(0, `rgba(235,25,45,${.5 * rin * out})`); lg.addColorStop(.45, `rgba(170,0,22,${.28 * rin * out})`); lg.addColorStop(1, 'rgba(120,0,15,0)');
+  lg.addColorStop(0, `rgba(235,25,45,${.5 * rin})`); lg.addColorStop(.45, `rgba(170,0,22,${.28 * rin})`); lg.addColorStop(1, 'rgba(120,0,15,0)');
   ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
   ctx.restore();
   ctx.save(); boardTf(cam);
   ctx.globalCompositeOperation = 'screen';
   const band = ctx.createLinearGradient(0, ky - .9, 0, ky + .9);
-  band.addColorStop(0, 'rgba(200,10,30,0)'); band.addColorStop(.5, `rgba(220,20,40,${.4 * rin * out})`); band.addColorStop(1, 'rgba(200,10,30,0)');
+  band.addColorStop(0, 'rgba(200,10,30,0)'); band.addColorStop(.5, `rgba(220,20,40,${.4 * rin})`); band.addColorStop(1, 'rgba(200,10,30,0)');
   ctx.fillStyle = band; ctx.fillRect(-2, ky - .9, 12, 1.8);
   ctx.globalCompositeOperation = 'source-over';
   const king = clip.boards[clip.plies.indexOf(p) + 1][7 - (clip.flip ? m.sq[1] : 7 - m.sq[1])][clip.flip ? 7 - m.sq[0] : m.sq[0]];
-  const T = m.cutT, nCut = T.filter(c => t >= c).length, last = nCut ? T[nCut - 1] : null;
-  // the king: shoved and flashing white on each cut, the cuts glowing across it, then shards
+  // the killer only dives in; from the first cut the king is alone
+  if (t < m.slash) drawMover(p, fromPiece(p), t);
   if (t < m.shatter) {
+    // the king, shoved and flashing white on each cut, trembling before the last
     let ox = 0, oy = 0, flash = 0;
     if (last != null) {
-      const d = t - last, D = m.dash[nCut - 1], E = m.dash[nCut], L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1;
-      ox = (E[0] - D[0]) / L * .08 * Math.exp(-d * 30); oy = (E[1] - D[1]) / L * .08 * Math.exp(-d * 30); flash = 1 - clamp(d / .07);
+      const d = t - last, a = m.angs[nCut - 1];
+      ox = Math.cos(a) * .07 * Math.exp(-d * 30); oy = Math.sin(a) * .07 * Math.exp(-d * 30); flash = 1 - clamp(d / .07);
       if (t > T[T.length - 2] + .05 && t < m.kill) { ox += .018 * Math.sin(t * 95); oy += .012 * Math.cos(t * 83); }
     }
     drawPiece(king, m.sq[0] + ox, m.sq[1] + oy, {sx: .92, sy: .92});
     if (flash > 0) { ctx.save(); ctx.globalAlpha = flash; ctx.drawImage(silhouette(pimg(king), '#fff'), m.sq[0] + ox + .04, m.sq[1] + oy + .04, .92, .92); ctx.restore(); }
-    ctx.save(); ctx.beginPath(); ctx.arc(kx + ox, ky + oy, .4, 0, Math.PI * 2); ctx.clip();
-    ctx.lineCap = 'round'; ctx.shadowColor = '#fff'; ctx.shadowBlur = .12 * S;
-    for (let j = 0; j < nCut; j++) {
-      const D = m.dash[j], E = m.dash[j + 1], L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1, u = [(E[0] - D[0]) / L, (E[1] - D[1]) / L], o = m.offs[j];
-      const hot = j === T.length - 1 ? 1 : .55 + .45 * Math.exp(-(t - T[j]) * 8);
-      ctx.strokeStyle = `rgba(255,${j === T.length - 1 ? 255 : 220},${j === T.length - 1 ? 255 : 225},${hot})`; ctx.lineWidth = j === T.length - 1 ? .035 : .018;
-      ctx.beginPath(); ctx.moveTo(kx + ox - u[0] * .5 - u[1] * o, ky + oy - u[1] * .5 + u[0] * o); ctx.lineTo(kx + ox + u[0] * .5 - u[1] * o, ky + oy + u[1] * .5 + u[0] * o); ctx.stroke();
-    }
-    ctx.restore();
   } else {
     const s0 = t - m.shatter;
     for (const sh of m.shards) {
@@ -4518,47 +4512,36 @@ function drawKill(p, t) {
     const rnd = seededRandom(Math.round(m.shatter * 1000) + 7);
     for (let i = 0; i < 90; i++) {
       const a = rnd() * Math.PI * 2, r0 = rnd() * .38, sp = .4 + rnd() * 1.6, life = .5 + rnd() * .9, st = .05 + rnd() * .35, s2 = s0 - st;
-      const sz = .015 + rnd() * .035, colr = rnd(); if (s2 <= 0 || s2 >= life) continue;
+      const sz = .015 + rnd() * .035, colr = rnd(), up = .5 * (1 + rnd()); if (s2 <= 0 || s2 >= life) continue;
       const k = s2 / life;
       ctx.fillStyle = colr < .45 ? `rgba(255,60,80,${1 - k})` : colr < .75 ? `rgba(255,255,255,${1 - k})` : `rgba(40,30,35,${1 - k})`;
-      ctx.fillRect(kx + Math.cos(a) * (r0 + sp * s2), ky + Math.sin(a) * (r0 + sp * s2) - .5 * s2 * s2 * (1 + rnd()), sz * (1 - k * .5), sz * (1 - k * .5));
+      ctx.fillRect(kx + Math.cos(a) * (r0 + sp * s2), ky + Math.sin(a) * (r0 + sp * s2) - up * s2 * s2, sz * (1 - k * .5), sz * (1 - k * .5));
     }
   }
-  // the killer: diving, then dashing through the king with after-images
-  const pc = fromPiece(p);
-  if (t < m.slash) drawMover(p, pc, t);
-  else {
-    const q = killPos(p, t);
-    if (q.k < 1 && t < m.shatter) for (let g = 3; g >= 1; g--) {
-      const u = Math.max(0, EASE.travel(q.k) - g * .18);
-      drawPiece(pc, lerp(q.a[0], q.b[0], u) - .5, lerp(q.a[1], q.b[1], u) - .5, {alpha: .18 * (4 - g) / 3});
-    }
-    drawPiece(pc, q.x - .5, q.y - .5);
-  }
-  // the cuts: a slash along each dash, the last one big, with sparks
+  ctx.restore();
+  // the cuts, in screen space: each streaks from one edge of the screen through the king to the other; their
+  // traces stay until the last cut lights them all white, then go with the shatter
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, shk[0], shk[1]);
+  const L = Math.hypot(W, H) * .75;
   for (let j = 0; j < nCut; j++) {
-    const D = m.dash[j], E = m.dash[j + 1], fin = j === T.length - 1, sl = t - T[j], life = fin ? .6 : .22;
-    if (sl > life) continue;
-    const L = Math.hypot(E[0] - D[0], E[1] - D[1]) || 1, u = [(E[0] - D[0]) / L, (E[1] - D[1]) / L], o = m.offs[j], c = [kx - u[1] * o, ky + u[0] * o], ext = fin ? 2 : 1.3;
-    drawSlashArc(ctx, [c[0] - u[0] * ext, c[1] - u[1] * ext], [c[0] + u[0] * ext, c[1] + u[1] * ext], (fin ? .2 : .1) * (j % 2 ? 1 : -1),
-      EASE.snap(clamp(sl / .06)), 1 - clamp((sl - (fin ? .1 : .04)) / (life - (fin ? .1 : .04))), fin ? 'rgba(255,45,85,.9)' : 'rgba(255,90,110,.7)');
-    drawSparks(ctx, kx, ky, sl / (fin ? .55 : .3), Math.round(T[j] * 1000), Math.atan2(u[1], u[0]));
+    const fin = j === T.length - 1, sl = t - T[j], tr = fin ? .1 : .07, a = m.angs[j], o = m.offs[j] * S;
+    const c = [sx - Math.sin(a) * o, sy + Math.cos(a) * o], d = [Math.cos(a) * L, Math.sin(a) * L];
+    const head = EASE.travel(clamp(sl / tr)), tail = clamp((sl - tr * .35) / (tr * 1.6));
+    const lit = t >= m.kill && !fin, gone = 1 - clamp((t - m.shatter - .05) / .25);
+    const trace = (fin ? 1 - clamp((sl - .15) / .4) : (lit ? 1 : .55 + .45 * Math.exp(-sl * 6))) * gone;
+    drawStreak([c[0] - d[0], c[1] - d[1]], [c[0] + d[0], c[1] + d[1]], head, tail, S * (fin ? .22 : .12), trace, lit && t < m.kill + .12);
   }
-  // the last cut: 斬 and speed lines
-  const sl = t - m.kill;
-  if (sl > 0) {
-    drawZan(ctx, clamp(kx + 1.1, .7, 7.3), clamp(ky - .7, .7, 7.3), (sl - .05) / 1.4);
-    const sp = clamp(sl / .35);
-    if (sp < 1) {
-      const rnd = seededRandom(Math.round(m.kill * 1000));
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, shk[0], shk[1]); ctx.strokeStyle = `rgba(255,255,255,${.75 * (1 - sp)})`;
-      for (let j = 0; j < 22; j++) {
-        const ang = rnd() * Math.PI * 2, r1 = S * (.7 + rnd() * .5 + sp * 1.4), r2 = r1 + S * (.4 + rnd() * .9) * (1 - sp * .5);
-        ctx.lineWidth = 2 + rnd() * 4; ctx.beginPath(); ctx.moveTo(sx + Math.cos(ang) * r1, sy + Math.sin(ang) * r1); ctx.lineTo(sx + Math.cos(ang) * r2, sy + Math.sin(ang) * r2); ctx.stroke();
-      }
-      ctx.restore();
+  // the last cut: speed lines bursting out of the king
+  const sp = clamp((t - m.kill) / .35);
+  if (t > m.kill && sp < 1) {
+    const rnd = seededRandom(Math.round(m.kill * 1000));
+    ctx.strokeStyle = `rgba(255,255,255,${.75 * (1 - sp)})`;
+    for (let j = 0; j < 22; j++) {
+      const ang = rnd() * Math.PI * 2, r1 = S * (.7 + rnd() * .5 + sp * 1.4), r2 = r1 + S * (.4 + rnd() * .9) * (1 - sp * .5);
+      ctx.lineWidth = 2 + rnd() * 4; ctx.beginPath(); ctx.moveTo(sx + Math.cos(ang) * r1, sy + Math.sin(ang) * r1); ctx.lineTo(sx + Math.cos(ang) * r2, sy + Math.sin(ang) * r2); ctx.stroke();
     }
   }
+  if (end > 0) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0,0,0,${end})`; ctx.fillRect(0, 0, W, H); }
   ctx.restore();
 }
 const MATE_STYLES = {
@@ -4586,19 +4569,14 @@ const MATE_STYLES = {
       // the cut starts on the attacker's side of the king
       const c = WEAPON_CUT[m.weapon], u = [Math.cos(c.ang), Math.sin(c.ang)], d = [p.to[0] - m.sq[0], p.to[1] - m.sq[1]];
       m.u = u[0] * d[0] + u[1] * d[1] > 0 ? [-u[0], -u[1]] : u;
-      // the flurry: each dash goes through the king to the far side, a little off its last line
+      // the cuts: angles spread round the half turn (golden steps), each a little off the king's centre
       m.cutT = [...KILL.flurry.map(c => m.slash + c), m.slash + KILL.final];
       m.kill = m.slash + KILL.final; m.shatter = m.slash + KILL.shatter; m.hit = m.kill;
-      const rnd = seededRandom(Math.round(p.arrive * 1000) ^ 0x5eed), kx = m.sq[0] + .5, ky = m.sq[1] + .5;
-      let th = Math.atan2(p.to[1] - m.sq[1], p.to[0] - m.sq[0]);
-      m.dash = [[p.to[0] + .5, p.to[1] + .5]]; m.offs = [];
-      for (let j = 0; j < m.cutT.length; j++) {
-        th += Math.PI + (rnd() - .5) * 1.4;
-        m.dash.push([clamp(kx + Math.cos(th) * KILL.r, .45, 7.55), clamp(ky + Math.sin(th) * KILL.r, .45, 7.55)]);
-        m.offs.push(j === m.cutT.length - 1 ? 0 : (rnd() - .5) * .22);
-      }
+      const rnd = seededRandom(Math.round(p.arrive * 1000) ^ 0x5eed), a0 = rnd() * Math.PI;
+      m.angs = m.cutT.map((_, j) => j === m.cutT.length - 1 ? a0 + Math.PI / 2 + .3 : a0 + (j * .618 % 1) * Math.PI + (rnd() - .5) * .2);
+      m.offs = m.cutT.map((_, j) => j === m.cutT.length - 1 ? 0 : (rnd() - .5) * .3);
       m.shards = kingShards(Math.round(p.arrive * 1000) + 3);
-      p.end = Math.max(p.end, m.slash + KILL.back + KILL.backDur + .4);
+      p.end = Math.max(p.end, m.shatter + KILL.end); p.final = true;
     },
     square: (p, t) => clamp((t - p.mate.slash) / clip.M.tick),
     king(p, t, king) {
