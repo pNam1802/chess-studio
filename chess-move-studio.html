@@ -4298,13 +4298,42 @@ function drawZan(g, x, y, k) {
 // the anime finish, before the mating move (FINISH_SCENE, a p.scene like the brilliant's): the mating piece lifts
 // off its square (rise), the weapon wheel spins round it faster and faster (spin) and locks on a weapon (lock),
 // then the piece dives onto its square (dive x a normal flight) and the slash cuts the king (MATE_STYLES.slash)
-const FIN_T = {rise: .3, spin: .76, lock: .79, fold: .22, dive: .55, lift: .9, grow: 1.45, wheel: 1.55, turns: 1.6,
+const FIN_T = {flip: .5, rise: .3, spin: .76, lock: .79, fold: .22, dive: .55, lift: .9, grow: 1.45, wheel: 1.55, turns: 1.6,
   tick0: .05, tick: .07, ticks: 10};
 // the wheel's angle: fast at once, slowing down (ease-out) onto the weapon under the arrow, a small overshoot after
 function finSpin(p, t) {
   const f = p.fin, seg = Math.PI * 2 / WEAPONS.length, i = WEAPONS.indexOf(f.weapon), end = Math.PI * 4 - i * seg;
   if (t < f.pick) return end - Math.PI * 2 * FIN_T.turns * Math.pow(1 - clamp((t - f.spin0) / FIN_T.spin), 3);
   return end + .08 * Math.sin(clamp((t - f.pick) / .3) * Math.PI) * (1 - clamp((t - f.pick) / .3));
+}
+// 3D: rotation matrices [m00 m01 m02 m10 .. m22]; tilt(phi, a) tips a plane by a about the in-plane axis at angle
+// phi. The disc's own (x, y) maps to the screen by the top-left 2x2, its depth (toward the viewer) by row 3
+const mat3 = (a, b) => [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => { const r = Math.floor(i / 3), c = i % 3; return a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]; });
+function tilt(phi, a) {
+  const c = Math.cos(phi), s = Math.sin(phi), ca = Math.cos(a), sa = Math.sin(a);
+  return mat3(mat3([c, -s, 0, s, c, 0, 0, 0, 1], [1, 0, 0, 0, ca, -sa, 0, sa, ca]), [c, s, 0, -s, c, 0, 0, 0, 1]);
+}
+// the wheel: tipped well over and precessing like an atom while it spins, standing up flat by the pick
+const finTilt = (p, t) => { const f = p.fin, u = clamp((t - f.spin0) / FIN_T.spin); return tilt(.6 + (t - f.spin0) * 2.4, 1.05 * (1 - EASE.travel(u))); };
+// three orbits round the piece, each steeply tipped and turning on its own
+const finOrbit = (f, t, k) => tilt(k * Math.PI * 2 / 3 + (t - f.spin0) * .9, 1.2);
+// clip the disc plane (under transform M) to its half facing the viewer (front) or away; false = nothing to draw
+function halfClip(g, M, front, big) {
+  const nx = M[6], ny = M[7], L = Math.hypot(nx, ny);
+  if (L < .02) return !front;
+  const ux = nx / L * (front ? 1 : -1), uy = ny / L * (front ? 1 : -1);
+  g.beginPath(); g.moveTo(-uy * big, ux * big); g.lineTo(-uy * big + ux * big, ux * big + uy * big); g.lineTo(uy * big + ux * big, -ux * big + uy * big); g.lineTo(uy * big, -ux * big); g.closePath(); g.clip();
+  return true;
+}
+// one orbit: a thin glowing ring and its electron, the half on one side of the piece
+function drawOrbit(g, M, R, ang, front, a) {
+  g.save(); g.transform(M[0], M[3], M[1], M[4], 0, 0);
+  if (halfClip(g, M, front, R * 1.3)) {
+    g.globalAlpha = a * (front ? 1 : .55); g.strokeStyle = hexA(FIN.glow, .8); g.lineWidth = .025; g.shadowColor = FIN.glow; g.shadowBlur = 10 * (clip._s / 135);
+    g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#E8FFFC'; g.beginPath(); g.arc(Math.cos(ang) * R, Math.sin(ang) * R, .07, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
 }
 // where the piece hovers (board point of its centre): above its square, pulled in from the edges so the whole
 // wheel stays on the board
@@ -4338,7 +4367,8 @@ const FINISH_SCENE = {
     if (t < p.moveStart) {
       const up = EASE.travel(clamp((t - f.rise0) / FIN_T.rise)), bob = t > f.spin0 ? Math.sin((t - f.spin0) * 3) * .05 * up : 0;
       const h = FIN_T.lift * up + bob, g = lerp(1, FIN_T.grow, up);
-      return {x: lerp(fx, hx - .5, up), y: lerp(fy, hy - .5, up) - bob, h, opt: {sx: g, sy: g, shadow: true}};
+      const flip = -Math.PI * 2 * EASE.travel(clamp((t - f.rise0) / FIN_T.flip));
+      return {x: lerp(fx, hx - .5, up), y: lerp(fy, hy - .5, up) - bob, h, opt: {sx: g, sy: g, rot: flip, shadow: true}};
     }
     const d = Math.pow(clamp((t - p.moveStart) / p.dur), 1.7), h = FIN_T.lift * (1 - d), g = lerp(FIN_T.grow, 1, d);
     return {x: lerp(hx - .5, tx, d), y: lerp(hy - .5, ty, d), h, opt: {sx: g, sy: g, shadow: true}};
@@ -4367,8 +4397,12 @@ const FINISH_SCENE = {
       ctx.translate(W / 2, H / 2); ctx.rotate(-.12 * back); ctx.scale(1 + .14 * back, 1 + .14 * back);
       ctx.drawImage(c, -W / 2, -H / 2, W, H); ctx.restore();
     }
-    const dim = .5 * EASE.snap(clamp((t - f.rise0) / .25));
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(8,10,16,${dim})`; ctx.fillRect(0, 0, W, H); ctx.restore();
+    const dim = t < f.pick ? lerp(.45, .9, EASE.snap(clamp((t - f.rise0) / FIN_T.spin))) * EASE.snap(clamp((t - f.rise0) / .2))
+                           : lerp(.9, .4, EASE.travel(clamp((t - f.pick - .06) / .35)));
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(8,10,16,${dim})`; ctx.fillRect(0, 0, W, H);
+    const lightUp = 1 - clamp((t - f.pick) / .18);
+    if (t >= f.pick && lightUp > 0) { ctx.fillStyle = `rgba(220,255,250,${.45 * lightUp})`; ctx.fillRect(0, 0, W, H); }
+    ctx.restore();
     ctx.save(); boardTf(clip._cam);
     // the king is locked on once the weapon is chosen
     if (p.mate && t >= f.pick) {
@@ -4385,14 +4419,26 @@ const FINISH_SCENE = {
       const wa = grow * (1 - EASE.travel(fold));
       if (wa > 0) {
         const r = finSpin(p, t) - .9 * (1 - grow), sp = (r - finSpin(p, t - 1 / 60)) * 60;
-        ctx.save(); ctx.translate(q.x + .5, q.y + .5); ctx.scale(wa, wa);
-        drawWeaponWheel(ctx, {R: FIN_T.wheel, rot: r, speed: sp, chosen: f.weapon, lit: t >= f.pick ? EASE.snap(clamp((t - f.pick) / .08)) : 0,
-                               turn: (t - (f.pick + FIN_T.lock - FIN_T.fold - .12)) / .12, a: 1 - fold});
-        drawShock(ctx, FIN_T.wheel, (t - f.pick) / .45);
-        ctx.restore();
+        const A = finTilt(p, t), atom = 1 - clamp((t - f.pick) / .25);
+        const wheel = front => {
+          ctx.save(); ctx.translate(q.x + .5, q.y + .5); ctx.scale(wa, wa);
+          if (atom > 0) for (let k = 0; k < 3; k++) drawOrbit(ctx, finOrbit(f, t, k), FIN_T.wheel * 1.22, (t - f.spin0) * 6.5 + k * 2.1, front, atom * (1 - fold));
+          ctx.save(); ctx.transform(A[0], A[3], A[1], A[4], 0, 0);
+          if (halfClip(ctx, A, front, FIN_T.wheel * 1.4)) {
+            drawWeaponWheel(ctx, {R: FIN_T.wheel, rot: r, speed: sp, chosen: f.weapon, lit: t >= f.pick ? EASE.snap(clamp((t - f.pick) / .08)) : 0,
+                                   turn: (t - (f.pick + FIN_T.lock - FIN_T.fold - .12)) / .12, a: 1 - fold});
+            if (!front) drawShock(ctx, FIN_T.wheel, (t - f.pick) / .45);
+          }
+          ctx.restore(); ctx.restore();
+        };
+        wheel(false);
+        this.shadow(p, t);
+        drawPiece(pc, q.x, q.y, q.opt);
+        wheel(true);
+      } else {
+        this.shadow(p, t);
+        drawPiece(pc, q.x, q.y, q.opt);
       }
-      this.shadow(p, t);
-      drawPiece(pc, q.x, q.y, q.opt);
     } else drawMover(p, pc, t);   // the dive, redrawn over the dark
     ctx.restore();
   },
