@@ -3195,24 +3195,12 @@ function renderBoard(t) {
   if (bm > 0) { ctx.fillStyle = withAlpha(PALETTE.blunder, BLUNDER_FX.red * bm); ctx.fillRect(0, 0, 8, 8); }
 
   const M = clip.M;
-  // fading highlight of the previous ply
+  // fading highlight of the previous ply, highlights of the active ply
   if (idx > 0) {
-    const q = plies[idx-1], a = 1 - clamp((t - p.start) / M.med);
-    if (a > 0) { ctx.fillStyle = hexA(q.glow, .45*a); ctx.fillRect(q.to[0], q.to[1], 1, 1); ctx.fillStyle = hexA(q.glow, .25*a); ctx.fillRect(q.from[0], q.from[1], 1, 1); }
+    const a = 1 - clamp((t - p.start) / M.med);
+    if (a > 0) STYLE.highlight.fade(plies[idx-1], a);
   }
-  // highlights of the active ply
-  if (p && t >= p.moveStart) {
-    const a = EASE.snap(clamp((t - p.moveStart) / M.short));
-    ctx.fillStyle = hexA(p.glow, .28*a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
-    if (arrived) {
-      const d = t - p.arrive, [tx, ty] = p.to, cx = tx + .5, cy = ty + .5;
-      const ga = EASE.snap(clamp(d / M.short));
-      const g = ctx.createRadialGradient(cx, cy, .1, cx, cy, 1.45);
-      g.addColorStop(0, hexA(p.glow, .55*ga)); g.addColorStop(.45, hexA(p.glow, .28*ga)); g.addColorStop(1, hexA(p.glow, 0));
-      ctx.fillStyle = g; ctx.fillRect(cx-1.5, cy-1.5, 3, 3);
-      ctx.fillStyle = hexA(p.glow, .62*ga); ctx.fillRect(tx, ty, 1, 1);
-    }
-  }
+  if (p && t >= p.moveStart) STYLE.highlight.move(p, t, arrived);
 
   if (p && p.brilliant && t >= p.moveStart && !arrived) {
     ctx.fillStyle = hexA(p.glow, .32 * clamp((t - p.moveStart) / M.med)); ctx.fillRect(p.to[0], p.to[1], 1, 1);
@@ -3371,37 +3359,45 @@ function laneAlpha(i, t) {
   if (!q || !q.lane || t < q.arrive + q.lane.start) return 0;
   return n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / clip.M.med) : 1;
 }
-// board space, under the pieces: squares light up one by one from the attacker to the target, light at the
-// attacker, medium in between, strongest on the target, which keeps pulsing
+// board space, under the pieces, drawn by the lane style
 function drawLane(i, t) {
-  const out = laneAlpha(i, t); if (out <= 0) return;
-  const q = clip.plies[i], t0 = q.arrive + q.lane.start, fade = clip.M.short;
-  // square -> {a, fill}: strongest alpha, so a square shared by two lanes is painted once; the attacker's own
-  // square is outlined (fill: false) unless another lane fills it
-  const lit = new Map();
-  q.lane.lanes.forEach((l, li) => l.forEach((sq, j) => {
-    const since = t - t0 - j * q.lane.steps[li], last = j === l.length - 1;
-    if (since <= 0) return;
-    let a = (j === 0 ? .9 : last ? .85 : .5) * EASE.snap(clamp(since / fade));
-    if (last && since > fade) a *= .8 + .2 * Math.cos((since - fade) * Math.PI * 3.2);
-    const key = sq[0] + ',' + sq[1], had = lit.get(key);
-    lit.set(key, {a: Math.max(had ? had.a : 0, a), fill: j > 0 || (had && had.fill)});
-  }));
-  // the rest of the board darkens a little so the lanes stand out
-  const dim = LANE_FX.dim * EASE.snap(clamp((t - t0) / fade)) * out;
-  if (dim > 0) {
-    ctx.fillStyle = `rgba(0,0,0,${dim})`;
-    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!lit.has(x + ',' + y)) ctx.fillRect(x, y, 1.002, 1.002);
-  }
-  const w = LANE_FX.outline;
-  for (const [key, {a, fill}] of lit) {
-    const [x, y] = key.split(',').map(Number);
-    const tb = fill && tileBump(q, x, y, t);
-    if (tb && tb.scale < 1) drawTile(x, y, {...tb, red: a * out}, tint((x + y) % 2 ? clip.theme.dark : clip.theme.light));
-    else if (fill) { ctx.fillStyle = hexA(PALETTE.lane, a * out); ctx.fillRect(x, y, 1, 1); }
-    else { ctx.strokeStyle = hexA(PALETTE.lane, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
-  }
+  const out = laneAlpha(i, t); if (out > 0) STYLE.lane.draw(clip.plies[i], t, out);
 }
+const LANE_STYLES = {
+  // squares light up one by one from the attacker to the target, light at the attacker, medium in between,
+  // strongest on the target, which keeps pulsing; the rest of the board dims
+  squares: {
+    callout: PALETTE.callout.red,
+    draw(q, t, out) {
+      const t0 = q.arrive + q.lane.start, fade = clip.M.short;
+      // square -> {a, fill}: strongest alpha, so a square shared by two lanes is painted once; the attacker's own
+      // square is outlined (fill: false) unless another lane fills it
+      const lit = new Map();
+      q.lane.lanes.forEach((l, li) => l.forEach((sq, j) => {
+        const since = t - t0 - j * q.lane.steps[li], last = j === l.length - 1;
+        if (since <= 0) return;
+        let a = (j === 0 ? .9 : last ? .85 : .5) * EASE.snap(clamp(since / fade));
+        if (last && since > fade) a *= .8 + .2 * Math.cos((since - fade) * Math.PI * 3.2);
+        const key = sq[0] + ',' + sq[1], had = lit.get(key);
+        lit.set(key, {a: Math.max(had ? had.a : 0, a), fill: j > 0 || (had && had.fill)});
+      }));
+      // the rest of the board darkens a little so the lanes stand out
+      const dim = LANE_FX.dim * EASE.snap(clamp((t - t0) / fade)) * out;
+      if (dim > 0) {
+        ctx.fillStyle = `rgba(0,0,0,${dim})`;
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!lit.has(x + ',' + y)) ctx.fillRect(x, y, 1.002, 1.002);
+      }
+      const w = LANE_FX.outline;
+      for (const [key, {a, fill}] of lit) {
+        const [x, y] = key.split(',').map(Number);
+        const tb = fill && tileBump(q, x, y, t);
+        if (tb && tb.scale < 1) drawTile(x, y, {...tb, red: a * out}, tint((x + y) % 2 ? clip.theme.dark : clip.theme.light));
+        else if (fill) { ctx.fillStyle = hexA(PALETTE.lane, a * out); ctx.fillRect(x, y, 1, 1); }
+        else { ctx.strokeStyle = hexA(PALETTE.lane, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
+      }
+    },
+  },
+};
 // the "lego" hit when a lane reaches its target (see LANE_FX.bump): the target's tile is pressed down for a short
 // beat; the tiles around it jump ring by ring, a tick apart, up and down over a med beat with a small bounce at
 // the end, flashing red. squares of the lanes stay flat so the lanes keep reading.
@@ -3475,7 +3471,7 @@ function laneHop(p, x, y, t) {
 // screen space: the lane's callout (FORK!, DOUBLE CHECK) above the attacker
 function drawFork(i, t) {
   const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
-  drawCallout(q.lane.text, PALETTE.callout.red, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
+  drawCallout(q.lane.text, STYLE.lane.callout, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
 }
 // shared callout: a word in the BRILLIANT MOVE font that pops up with a bounce over a board point, glowing in
 // its colour over a dark outline, kept inside the safe area. for FORK!, DOUBLE CHECK and the tactics to come
@@ -3727,18 +3723,47 @@ function drawImpact(p, t) {
 }
 
 // dy: offset in squares (a blunder's badge falls in from above); rot: swing in radians
-function drawBadge(p, scale, alpha, dy = 0, rot = 0) {
-  const b = p.badge, x = p.to[0] + .9, y = p.to[1] + .1 + dy, r = .23;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
-  ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = .12 * clip._s; ctx.shadowOffsetY = .03 * clip._s;
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
-  ctx.shadowColor = 'transparent';
-  ctx.lineWidth = .035; ctx.strokeStyle = PALETTE.text; ctx.stroke();
-  ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = font(800, b.t.length > 1 ? .23 : .28);
-  ctx.fillText(b.t, 0, .015);
-  ctx.restore();
-}
+function drawBadge(p, scale, alpha, dy = 0, rot = 0) { STYLE.badge.draw(p, scale, alpha, dy, rot); }
+const BADGE_STYLES = {
+  // a disc in the badge's colour on the target square's top-right corner, white ring and glyph
+  round: {
+    draw(p, scale, alpha, dy, rot) {
+      const b = p.badge, x = p.to[0] + .9, y = p.to[1] + .1 + dy, r = .23;
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+      ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = .12 * clip._s; ctx.shadowOffsetY = .03 * clip._s;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fillStyle = tint(b.c); ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = .035; ctx.strokeStyle = PALETTE.text; ctx.stroke();
+      ctx.fillStyle = PALETTE.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = font(800, b.t.length > 1 ? .23 : .28);
+      ctx.fillText(b.t, 0, .015);
+      ctx.restore();
+    },
+  },
+};
+const HIGHLIGHT_STYLES = {
+  // the from square tinted, the target glowing in a soft halo; the last move's squares fade as the next begins
+  glow: {
+    fade(q, a) {
+      ctx.fillStyle = hexA(q.glow, .45*a); ctx.fillRect(q.to[0], q.to[1], 1, 1); ctx.fillStyle = hexA(q.glow, .25*a); ctx.fillRect(q.from[0], q.from[1], 1, 1);
+    },
+    move(p, t, arrived) {
+      const M = clip.M, a = EASE.snap(clamp((t - p.moveStart) / M.short));
+      ctx.fillStyle = hexA(p.glow, .28*a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
+      if (!arrived) return;
+      const d = t - p.arrive, [tx, ty] = p.to, cx = tx + .5, cy = ty + .5;
+      const ga = EASE.snap(clamp(d / M.short));
+      const g = ctx.createRadialGradient(cx, cy, .1, cx, cy, 1.45);
+      g.addColorStop(0, hexA(p.glow, .55*ga)); g.addColorStop(.45, hexA(p.glow, .28*ga)); g.addColorStop(1, hexA(p.glow, 0));
+      ctx.fillStyle = g; ctx.fillRect(cx-1.5, cy-1.5, 3, 3);
+      ctx.fillStyle = hexA(p.glow, .62*ga); ctx.fillRect(tx, ty, 1, 1);
+    },
+  },
+};
+// ---------- style slots ----------
+// each slot holds named variants with the same functions (BADGE_STYLES, HIGHLIGHT_STYLES, LANE_STYLES); the
+// drawing code only calls STYLE.<slot>, so a new look for a slot is a new entry in its registry
+let STYLE = {badge: BADGE_STYLES.round, highlight: HIGHLIGHT_STYLES.glow, lane: LANE_STYLES.squares};
 
 // ---------- sound: real recorded clips when available, synthesized knock as fallback ----------
 // embedded clips (data: URIs) are filled in by the embed step; null = not embedded
