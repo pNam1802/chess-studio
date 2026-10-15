@@ -314,7 +314,7 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
             <div class="field"><label for="mspeed">Tốc độ đi quân: <span id="mspeedv">1.0</span>x</label><input type="range" id="mspeed" min="0.5" max="2.5" step="0.1" value="1"></div>
             <div class="field"><label for="hold">Mở đầu toàn bàn: <span id="holdv">1.5</span>s</label><input type="range" id="hold" min="0" max="4" step="0.5" value="1.5"></div>
           </div>
-          <div class="swrow"><label for="accel">Nhiều nước thì tăng tốc phần đầu</label><select id="accel" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+          <div class="swrow"><label for="accel">Nhiều nước thì tăng tốc phần đầu (có nhạc: chỉ khi cần để !! kịp cao trào)</label><select id="accel" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
           <label class="swrow"><span>Dải tấn công</span><input type="checkbox" class="sw" id="clane" checked></label>
           <label class="swrow"><span>Quân bị tấn công nảy lên</span><input type="checkbox" class="sw" id="lbounce" checked></label>
           <label class="swrow"><span>Chữ FORK khi đánh 2 quân</span><input type="checkbox" class="sw" id="lfork" checked></label>
@@ -2583,6 +2583,15 @@ function layout(boost = 1, dropAt = null) {
   const ACCEL = {from: 6, calm: 3, max: 3};
   const accel = i => {
     if ($('accel').value !== 'on') return 1;
+    // with music the opening only speeds up as much as the drop needs: boost (found by buildClip) 1 = normal speed
+    // everywhere; above it the early moves go up to ACCEL.max * boost at MAX_BOOST, the last ones before the !! half
+    if (sync) {
+      if (boost <= 1) return 1;
+      if (lead <= ACCEL.from || i >= lead - ACCEL.calm) return Math.max(1, boost / 2);
+      const top = boost * (1 + (ACCEL.max - 1) * (boost - 1) / (MAX_BOOST - 1));
+      return lerp(top, Math.max(1, boost / 2), eio(clamp((i / (lead - ACCEL.calm) - .7) / .3)));
+    }
+    // without music: long games always play their opening faster
     // the last moves before the !! (and short games) only speed up when the music fit demands it
     if (lead <= ACCEL.from || i >= lead - ACCEL.calm) return boost > 1 ? Math.max(1, boost / 2) : 1;
     const top = Math.min(ACCEL.max * boost, (1 + (lead - ACCEL.calm) * .25) * boost), k = i / (lead - ACCEL.calm);
@@ -3977,13 +3986,16 @@ let actx = null, master = null, recDest = null, noiseBuf = null;
 // effects of the running preview (knocks, whoosh, the inserted clip, the mate sound) go through fxSession, a gain
 // made fresh by every playback, so stopAudio() can silence what is already scheduled; offline renders and sounds
 // outside a playback (the volume test) go straight to master
-let fxSession = null;
+// the inserted clip has a volume of its own (clipvol): it skips master (the piece sounds' volume) and goes through
+// insSession straight into the limiter
+let fxSession = null, insSession = null, limiter = null;
 function fxOut() { return fxSession && fxSession.context === actx ? fxSession : master; }
+function insOut() { return insSession && insSession.context === actx ? insSession : limiter; }
 function audioInit() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   actx = new AC();
-  let comp; [master, comp] = fxChain(actx);
+  let comp; [master, comp] = fxChain(actx); limiter = comp;
   recDest = actx.createMediaStreamDestination(); comp.connect(recDest);
   noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * .08), actx.sampleRate);
   const d = noiseBuf.getChannelData(0);
@@ -4116,11 +4128,11 @@ function stopMusic() { if (songSrc) { try { songSrc.stop(); } catch {} songSrc =
 // stop together before anything else starts (pause, seek, replay, a setting changed while playing, "Nghe thử")
 function stopAudio() {
   stopMusic(); stopListen();
-  if (fxSession) {
-    const g = fxSession; fxSession = null;
+  for (const g of [fxSession, insSession]) if (g) {
     try { g.gain.setTargetAtTime(0, actx.currentTime, .01); } catch {}
     setTimeout(() => g.disconnect(), 120);
   }
+  fxSession = insSession = null;
 }
 
 // ---------- inserted sound (aura brilliant) ----------
@@ -4159,12 +4171,12 @@ function insertNote() {
 // part of a decoded clip's sound, on the effects bus
 function playSegment(buf, when, offset, dur, vol) {
   const s = actx.createBufferSource(), g = actx.createGain();
-  s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(fxOut()); s.start(when, offset, dur);
+  s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(insOut()); s.start(when, offset, dur);
 }
 // play the song so that song time = video time + musicStart
 function startMusic(fromT, toRecorder, lead) {
   stopAudio();
-  if (actx) { fxSession = actx.createGain(); fxSession.connect(master); }
+  if (actx) { fxSession = actx.createGain(); fxSession.connect(master); insSession = actx.createGain(); insSession.connect(limiter); }
   if (!clip || !clip.sync || !songBuf || !actx) return;
   musicInit();
   try { musicGain.disconnect(recDest); } catch {}
@@ -4575,11 +4587,11 @@ async function firstSupported(configs, check) {
 // the same effect sounds and music the preview plays, mixed into a buffer starting at clip.from
 async function renderAudio(withSound, withMusic) {
   const off = new OfflineAudioContext(2, Math.ceil((clip.to - clip.from) * SR), SR);
-  const live = [actx, master];
-  [master] = fxChain(off); actx = off;   // clipAt / knock / boom schedule on the globals
+  const live = [actx, master, limiter];
+  [master, limiter] = fxChain(off); actx = off;   // clipAt / knock / boom / the inserted clip schedule on the globals
   try {
     if (withSound) for (const [, a, fire] of soundEvents()) if (a >= clip.from - .03 && a < clip.to) fire(Math.max(0, a - clip.from));
-  } finally { [actx, master] = live; }
+  } finally { [actx, master, limiter] = live; }
   if (withMusic) {
     const g = off.createGain(), src = off.createBufferSource(), pos = clip.from + clip.musicStart;
     g.gain.value = +$('mvol').value / 100; g.connect(off.destination);
