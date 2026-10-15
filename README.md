@@ -21,7 +21,9 @@ Khung xem trước dùng như trình phát video: bấm vào video hoặc phím 
 
 ## Phong cách
 
-Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ hoặc mũi tên), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant.
+Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*, *TikTok*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ, mũi tên, hoặc *lộ trình*: đường đỏ phát sáng theo đúng đường quân đi, chữ L cho mã), loé màn hình khi đáp (đỏ khi chiếu, xanh khi ăn quân), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant (Aura, Cổ điển, *Lật đồng xu*: quân dày lật 3D trên nền mờ, có vòng đánh dấu ô đích).
+
+Huy hiệu ghi sau nước: `!!` `!` `*` (★ tốt nhất) `=` (📖 lý thuyết) `!?` `?!` `?` `??`.
 
 Trong code, mỗi phần là một "khe" có nhiều biến thể cùng giao diện hàm: `BADGE_STYLES`, `HIGHLIGHT_STYLES`, `LANE_STYLES`, `BRILLIANT_STYLES`, `BLUNDER_STYLES`; màu và font nằm ở `PALETTE`, `FONT`, `THEMES`, `BADGES`. Thêm một kiểu mới là thêm một mục vào khe đó (và một nút trong ô chọn), bộ phong cách nằm ở `PRESETS`.
 

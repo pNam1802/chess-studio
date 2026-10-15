@@ -277,7 +277,7 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
     <section class="pane" id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden>
       <div class="group">
         <h3>Phong cách</h3>
-        <div class="field"><label for="preset">Bộ phong cách</label><select id="preset" data-seg><option value="studio" data-sub="mặc định">Studio</option><option value="online" data-sub="như chơi online">Bàn online</option><option value="night" data-sub="nền tối">Đêm</option><option value="wood" data-sub="gọn, ít hiệu ứng">Gỗ</option><option value="custom" data-sub="tự chọn">Tùy chỉnh</option></select>
+        <div class="field"><label for="preset">Bộ phong cách</label><select id="preset" data-seg><option value="studio" data-sub="mặc định">Studio</option><option value="online" data-sub="như chơi online">Bàn online</option><option value="night" data-sub="nền tối">Đêm</option><option value="wood" data-sub="gọn, ít hiệu ứng">Gỗ</option><option value="tiktok" data-sub="lật 3D, lộ trình, loé">TikTok</option><option value="custom" data-sub="tự chọn">Tùy chỉnh</option></select>
           <p class="hint">Mỗi bộ chọn sẵn màu bàn cờ, kiểu cảnh Brilliant và các mục dưới đây. Đổi riêng mục nào thì bộ chuyển sang Tùy chỉnh.</p></div>
         <div class="field"><label for="shigh">Ô vừa đi</label><select id="shigh" data-seg><option value="glow" data-sub="phát sáng">Sáng</option><option value="flat" data-sub="tô màu">Phẳng</option><option value="outline" data-sub="viền ô">Viền</option></select></div>
         <div class="field"><label for="slane">Dải tấn công</label><select id="slane" data-seg><option value="squares" data-sub="ô bật đỏ">Ô</option><option value="arrow" data-sub="mũi tên">Mũi tên</option><option value="path" data-sub="theo đường quân đi">Lộ trình</option></select></div>
@@ -4132,6 +4132,7 @@ const PRESETS = {
   online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
   night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker', sflash: 'tint'},
   wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
+  tiktok: {theme: 'gray',  brstyle: 'flip',    shigh: 'flat',    slane: 'path',    sbadge: 'round',   sflash: 'tint'},
 };
 const PRESET_KEYS = Object.keys(PRESETS.studio);
 const matchPreset = () => Object.keys(PRESETS).find(n => PRESET_KEYS.every(k => PRESETS[n][k] === $(k).value)) || 'custom';
