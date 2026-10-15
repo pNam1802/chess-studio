@@ -184,6 +184,30 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
 .empty h2{font-size:18px;margin:6px 0 0}
 .empty p{margin:0;color:var(--muted);font-size:14px;max-width:26ch}
 .empty .btns{justify-content:center;margin-top:6px}
+/* quick mode: the same settings in three numbered steps, above them the Nhanh | Tùy chỉnh switch */
+.modebar{padding:16px 0 4px}
+.tabs[hidden],.btns[hidden]{display:none}
+.qstep{display:grid;gap:14px}
+.qstep h3{display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:700}
+.qstep h3 b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px}
+#qsrc{min-height:76px}
+.qsum{margin:0;font-weight:600}
+.qsum:empty{display:none}
+.qstyles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+button.qcard{display:grid;gap:6px;padding:6px 6px 8px;border-radius:12px;font-size:13px;text-align:center;line-height:1.3}
+button.qcard canvas{width:100%;height:auto;aspect-ratio:4/3;border-radius:8px;background:none}
+button.qcard small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+button.qcard.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+button.qbig{width:100%;padding:14px 20px;font-size:16px}
+.qcustom{margin:0;padding:10px 12px;border-radius:8px;background:var(--bg);font-size:13px;color:var(--muted)}
+.qcustom[hidden]{display:none}
+/* engine analysis: progress bar and cancel */
+.qana{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.qana[hidden]{display:none}
+.qana .head{display:flex;align-items:center;gap:10px}
+.qana .head button{margin-left:auto}
+.qana .track{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.qana .fill{height:100%;width:0;background:var(--accent);transition:width .2s}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}.kload svg{animation-duration:9.6s}.expbar .rider.hop{animation:none}}
 </style>
 
@@ -229,6 +253,43 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
   </div>
 
   <div class="controls">
+    <div class="modebar"><select id="uimode" data-seg aria-label="Chế độ cài đặt"><option value="quick" data-sub="3 bước">Nhanh</option><option value="custom" data-sub="mọi cài đặt">Tùy chỉnh</option></select></div>
+    <section class="pane" id="pane-quick" aria-label="Chế độ nhanh" hidden>
+      <div class="qstep">
+        <h3><b>1</b>Ván cờ</h3>
+        <div class="field">
+          <label for="qsrc">Link Lichess, PGN hoặc nước đi</label>
+          <textarea id="qsrc" spellcheck="false" placeholder="https://lichess.org/abcd1234&#10;hoặc dán PGN (Chess.com: Share → PGN), hoặc e4 e5 Nf3 Nc6 …"></textarea>
+          <div class="btns small"><button type="button" class="primary" id="qload">Dùng ván này</button><select id="qsample" class="compact" aria-label="Thử ván mẫu"><option value="">Thử ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999</option></select></div>
+          <p class="hint" id="qnote"></p>
+        </div>
+        <p class="qsum" id="qsum"></p>
+        <div class="qana" id="qana" hidden>
+          <div class="head"><span class="loading"><span class="kload"><svg fill="currentColor" aria-hidden="true"><use href="#knight"/></svg></span><span id="qanatext">Đang phân tích…</span></span><button type="button" class="link" id="qanastop">Huỷ</button></div>
+          <div class="track"><div class="fill" id="qanafill"></div></div>
+        </div>
+        <div class="btns small" id="qanabtns" hidden><button type="button" id="qanalyze">Tự tìm nước hay</button><button type="button" class="link" id="qunann" hidden>Xoá đánh giá tự động</button></div>
+        <div class="field"><label for="qlen">Độ dài video</label><select id="qlen" data-seg><option value="short" data-sub="~20 giây">Ngắn</option><option value="mid" selected data-sub="~35 giây">Vừa</option><option value="long" data-sub="~60 giây">Dài</option></select>
+          <p class="hint" id="qdur"></p></div>
+      </div>
+      <div class="qstep">
+        <h3><b>2</b>Phong cách</h3>
+        <div class="qstyles" id="qstyles" role="radiogroup" aria-label="Bộ phong cách"></div>
+        <div class="grid2">
+          <div class="field"><label for="qtitle">Chữ phía trên</label><input type="text" id="qtitle"></div>
+          <div class="field"><label for="qhandle">Tên kênh phía dưới</label><input type="text" id="qhandle"></div>
+        </div>
+        <div class="field"><label for="qaspect">Tỉ lệ</label><select id="qaspect" data-seg="aspect"><option value="9:16" data-sub="TikTok">9:16</option><option value="4:5" data-sub="Instagram">4:5</option><option value="1:1" data-sub="Vuông">1:1</option><option value="16:9" data-sub="YouTube">16:9</option></select></div>
+      </div>
+      <div class="qstep">
+        <h3><b>3</b>Nhạc &amp; xuất</h3>
+        <div class="field"><label for="qsong">File nhạc (không bắt buộc)</label><input type="file" id="qsong" accept="audio/*,video/*">
+          <p class="hint" id="qsongnote"></p></div>
+        <button type="button" class="primary qbig" id="qexport">Xuất video</button>
+        <p class="hint">Bấm vào video bên cạnh để xem trước.</p>
+      </div>
+      <p class="qcustom" id="qcustom" hidden><span></span><button type="button" class="link" id="qcustomopen">Mở Tùy chỉnh</button></p>
+    </section>
     <div class="tabs" role="tablist" aria-label="Cài đặt">
       <button type="button" role="tab" id="tab-game" aria-controls="pane-game" aria-selected="true">Ván cờ</button>
       <button type="button" role="tab" id="tab-look" aria-controls="pane-look" aria-selected="false" tabindex="-1">Hình ảnh</button>
@@ -5063,6 +5124,7 @@ function rebuild() {
   catch (e) { $('err').textContent = e.message; }
   renderMoves();
   updateEmpty();
+  quickSync();
   syncSegs();
   saveSettings();   // also catches values the page sets itself (swap role, drop finder)
 }
@@ -5515,7 +5577,7 @@ function updateEmpty() {
   if (empty) $('err').textContent = $('movewarn').textContent = '';
 }
 $('emptysample').onclick = () => { $('sample').value = 'blackburne'; $('sample').dispatchEvent(new Event('change')); };
-$('emptylink').onclick = () => { openTab($('tab-game')); $('glink').scrollIntoView({block: 'center', behavior: 'smooth'}); $('glink').focus({preventScroll: true}); };
+$('emptylink').onclick = () => { if (quick()) { $('qsrc').focus(); return; } openTab($('tab-game')); $('glink').scrollIntoView({block: 'center', behavior: 'smooth'}); $('glink').focus({preventScroll: true}); };
 
 // ---------- settings UI: segmented buttons and switches over hidden selects, tabs ----------
 // a select marked data-seg stays the value holder (saved, read by the clip); the buttons only set it and
@@ -5596,17 +5658,19 @@ $('sample').addEventListener('change', () => {
   if (!s || recorder) return;
   if (playing) { playing = false; stopAudio(); }
   $('moves').value = s.moves; $('fen').value = ''; $('nplies').value = '0'; $('orient').value = 'auto';
-  $('title').value = s.title; $('brsub').value = s.brsub; selMove = -1;
+  $('title').value = s.title; $('brsub').value = s.brsub; selMove = -1; importResult = '';
   cur = 0; rebuild(); syncUI();
 });
 
 // ---------- import a whole game: pasted PGN or a Lichess link ----------
 // the moves box gets the tidied moves, [FEN] becomes the start position, the players the title
+let importResult = '';   // [Result] of the last imported game, for the quick mode's summary
 function importPgn(raw, side) {
   if (recorder) return false;
   const {text, tags} = cleanPgn(raw);
   if (!text) return false;
   if (playing) { playing = false; stopAudio(); }
+  importResult = tags.Result || '';
   $('moves').value = text; $('fen').value = tags.FEN || ''; $('nplies').value = '0'; $('orient').value = side || 'auto';
   if (tags.White && tags.Black && tags.White !== '?') $('title').value = tags.White + ' – ' + tags.Black;
   selMove = -1; cur = 0; rebuild(); syncUI(); saveSettings();
@@ -5631,28 +5695,35 @@ function lichessSource(link) {
   return null;
 }
 const IMPORT_TIP = 'Bấm vào nước muốn bắt đầu dựng chuyển động trong danh sách nước bên dưới, rồi chọn "Bắt đầu dựng từ nước này".';
-$('gload').onclick = async () => {
-  const link = $('glink').value.trim(), note = $('glinknote');
-  if (!link || recorder) return;
-  if (/chess\.com/i.test(link)) { note.textContent = 'Ván Chess.com chưa tải bằng link được: mở ván, bấm Share → PGN → Copy PGN rồi dán vào ô Nước đi.'; return; }
+const CHESSCOM_TIP = 'Ván Chess.com chưa tải bằng link được: mở ván, bấm Share → PGN → Copy PGN rồi dán vào đây.';
+// fetch a Lichess game or study chapter into the moves box; the note shows progress and errors. true = loaded
+async function loadLichess(link, note, btn) {
   const src = lichessSource(link);
-  if (!src) { note.textContent = 'Link chưa đúng. Dán link ván dạng lichess.org/abcd1234, hoặc link chương nghiên cứu lichess.org/study/…/….'; return; }
-  $('gload').disabled = true; note.innerHTML = loadingHTML('Đang tải ván từ Lichess…');
+  if (!src) { note.textContent = 'Link chưa đúng. Dán link ván dạng lichess.org/abcd1234, hoặc link chương nghiên cứu lichess.org/study/…/….'; return false; }
+  btn.disabled = true; note.innerHTML = loadingHTML('Đang tải ván từ Lichess…');
   try {
     const r = await fetch(src.url);
     if (!r.ok) throw new Error(r.status === 404 ? 'Không tìm thấy ván này: link sai hoặc ván/nghiên cứu đang để riêng tư.' : 'Lichess báo lỗi ' + r.status + ', thử lại sau giây lát.');
     if (!importPgn(await r.text(), src.side)) throw new Error('Ván này chưa có nước đi nào.');
-    note.textContent = 'Đã tải ván. ' + IMPORT_TIP;
+    note.textContent = '';
+    return true;
   } catch (e) {
     note.textContent = e instanceof TypeError ? 'Không kết nối được tới Lichess, kiểm tra mạng rồi thử lại.' : e.message;
-  } finally { $('gload').disabled = false; }
+    return false;
+  } finally { btn.disabled = false; }
+}
+$('gload').onclick = async () => {
+  const link = $('glink').value.trim(), note = $('glinknote');
+  if (!link || recorder) return;
+  if (/chess\.com/i.test(link)) { note.textContent = CHESSCOM_TIP.replace('vào đây', 'vào ô Nước đi'); return; }
+  if (await loadLichess(link, note, $('gload'))) note.textContent = 'Đã tải ván. ' + IMPORT_TIP;
 };
 $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').click(); });
 
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon','uimode','qlen'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
@@ -5682,6 +5753,7 @@ try {
   const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
   if (s) {
     if (s.song !== DEFAULT_SONG) { delete s.drop; delete s.bpm; }
+    if (!s.uimode) s.uimode = 'custom';   // settings saved before the quick mode existed: keep the full settings
     applySettings(s);
   }
 } catch {}
@@ -5701,6 +5773,175 @@ $('resetcfg').onclick = () => {
   applySettings(DEFAULTS);
   rebuild(); syncUI();   // rebuild stores the defaults in place of the old settings
 };
+
+// ---------- quick mode: three steps (game, look, music & export) over the same settings ----------
+// it keeps no settings of its own: every control writes the fields of the full settings (Tùy chỉnh), so switching
+// back and forth loses nothing and both give the same video. QUICK_LEN: target video length (seconds) per choice
+const QUICK_LEN = {short: 20, mid: 35, long: 60};
+// settings the quick steps show or set themselves; anything else changed in Tùy chỉnh is pointed out
+const QUICK_SHOWN = new Set(['moves','fen','nplies','orient','title','handle','aspect','preset',...PRESET_KEYS,'brsub','drop','bpm','recmusic','uimode','qlen']);
+const QUICK_MIRROR = [['qtitle','title'], ['qhandle','handle'], ['qaspect','aspect']];
+const quick = () => $('uimode').value === 'quick';
+function applyMode() {
+  const q = quick();
+  $('pane-quick').hidden = !q; document.querySelector('.tabs').hidden = q;
+  tabs.forEach(t => { $(t.getAttribute('aria-controls')).hidden = q || t.getAttribute('aria-selected') !== 'true'; });
+}
+// the field's name as its label shows it, without the live value or the explanation in brackets
+function fieldName(id) {
+  const el = $(id), l = document.querySelector('label[for="' + id + '"]') || el.closest('label');
+  return l ? l.textContent.split(/[:(]/)[0].trim() : id;
+}
+// called by rebuild(): the quick steps follow whatever the full settings hold
+function quickSync() {
+  if (!$('pane-quick').dataset.ready) return;
+  applyMode();
+  for (const [q, id] of QUICK_MIRROR) if ($(q) !== document.activeElement) $(q).value = $(id).value;
+  document.querySelectorAll('#qstyles .qcard').forEach(b => { const on = b.dataset.p === $('preset').value; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+  $('qdur').textContent = clip ? 'Video dài khoảng ' + Math.round(clip.to - clip.from) + ' giây.' : '';
+  $('qsum').textContent = quickSummary();
+  const own = SAVED_IDS.filter(id => !QUICK_SHOWN.has(id) && fieldValue($(id)) !== DEFAULTS[id]).map(fieldName);
+  if ($('preset').value === 'custom') own.unshift('kiểu riêng trong Phong cách');
+  $('qcustom').hidden = !own.length;
+  $('qcustom').firstChild.textContent = 'Đang dùng chỉnh riêng ở Tùy chỉnh: ' + own.join(', ') + '. ';
+  $('qsongnote').textContent = !songName ? 'Chưa có nhạc: video xuất không nhạc, có thể gắn sound trên TikTok.'
+    : $('sync').value !== 'on' ? 'Nhạc: ' + songName + '. Khớp nhạc đang tắt (bật lại ở Tùy chỉnh → Âm thanh).'
+    : 'Nhạc: ' + songName + '. Nước !! đập xuống ở giây ' + dropNow().toFixed(1) + ' của bài (chỉnh ở Tùy chỉnh → Âm thanh).';
+}
+// "42 nước · Trắng thắng · 1 nước !!, 2 nước ??"
+function quickSummary() {
+  let g; try { g = readGame(); } catch { return ''; }
+  const n = g.moves.length; if (!n) return '';
+  const last = g.moves[n - 1].mv, res = last.san.includes('#') ? (last.color === 'w' ? '1-0' : '0-1') : importResult;
+  const parts = [n + ' nước'];
+  if (res) parts.push({'1-0': 'Trắng thắng', '0-1': 'Đen thắng', '1/2-1/2': 'Hoà'}[res] || res);
+  const counts = Object.keys(BADGES).filter(k => k !== '#').map(k => [k, g.moves.filter(m => m.ann === k).length]).filter(([, c]) => c);
+  if (counts.length) parts.push(counts.map(([k, c]) => c + ' nước ' + k).join(', '));
+  return parts.join(' · ');
+}
+// the part of the game the video plays: from a few moves before the key move (the first !!, else the first ??,
+// else the first move with a badge) to the end, as long as comes closest to the chosen length.
+// the length is not monotonic in the moves (a long opening is sped up, with music the !! sits on the drop) and
+// one clip layout with music takes a good part of a second, so a few spans are tried, spaced wider and wider
+let spanRun = 0;
+async function quickSpan() {
+  let g; try { g = readGame(); } catch { return; }
+  const n = g.moves.length; if (!n || recorder) return;
+  const run = ++spanRun;
+  if (g.split) { g.split = 0; writeGame(g); }   // the span is set by "only the last N moves" alone
+  const anns = g.moves.map(m => m.ann);
+  let key = anns.indexOf('!!'); if (key < 0) key = anns.indexOf('??'); if (key < 0) key = anns.findIndex(a => a);
+  const target = QUICK_LEN[$('qlen').value] || QUICK_LEN.mid;
+  const kmin = key < 0 ? 1 : n - Math.max(0, key - 2);   // animated moves: the key move and 2 before it
+  const ks = [...new Set([0, 1, 2, 4, 8, 16, 32].map(d => Math.min(n, kmin + d)).concat(n))];
+  $('qdur').textContent = 'Đang chọn đoạn dựng…';
+  let best = kmin, bestErr = Infinity;
+  for (const k of ks) {
+    await new Promise(r => setTimeout(r));
+    if (run !== spanRun || recorder) return;
+    $('nplies').value = String(k);
+    let d; try { buildClip(); d = clip.to - clip.from; } catch { continue; }
+    if (Math.abs(d - target) <= bestErr) { best = k; bestErr = Math.abs(d - target); }
+  }
+  $('nplies').value = best >= n ? '0' : String(best);
+  selMove = -1; cur = 0; rebuild(); syncUI();
+}
+function quickAfterLoad() { quickSpan(); }
+async function quickLoad() {
+  const raw = $('qsrc').value.trim(), note = $('qnote');
+  if (!raw || recorder) return;
+  if (/^(https?:\/\/)?([\w-]+\.)?chess\.com\//i.test(raw)) { note.textContent = CHESSCOM_TIP; return; }
+  let kind;
+  if (lichessSource(raw)) { if (!await loadLichess(raw, note, $('qload'))) return; kind = 'Đã tải ván từ Lichess.'; }
+  else {
+    kind = /^\s*\[\w+\s+"/.test(raw) || /(^|\s)1\.\s*\S/.test(raw) ? 'Đã đọc PGN.' : 'Đã đọc chuỗi nước đi.';
+    if (!importPgn(raw)) { note.textContent = 'Không thấy nước đi nào trong ô này.'; return; }
+  }
+  if ($('err').textContent) { note.textContent = $('err').textContent; return; }
+  note.textContent = kind;
+  quickAfterLoad();
+}
+$('qload').onclick = () => quickLoad();
+$('qsrc').addEventListener('paste', () => setTimeout(quickLoad));
+$('qsrc').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); quickLoad(); } });
+$('qsample').addEventListener('change', () => {
+  const v = $('qsample').value; $('qsample').value = '';
+  if (!SAMPLES[v] || recorder) return;
+  $('sample').value = v; $('sample').dispatchEvent(new Event('change'));
+  $('qnote').textContent = 'Đã nạp ván mẫu.';
+  quickAfterLoad();
+});
+$('qlen').addEventListener('input', quickSpan);
+$('uimode').addEventListener('input', () => { quickSync(); syncSegs(); });
+QUICK_MIRROR.forEach(([q, id]) => $(q).addEventListener('input', () => {
+  $(id).value = $(q).value; ['input', 'change'].forEach(ev => $(id).dispatchEvent(new Event(ev)));
+}));
+$('qsong').addEventListener('change', e => {
+  if (!e.target.files.length) return;
+  $('songfile').files = e.target.files; $('songfile').dispatchEvent(new Event('change'));
+});
+$('qexport').onclick = () => $('rec').click();
+$('qcustomopen').addEventListener('click', () => { $('uimode').value = 'custom'; $('uimode').dispatchEvent(new Event('input')); $('uimode').dispatchEvent(new Event('change')); });
+// style cards: a corner of the board drawn the way each preset draws it (board colours, the last move's squares,
+// the attack lane, the badge), straight onto a small canvas
+function drawPresetCard(c, pr) {
+  const dpr = devicePixelRatio || 1, w = 160, h = 120, s = 40, g = c.getContext('2d');
+  c.width = w * dpr; c.height = h * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const th = THEMES[pr.theme], hi = BADGES['!!'].c, lane = PALETTE.lane;
+  for (let r = 0; r < 3; r++) for (let f = 0; f < 4; f++) { g.fillStyle = (f + r) % 2 ? th.dark : th.light; g.fillRect(f * s, r * s, s, s); }
+  // the knight jumps from the bottom right corner to (col 1, row 1) and hits the rook in the top right corner
+  const from = [3, 2], to = [1, 1], tg = [3, 0], ctr = q => [q[0] * s + s / 2, q[1] * s + s / 2];
+  if (pr.shigh === 'outline') {
+    g.lineWidth = 3; g.strokeStyle = withAlpha(hi, .5); g.strokeRect(from[0] * s + 1.5, from[1] * s + 1.5, s - 3, s - 3);
+    g.strokeStyle = hi; g.strokeRect(to[0] * s + 1.5, to[1] * s + 1.5, s - 3, s - 3);
+  } else {
+    g.fillStyle = withAlpha(hi, pr.shigh === 'flat' ? .35 : .28); g.fillRect(from[0] * s, from[1] * s, s, s);
+    if (pr.shigh === 'glow') {
+      const [cx, cy] = ctr(to), rg = g.createRadialGradient(cx, cy, 4, cx, cy, s * 1.4);
+      rg.addColorStop(0, withAlpha(hi, .55)); rg.addColorStop(1, withAlpha(hi, 0)); g.fillStyle = rg; g.fillRect(0, 0, w, h);
+    }
+    g.fillStyle = withAlpha(hi, pr.shigh === 'flat' ? .5 : .62); g.fillRect(to[0] * s, to[1] * s, s, s);
+  }
+  const [ax, ay] = ctr(to), [bx, by] = ctr(tg);
+  if (pr.slane === 'squares') { g.fillStyle = withAlpha(lane, .55); g.fillRect(tg[0] * s, tg[1] * s, s, s); }
+  else if (pr.slane === 'path') {   // the knight's L, glowing
+    g.strokeStyle = lane; g.lineWidth = 5; g.lineCap = g.lineJoin = 'round'; g.shadowColor = lane; g.shadowBlur = 8;
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, ay); g.lineTo(bx, by + 8); g.stroke(); g.shadowBlur = 0;
+  } else {   // an arrow, its head on the target
+    const a = Math.atan2(by - ay, bx - ax), hx = bx - 12 * Math.cos(a), hy = by - 12 * Math.sin(a);
+    g.strokeStyle = g.fillStyle = withAlpha(lane, .85); g.lineWidth = 6; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(hx, hy); g.stroke();
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(hx - 9 * Math.sin(a), hy + 9 * Math.cos(a)); g.lineTo(hx + 9 * Math.sin(a), hy - 9 * Math.cos(a)); g.fill();
+  }
+  const piece = (im, q) => { if (im && im.complete && im.naturalWidth) g.drawImage(im, q[0] * s + 3, q[1] * s + 3, s - 6, s - 6); };
+  piece(imgs.brook, tg); piece(imgs.wknight, to);
+  // the !! badge on the knight's square, top right
+  const bx0 = to[0] * s + s * .88, by0 = to[1] * s + s * .14;
+  g.save(); g.translate(bx0, by0);
+  if (pr.sbadge === 'sticker') {
+    g.rotate(-.14); g.fillStyle = '#fff'; g.beginPath(); g.roundRect(-12, -12, 24, 24, 4); g.fill();
+    g.fillStyle = BADGES['!!'].c; g.beginPath(); g.roundRect(-10, -10, 20, 20, 3); g.fill();
+  } else {
+    g.fillStyle = BADGES['!!'].c; g.beginPath(); g.arc(0, 0, 11, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.stroke();
+  }
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = font(800, 11); g.fillText('!!', 0, 1);
+  g.restore();
+  // a check flash tints the frame's edges
+  if (pr.sflash === 'tint') { g.strokeStyle = withAlpha(PALETTE.tint.check, .6); g.lineWidth = 6; g.strokeRect(0, 0, w, h); }
+}
+for (const o of $('preset').options) {
+  const pr = PRESETS[o.value]; if (!pr) continue;
+  const b = document.createElement('button'), c = document.createElement('canvas');
+  b.type = 'button'; b.className = 'qcard'; b.dataset.p = o.value; b.setAttribute('role', 'radio');
+  b.append(c, Object.assign(document.createElement('span'), {innerHTML: o.textContent + '<small>' + (o.dataset.sub || '') + '</small>'}));
+  b.onclick = () => { if (recorder) return; $('preset').value = o.value; ['input', 'change'].forEach(ev => $('preset').dispatchEvent(new Event(ev))); };
+  $('qstyles').append(b);
+  drawPresetCard(c, pr);
+  imgsReady.then(() => drawPresetCard(c, pr));
+}
+$('pane-quick').dataset.ready = '1';
+quickSync(); syncSegs();
 
 // hooks for offline frame rendering
 window.__ready =imgsReady.then(() => document.fonts ? Promise.all([document.fonts.load('900 110px Montserrat'), document.fonts.ready]).catch(() => {}) : null).then(() => { rebuild(); if (clip) render(0); return clip ? clip.dur : 0; });
