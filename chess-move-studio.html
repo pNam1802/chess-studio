@@ -280,7 +280,7 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
         <div class="field"><label for="preset">Bộ phong cách</label><select id="preset" data-seg><option value="studio" data-sub="mặc định">Studio</option><option value="online" data-sub="như chơi online">Bàn online</option><option value="night" data-sub="nền tối">Đêm</option><option value="wood" data-sub="gọn, ít hiệu ứng">Gỗ</option><option value="custom" data-sub="tự chọn">Tùy chỉnh</option></select>
           <p class="hint">Mỗi bộ chọn sẵn màu bàn cờ, kiểu cảnh Brilliant và các mục dưới đây. Đổi riêng mục nào thì bộ chuyển sang Tùy chỉnh.</p></div>
         <div class="field"><label for="shigh">Ô vừa đi</label><select id="shigh" data-seg><option value="glow" data-sub="phát sáng">Sáng</option><option value="flat" data-sub="tô màu">Phẳng</option><option value="outline" data-sub="viền ô">Viền</option></select></div>
-        <div class="field"><label for="slane">Dải tấn công</label><select id="slane" data-seg><option value="squares" data-sub="ô bật đỏ">Ô</option><option value="arrow" data-sub="mũi tên">Mũi tên</option></select></div>
+        <div class="field"><label for="slane">Dải tấn công</label><select id="slane" data-seg><option value="squares" data-sub="ô bật đỏ">Ô</option><option value="arrow" data-sub="mũi tên">Mũi tên</option><option value="path" data-sub="theo đường quân đi">Lộ trình</option></select></div>
         <div class="field"><label for="sflash">Loé màn hình khi đáp</label><select id="sflash" data-seg><option value="none" data-sub="không">Tắt</option><option value="tint" data-sub="đỏ khi chiếu, xanh khi ăn quân">Theo tình huống</option></select></div>
         <div class="field"><label for="sbadge">Huy hiệu</label><select id="sbadge" data-seg><option value="round" data-sub="tròn">Tròn</option><option value="sticker" data-sub="nhãn dán">Sticker</option></select></div>
       </div>
@@ -3330,6 +3330,8 @@ function renderBoard(t) {
       drawPiece(king, mate.sq[0] + mate.dir * .06 * (ang / (Math.PI/2)), mate.sq[1] + .08 * (ang / (Math.PI/2)),
                 {rot: mate.dir * ang, sx: .92 * hop.sx, sy: .92 * hop.sy, lift: hop.lift, shadow: k > 0 && k < 1});
     }
+    // a lane style's part that goes over the pieces (the path's line)
+    for (const i of [idx - 1, idx]) { const out = laneAlpha(i, t); if (out > 0 && STYLE.lane.over) STYLE.lane.over(plies[i], t, out); }
     // badge
     const prevBadge = idx > 0 ? plies[idx-1] : null;
     if (prevBadge && prevBadge.badge) { const a = 1 - clamp((t - p.start) / M.med); if (a > 0) drawBadge(prevBadge, 1, a); }
@@ -3929,6 +3931,74 @@ Object.assign(LANE_STYLES, {
         ctx.lineTo(bxh + nx * hw, byh + ny * hw); ctx.lineTo(tx, ty); ctx.lineTo(bxh - nx * hw, byh - ny * hw);
         ctx.lineTo(bxh - nx * sw / 2, byh - ny * sw / 2); ctx.lineTo(x0 - nx * sw / 2, y0 - ny * sw / 2);
         ctx.closePath(); ctx.fill();
+      });
+    },
+  },
+});
+Object.assign(LANE_STYLES, {
+  // the piece's own route drawn as a glowing red line, growing from the attacker's centre to the target's: a
+  // knight's L (short leg first), a straight line with an arrowhead for the others; the squares it crosses
+  // blush as it passes and the target square pulses, pressed by the hit
+  path: {
+    callout: PALETTE.callout.red,
+    // lane li of q as {pts: the route's corners in board units, segs: their lengths, total: how far the line
+    // runs (from the edge of the attacker's square to just inside the target's), k: 0..1 drawn, knight}
+    route(q, li, since) {
+      const l = q.lane.lanes[li], n = l.length - 1, [ax, ay] = l[0], [bx, by] = l[n];
+      const dx = bx - ax, dy = by - ay, knight = n === 1 && Math.abs(dx) * Math.abs(dy) === 2;
+      const pts = [[ax + .5, ay + .5]];
+      if (knight) pts.push(Math.abs(dx) < Math.abs(dy) ? [bx + .5, ay + .5] : [ax + .5, by + .5]);
+      pts.push([bx + .5, by + .5]);
+      // start on the edge of the attacker's square, so the line does not cover its piece
+      const d0 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]), off = Math.min(.4, d0 / 2);
+      pts[0] = [pts[0][0] + (pts[1][0] - pts[0][0]) / d0 * off, pts[0][1] + (pts[1][1] - pts[0][1]) / d0 * off];
+      const segs = pts.slice(1).map((q2, i) => Math.hypot(q2[0] - pts[i][0], q2[1] - pts[i][1]));
+      const len = n * q.lane.steps[li], k = EASE.travel(clamp(since / Math.max(len, clip.M.short)));
+      return {pts, segs, total: segs.reduce((a, b) => a + b, 0) - (knight ? .3 : .38), k, knight, len};
+    },
+    draw(q, t, out) {
+      const t0 = q.arrive + q.lane.start, fade = clip.M.short, since = t - t0;
+      if (since <= 0) return;
+      const dim = LANE_FX.dim * .6 * EASE.snap(clamp(since / fade)) * out;
+      if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, 8, 8); }
+      q.lane.lanes.forEach((l, li) => {
+        const n = l.length - 1, step = q.lane.steps[li], [bx, by] = l[n], {k, len} = this.route(q, li, since);
+        // squares along the way (not the attacker's) blush as the line reaches them
+        for (let j = 1; j < n; j++) if (since > j * step) {
+          ctx.fillStyle = hexA(PALETTE.lane, .22 * out * EASE.snap(clamp((since - j * step) / fade)));
+          ctx.fillRect(l[j][0], l[j][1], 1, 1);
+        }
+        if (k >= 1) {
+          const tb = tileBump(q, bx, by, t), pulse = .62 + .18 * Math.cos((since - len) * Math.PI * 3.2);
+          if (tb && tb.scale < 1) drawTile(bx, by, {...tb, red: pulse * out}, tint((bx + by) % 2 ? clip.theme.dark : clip.theme.light));
+          else { ctx.fillStyle = hexA(PALETTE.lane, pulse * out); ctx.fillRect(bx, by, 1, 1); }
+        }
+      });
+    },
+    // the line itself, over the pieces: up to the tip, then a dot at the start and an arrowhead at the tip
+    over(q, t, out) {
+      const since = t - (q.arrive + q.lane.start); if (since <= 0) return;
+      q.lane.lanes.forEach((l, li) => {
+        const {pts, segs, total, k, knight} = this.route(q, li, since);
+        let left = total * k, tip = pts[0], dir = [0, 0];
+        ctx.save();
+        ctx.strokeStyle = ctx.fillStyle = hexA(PALETTE.lane, .95 * out);
+        ctx.shadowColor = hexA(PALETTE.lane, out); ctx.shadowBlur = .3 * clip._s;
+        ctx.lineWidth = .085; ctx.lineCap = ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(...pts[0]);
+        for (let i = 0; i < segs.length && left > 0; i++) {
+          const a = pts[i], b = pts[i + 1], u = Math.min(1, left / segs[i]);
+          dir = [(b[0] - a[0]) / segs[i], (b[1] - a[1]) / segs[i]];
+          tip = [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]; ctx.lineTo(...tip); left -= segs[i];
+        }
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(pts[0][0], pts[0][1], .08, 0, Math.PI * 2); ctx.fill();
+        if (!knight && k > .05) {
+          const hl = .26, hw = .19, [ux, uy] = dir, bxh = tip[0] - ux * hl, byh = tip[1] - uy * hl;
+          ctx.beginPath(); ctx.moveTo(tip[0] + ux * .06, tip[1] + uy * .06);
+          ctx.lineTo(bxh - uy * hw, byh + ux * hw); ctx.lineTo(bxh + uy * hw, byh - ux * hw); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
       });
     },
   },
