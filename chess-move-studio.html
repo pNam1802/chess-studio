@@ -328,7 +328,8 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
         <h3>Nhạc nền</h3>
         <div class="field"><label for="songfile">File nhạc</label><input type="file" id="songfile" accept="audio/*,video/*"></div>
         <div class="field"><label for="mvol">Âm lượng nhạc: <span id="mvolv">80</span>%</label><input type="range" id="mvol" min="0" max="150" step="5" value="80"></div>
-        <div class="swrow"><label for="sync">Khớp nước đi theo nhịp nhạc</label><select id="sync" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="swrow"><label for="sync">Khớp nhạc: nước !! đập xuống đúng cao trào</label><select id="sync" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="swrow"><label for="snapall">Các nước khác cũng rơi theo nhịp</label><select id="snapall" data-seg="switch"><option value="on">Bật</option><option value="off" selected>Tắt</option></select></div>
         <div class="field"><label id="droplbl" for="dropwave">Cao trào: <span id="dropval">chưa có nhạc</span></label>
           <canvas id="dropwave" class="wave" tabindex="0" role="slider" aria-labelledby="droplbl" aria-valuemin="0"></canvas>
           <div class="dropbar">
@@ -2578,6 +2579,7 @@ function layout(boost = 1, dropAt = null) {
   // long games: the opening moves play faster and ease back to normal speed for the last 3 before the !!
   // (or before the end when there is no !!). factor 1 = normal speed
   const keyIdx = plies.findIndex(p => p.badge === BADGES['!!']), lead = keyIdx < 0 ? plies.length : keyIdx;
+  const snapAll = $('snapall').value === 'on';
   const ACCEL = {from: 6, calm: 3, max: 3};
   const accel = i => {
     if ($('accel').value !== 'on') return 1;
@@ -2620,8 +2622,11 @@ function layout(boost = 1, dropAt = null) {
       t = scene.place(p, t, beat);
       if (titleHit == null && scene.titleHit) titleHit = scene.titleHit(p);
     }
-    // every landing sits on a beat (before and after the "!!"); sped-up moves may land on half beats
-    t += snap(t + p.pan + p.dur, sync && (p.speed > 8 ? sync.period / 8 : p.speed > 3 ? sync.period / 4 : p.speed > 1.5 ? sync.period / 2 : sync.period));
+    // the !! always lands on the beat grid (which puts it on the drop); the other moves only when "các nước khác
+    // cũng rơi theo nhịp" is on, else they keep their own pace. sped-up moves may land on half beats. a game
+    // without !! still snaps its first landing, which then carries the drop
+    if (snapAll || p.brilliant || (keyIdx < 0 && anchor == null))
+      t += snap(t + p.pan + p.dur, sync && (p.speed > 8 ? sync.period / 8 : p.speed > 3 ? sync.period / 4 : p.speed > 1.5 ? sync.period / 2 : sync.period));
     p.start = t; p.moveStart = t + p.pan; p.arrive = p.moveStart + p.dur;
     if (p.brilliant && slamHit == null) slamHit = p.arrive;   // the first !! carries the music drop
     p.end = p.arrive + (p.brilliant ? IMP.hold : (p.badge ? T.holdBadge : T.hold) / p.speed);
@@ -2678,7 +2683,7 @@ function layout(boost = 1, dropAt = null) {
           fall: p.arrive + Math.max(p.brilliant ? .8 : .35/sp, p.lane ? p.lane.reach + HOP.total + M.tick : 0)};
       }
       // after the brilliant scene the checkmate landing is nudged onto the next strong beat (bar line)
-      if (sync && afterBrilliant && !p.brilliant && slamHit != null) {
+      if (sync && snapAll && afterBrilliant && !p.brilliant && slamHit != null) {
         const bar = sync.period * 4, k = Math.ceil((p.arrive - slamHit) / bar - 1e-6);
         const shift = slamHit + k * bar - p.arrive;
         if (shift > 0 && shift < bar) { p.start += shift; p.moveStart += shift; p.arrive += shift; p.end += shift; p.mate.fall += shift; }
@@ -4529,7 +4534,7 @@ $('preset').addEventListener('input', () => {
   syncSegs();
 });
 PRESET_KEYS.forEach(k => $(k).addEventListener('input', () => { $('preset').value = matchPreset(); syncSegs(); saveSettings(); }));
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall'].forEach(id => $(id).addEventListener('input', () => {
   $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
@@ -4824,7 +4829,7 @@ $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
