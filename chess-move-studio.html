@@ -2735,18 +2735,18 @@ function layout(boost = 1, dropAt = null) {
     t = p.end;
   }
   $('movewarn').textContent = warn.length ? 'Lưu ý: ' + warn.join(', ') + ': quân vừa đi không tấn công ô này, dải vẫn được vẽ.' : '';
-  // when the song should start (song seconds at video time 0); negative = video runs first
+  // when the song should start (song seconds at video time 0); negative = video runs first. the !! puts its slam
+  // on the drop; a game without !! plays the song from its beginning, shifted by less than a beat so the first
+  // landing (the beat grid's anchor) sits on one of the song's beats, counted back from the drop
   let musicStart = null;
-  if (sync) musicStart = sync.drop - (slamHit != null ? slamHit : (anchor != null ? anchor : 0));
+  if (sync && slamHit != null) musicStart = sync.drop - slamHit;
+  else if (sync) { const P = sync.period, a = anchor != null ? anchor : 0; musicStart = ((sync.drop - a) % P + P) % P; }
   clip = {plies, boards, T, M, HOP, flip, insertVol: +$('clipvol').value / 100, dur: t + T.outro, sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
           view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim()};
-  // optionally drop the stretches with no music: before the song comes in, and after it runs out
+  // optionally drop the silence before the song comes in (never a move). the end is never cut: a video longer
+  // than the rest of the song plays it again from the start (see startMusic), fading out with the video
   clip.from = 0; clip.to = clip.dur;
-  if (sync && $('trim').value === 'cut') {
-    // only silence before the first move is cut; the moves themselves are always kept
-    if (musicStart < 0) clip.from = Math.min(-musicStart, Math.max(0, plies[0].start - .4));
-    if (songBuf) clip.to = Math.min(clip.dur, songBuf.duration - musicStart);
-  }
+  if (sync && $('trim').value === 'cut' && musicStart < 0) clip.from = Math.min(-musicStart, Math.max(0, plies[0].start - .4));
   clip.insertRange = insReady ? insertRange() : null;
   clip.camTrack = CAMERA_MODE === 'spring' ? buildCamTrack() : null;
   $('scrub').min = clip.from.toFixed(2);
@@ -4314,6 +4314,13 @@ function loadSong(data) {
     .then(() => { if (clip) rebuild(); else syncInfo(); });
   return songLoading;
 }
+// the song fades out over MUSIC_FADE seconds before the video ends; g: a gain param, t0: context time of video 0
+const MUSIC_FADE = 1;
+function musicFade(g, t0) {
+  const end = t0 + clip.to, a = end - MUSIC_FADE;
+  if (clip.to - clip.from < 3 * MUSIC_FADE) return;
+  g.setValueAtTime(1, Math.max(0, a)); g.linearRampToValueAtTime(0, Math.max(0, end));
+}
 function stopMusic() { if (songSrc) { try { songSrc.stop(); } catch {} songSrc = null; } }
 // only one thing plays at a time: the song, the effects of the last playback and the drop picker's listening all
 // stop together before anything else starts (pause, seek, replay, a setting changed while playing, "Nghe thử")
@@ -4370,10 +4377,11 @@ function startMusic(fromT, toRecorder, lead) {
   if (actx) { fxSession = actx.createGain(); fxSession.connect(master); insSession = actx.createGain(); insSession.connect(limiter); }
   if (!clip || !clip.sync || !songBuf || !actx) return;
   musicInit();
-  const pos = fromT + clip.musicStart;
-  const src = actx.createBufferSource(); src.buffer = songBuf; src.connect(musicGain);
-  const when = actx.currentTime + lead;
-  if (pos >= 0) { if (pos < songBuf.duration) src.start(when, pos); }
+  const pos = fromT + clip.musicStart, when = actx.currentTime + lead;
+  const src = actx.createBufferSource(), fade = actx.createGain(); src.buffer = songBuf; src.loop = true;
+  src.connect(fade); fade.connect(musicGain);
+  musicFade(fade.gain, when - fromT);
+  if (pos >= 0) src.start(when, pos % songBuf.duration);
   else src.start(when - pos, 0);
   songSrc = src;
 }
@@ -4385,7 +4393,8 @@ function syncInfo() {
   const m = clip.musicStart, parts = [];
   parts.push(m >= 0 ? 'Nhạc bắt đầu từ giây ' + fmt(m) + ' của bài.' : clip.from >= -m - .01 ? 'Nhạc vào ngay từ đầu video (từ đầu bài).' : 'Video chạy trước ' + fmt(-m) + 's rồi nhạc mới vào (từ đầu bài).');
   if (clip.slamHit != null) parts.push('Quân Brilliant đập xuống ở giây ' + fmt(clip.slamHit - clip.from) + ' của video = giây ' + fmt(clip.sync.drop) + ' của bài (cao trào).');
-  else parts.push('Chưa có nước "!!": cao trào sẽ rơi vào nước đầu tiên.');
+  else parts.push('Chưa có nước "!!": nhạc chạy từ đầu bài, nước đầu tiên rơi đúng nhịp.');
+  if (songBuf && clip.to + clip.musicStart > songBuf.duration) parts.push('Video dài hơn phần còn lại của bài nên nhạc được phát lại từ đầu bài, và nhỏ dần ở giây cuối.');
   if (clip.boost > 1.001) parts.push('Ván dài: đã tăng tốc phần đầu thêm ×' + clip.boost.toFixed(2) + ' để vừa với nhạc.');
   if (clip.dropMoved != null) parts.push('Ván quá dài cho cao trào ' + fmt(parseFloat(String($('drop').value).replace(',', '.'))) + 's nên đã dùng cao trào sau ở giây ' + fmt(clip.dropMoved) + ' của bài.');
   if (clip.musicStart < 0 && clip.from < -clip.musicStart - .01) parts.push('Lưu ý: ' + fmt(-clip.musicStart - clip.from) + 's đầu chưa có nhạc (không cắt để giữ đủ nước đi). Chọn cao trào muộn hơn hoặc giảm số nước để nhạc phủ kín.');
@@ -4786,10 +4795,11 @@ async function renderAudio(withSound, withMusic) {
     if (withSound) for (const [, a, fire] of soundEvents()) if (a >= clip.from - .03 && a < clip.to) fire(Math.max(0, a - clip.from));
   } finally { [actx, master, limiter] = live; }
   if (withMusic) {
-    const g = off.createGain(), src = off.createBufferSource(), pos = clip.from + clip.musicStart;
+    const g = off.createGain(), fade = off.createGain(), src = off.createBufferSource(), pos = clip.from + clip.musicStart;
     g.gain.value = +$('mvol').value / 100; g.connect(out);
-    src.buffer = songBuf; src.connect(g);
-    if (pos >= 0) { if (pos < songBuf.duration) src.start(0, pos); } else src.start(-pos, 0);
+    src.buffer = songBuf; src.loop = true; src.connect(fade); fade.connect(g);
+    musicFade(fade.gain, -clip.from);
+    if (pos >= 0) src.start(0, pos % songBuf.duration); else src.start(-pos, 0);
   }
   return off.startRendering();
 }
