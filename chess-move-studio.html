@@ -32,6 +32,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 label.check{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink);cursor:pointer}
 input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .btns{display:flex;flex-wrap:wrap;gap:10px}
+/* drop picker: the song's waveform, the drop marker, the part of the song the video uses */
+.wave{display:block;width:100%;height:76px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;touch-action:none}
+.wave:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dropbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.dropbar button{padding:6px 14px;font-size:13px}
+.dropbar #finddrop{margin-left:auto}
+.dropcands{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dropcands:empty{display:none}
+.dropcands button{padding:3px 10px;font-size:12px;font-weight:500;font-family:var(--font-mono)}
+.dropcands button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#dropval{font-weight:500;color:var(--muted);font-family:var(--font-mono)}
 .linkrow{display:flex;gap:10px}.linkrow input{flex:1;min-width:0}
 /* move list: numbered chips, dim = placed before the video starts, ▶ = first animated move */
 .movelist{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:10px;max-height:168px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
@@ -315,7 +326,16 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
         <div class="field"><label for="songfile">File nhạc</label><input type="file" id="songfile" accept="audio/*,video/*"></div>
         <div class="field"><label for="mvol">Âm lượng nhạc: <span id="mvolv">80</span>%</label><input type="range" id="mvol" min="0" max="150" step="5" value="80"></div>
         <div class="swrow"><label for="sync">Khớp nước đi theo nhịp nhạc</label><select id="sync" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
-        <div class="btns"><button id="finddrop" type="button">Tự tìm cao trào</button></div>
+        <div class="field"><label id="droplbl" for="dropwave">Cao trào: <span id="dropval">chưa có nhạc</span></label>
+          <canvas id="dropwave" class="wave" tabindex="0" role="slider" aria-labelledby="droplbl" aria-valuemin="0"></canvas>
+          <div class="dropbar">
+            <button id="dropprev" type="button" aria-label="Lùi cao trào 1 nhịp">‹ 1 nhịp</button>
+            <button id="droplisten" type="button">Nghe thử</button>
+            <button id="dropnext" type="button" aria-label="Tiến cao trào 1 nhịp">1 nhịp ›</button>
+            <button id="finddrop" type="button">Tự tìm cao trào</button>
+          </div>
+          <div class="dropcands" id="dropcands" aria-label="Các chỗ nhạc dồn tìm được"></div>
+          <p class="hint">Bấm hoặc kéo trên dải nhạc để đặt chỗ quân Brilliant đập xuống; mũi tên ← → dời 1 nhịp, giữ Shift để dời 0,1 giây. Vạch nhỏ phía trên là các chỗ nhạc dồn máy tìm được, vùng sáng là đoạn nhạc có trong video.</p></div>
         <p class="hint" id="syncinfo"></p>
       </div>
       <div class="group">
@@ -2713,7 +2733,12 @@ function layout(boost = 1, dropAt = null) {
 // fit long games to the music: speed the opening up just enough that the brilliant slam lands on the drop
 // while the song covers the whole video; the chosen drop is always kept
 const MAX_BOOST = 8;
-let dropCands = [];   // later drops found in the current song (song seconds)
+let dropCands = [];   // strong rises found in the current song (song seconds), shown in the drop picker
+let songOn = null;    // the song's bass onsets, 100 per second (see analyzeSong), for snapping a picked drop
+// drop picker state: waveform cache, dragging, the listen preview {src, at, from, to}; DROP_PREV: seconds of song
+// "Nghe thử" plays before and after the drop
+let songPeaks = null, dropDrag = false, dropPrev = null;
+const DROP_PREV = {before: 4, after: 3};
 function buildClip() {
   layout(1);
   const sy = clip.sync;
@@ -4064,7 +4089,7 @@ function musicInit() {
 function loadSong(data) {
   audioInit(); if (!actx || !data) return Promise.resolve();
   songLoading = (typeof data === 'string' ? fetch(data).then(r => r.arrayBuffer()) : data.arrayBuffer())
-    .then(ab => actx.decodeAudioData(ab)).then(b => { songBuf = b; return analyzeSong(b).then(r => { dropCands = r.cands; }, () => {}); })
+    .then(ab => actx.decodeAudioData(ab)).then(b => { songBuf = b; songPeaks = null; return analyzeSong(b).then(r => { dropCands = r.cands; songOn = r.on; }, () => {}); })
     .then(() => { if (clip) rebuild(); else syncInfo(); });
   return songLoading;
 }
@@ -4124,6 +4149,7 @@ function startMusic(fromT, toRecorder, lead) {
 }
 function fmt(x) { return (Math.round(x * 1000) / 1000).toFixed(3).replace(/\.?0+$/, ''); }
 function syncInfo() {
+  drawDropWave();
   const el = $('syncinfo'); if (!el) return;
   if (!clip || !clip.sync) { el.textContent = $('sync').value === 'on' ? 'Điền cao trào và BPM hợp lệ để bật khớp nhạc.' : 'Khớp nhạc đang tắt: video chạy tự do, không phát nhạc.'; return; }
   const m = clip.musicStart, parts = [];
@@ -4187,7 +4213,7 @@ async function analyzeSong(buf, hint = -1) {
     for (let i = Math.max(1, c.i - 30); i <= Math.min(frames - 1, c.i + 30); i++) if (on[i] > cv) { cv = on[i]; ci = i; }
     cands.push({i: ci});
   }
-  return {drop: bi * hop / sr, bpm, cands: cands.map(c => c.i * hop / sr).sort((a, b) => a - b)};
+  return {drop: bi * hop / sr, bpm, on, cands: cands.map(c => c.i * hop / sr).sort((a, b) => a - b)};
 }
 
 // ---------- playback ----------
@@ -4234,6 +4260,7 @@ async function audioReady() {
 async function togglePlay() {
   if (recorder || !clip) return;   // no clip yet: the moves box was empty from the start
   if (playing) { playing = false; stopMusic(); syncUI(); return; }
+  stopListen();
   rebuild(); if (!clip) return;
   await audioReady();
   if (clip.sync && !songBuf) { if (!songLoading) loadSong(SONG_DATA); try { await songLoading; } catch {} }
@@ -4284,10 +4311,144 @@ async function autoDrop(useHint = true) {
     const hint = useHint ? parseFloat(String($('drop').value).replace(',', '.')) : -1;
     const r = await analyzeSong(songBuf, hint >= 0 ? hint : -1);
     $('drop').value = fmt(r.drop); $('bpm').value = r.bpm.toFixed(2);
+    dropCands = r.cands; songOn = r.on;
     rebuild();
   } finally { $('finddrop').disabled = false; $('finddrop').textContent = 'Tự tìm cao trào'; }
 }
 $('finddrop').onclick = () => autoDrop().catch(e => { $('err').textContent = 'Không phân tích được nhạc: ' + e.message; });
+
+// ---------- drop picker ----------
+// the song as a waveform: click or drag to put the drop (the brilliant's slam) anywhere, snapped to the nearest
+// bass hit; ticks mark the rises analyzeSong found, the lit band is the part of the song the video plays
+function dropNow() { return parseFloat(String($('drop').value).replace(',', '.')); }
+function beatLen() { const b = parseFloat(String($('bpm').value).replace(',', '.')); return b >= 40 && b <= 240 ? 60 / b : .5; }
+function clock(s) { return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); }
+// loudest sample per column (every 4th sample is plenty), cached until the song or the width changes
+function wavePeaks(cols) {
+  if (songPeaks && songPeaks.length === cols) return songPeaks;
+  const d = songBuf.getChannelData(0), step = d.length / cols, out = new Float32Array(cols);
+  let top = 1e-6;
+  for (let c = 0; c < cols; c++) {
+    let m = 0;
+    for (let i = Math.floor(c * step), e = Math.min(d.length, Math.floor((c + 1) * step)); i < e; i += 4) m = Math.max(m, Math.abs(d[i]));
+    out[c] = m; top = Math.max(top, m);
+  }
+  for (let c = 0; c < cols; c++) out[c] /= top;
+  return songPeaks = out;
+}
+function drawDropWave() {
+  const el = $('dropwave'), w = el.clientWidth, h = el.clientHeight; if (!w) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (el.width !== Math.round(w * dpr)) { el.width = Math.round(w * dpr); el.height = Math.round(h * dpr); }
+  const g = el.getContext('2d'), css = getComputedStyle(el), v = n => css.getPropertyValue(n).trim();
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const drop = dropNow(), cands = $('dropcands');
+  if (!songBuf) {
+    g.fillStyle = v('--muted'); g.font = '13px ' + v('--font-ui'); g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(songLoading ? 'Đang nạp nhạc…' : 'Chọn file nhạc để thấy dải nhạc', w / 2, h / 2);
+    $('dropval').textContent = drop >= 0 ? 'giây ' + fmt(drop) : 'chưa có nhạc'; cands.textContent = '';
+    return;
+  }
+  const dur = songBuf.duration, X = s => s / dur * w;
+  el.setAttribute('aria-valuemax', dur.toFixed(1)); el.setAttribute('aria-valuenow', (drop || 0).toFixed(2));
+  el.setAttribute('aria-valuetext', 'giây ' + fmt(drop || 0));
+  // the song seconds the video plays
+  let v0 = -1, v1 = -1;
+  if (clip && clip.sync) { v0 = Math.max(0, clip.from + clip.musicStart); v1 = Math.min(dur, clip.to + clip.musicStart); }
+  if (v1 > v0) { g.fillStyle = v('--accent'); g.globalAlpha = .2; g.fillRect(X(v0), 0, X(v1) - X(v0), h); g.globalAlpha = 1; }
+  const cols = Math.max(1, Math.floor(w)), pk = wavePeaks(cols), mid = h / 2 + 4;
+  for (let c = 0; c < cols; c++) {
+    const s = (c + .5) / cols * dur, a = Math.max(1, pk[c] * (h / 2 - 10));
+    g.fillStyle = s >= v0 && s <= v1 ? v('--ink') : v('--muted'); g.globalAlpha = s >= v0 && s <= v1 ? .7 : .45;
+    g.fillRect(c, mid - a, 1, 2 * a);
+  }
+  g.globalAlpha = 1;
+  // found rises: small ticks along the top
+  g.fillStyle = v('--muted');
+  for (const c of dropCands) { const x = X(c); g.beginPath(); g.moveTo(x - 4, 0); g.lineTo(x + 4, 0); g.lineTo(x, 7); g.fill(); }
+  // listen preview playhead
+  if (dropPrev && actx) { const s = dropPrev.from + (actx.currentTime - dropPrev.at); if (s >= dropPrev.from && s <= dropPrev.to) { g.fillStyle = v('--ink'); g.fillRect(X(s) - .5, 0, 1, h); } }
+  // the drop: a line with a knob
+  if (drop >= 0 && drop <= dur) {
+    const x = X(drop);
+    g.fillStyle = v('--accent'); g.fillRect(x - 1, 0, 2, h);
+    g.beginPath(); g.arc(x, 9, 5, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = v('--accent-ink'); g.lineWidth = 1.5; g.stroke();
+  }
+  $('dropval').textContent = drop >= 0 ? clock(drop) + ' (giây ' + fmt(drop) + ')' : 'chưa chọn';
+  // the found rises as buttons too, the one in use highlighted
+  const key = dropCands.map(c => c.toFixed(2)).join() + '|' + (drop >= 0 ? drop.toFixed(2) : '');
+  if (cands.dataset.key !== key) {
+    cands.dataset.key = key;
+    cands.innerHTML = dropCands.map(c => '<button type="button" data-s="' + c + '"' + (Math.abs(c - drop) < .05 ? ' class="on"' : '') + '>' + clock(c) + '</button>').join('');
+  }
+}
+// the nearest strong bass hit within 0.15s of song second s (the drop sits on a hit, like the found ones)
+function snapDrop(s) {
+  if (!songOn) return s;
+  const c = Math.round(s * 100); let bi = c, bv = -1;
+  for (let i = Math.max(1, c - 15); i <= Math.min(songOn.length - 1, c + 15); i++) if (songOn[i] > bv) { bv = songOn[i]; bi = i; }
+  return bv > 0 ? bi / 100 : s;
+}
+// commit: the drop field drives everything else (rebuild, saved settings)
+function setDrop(s, commit = true) {
+  if (!songBuf) return;
+  $('drop').value = fmt(clamp(s, 0, songBuf.duration));
+  if (commit) $('drop').dispatchEvent(new Event('input')); else drawDropWave();
+}
+function dropAtPointer(e) {
+  const r = $('dropwave').getBoundingClientRect(), s = clamp((e.clientX - r.left) / r.width) * songBuf.duration;
+  // a found rise within 6px wins over the snap
+  const near = dropCands.find(c => Math.abs(c - s) / songBuf.duration * r.width < 6);
+  return near != null ? near : snapDrop(s);
+}
+$('dropwave').addEventListener('pointerdown', e => {
+  if (!songBuf || recorder) return;
+  dropDrag = true; $('dropwave').setPointerCapture(e.pointerId); setDrop(dropAtPointer(e), false);
+});
+$('dropwave').addEventListener('pointermove', e => { if (dropDrag) setDrop(dropAtPointer(e), false); });
+['pointerup', 'pointercancel'].forEach(ev => $('dropwave').addEventListener(ev, () => {
+  if (!dropDrag) return;
+  dropDrag = false; setDrop(dropNow());
+  if (dropPrev) listenDrop(true);   // keep listening at the new spot
+}));
+$('dropwave').addEventListener('keydown', e => {
+  if (!songBuf || recorder) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    setDrop(dropNow() + (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? .1 : beatLen()));
+  } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); listenDrop(); }
+});
+$('dropprev').onclick = () => setDrop(dropNow() - beatLen());
+$('dropnext').onclick = () => setDrop(dropNow() + beatLen());
+$('dropcands').onclick = e => { const b = e.target.closest('button'); if (b && !recorder) setDrop(+b.dataset.s); };
+// play the song around the drop, a playhead running over the waveform; again to stop
+function stopListen() {
+  if (!dropPrev) return;
+  try { dropPrev.src.stop(); } catch {}
+  dropPrev = null; $('droplisten').textContent = 'Nghe thử'; drawDropWave();
+}
+async function listenDrop(restart = false) {
+  if (dropPrev && !restart) { stopListen(); return; }
+  stopListen();
+  await audioReady();
+  if (!songBuf) { if (!songLoading) loadSong(SONG_DATA); try { await songLoading; } catch {} }
+  if (!songBuf || !actx || recorder) return;
+  if (playing) { playing = false; stopMusic(); syncUI(); }
+  musicInit();
+  const drop = dropNow(), from = Math.max(0, drop - DROP_PREV.before), to = Math.min(songBuf.duration, drop + DROP_PREV.after);
+  const src = actx.createBufferSource(); src.buffer = songBuf; src.connect(musicGain);
+  const at = actx.currentTime + .05; src.start(at, from, to - from);
+  const me = dropPrev = {src, at, from, to};
+  src.onended = () => { if (dropPrev === me) stopListen(); };
+  $('droplisten').textContent = 'Dừng nghe';
+  const frame = () => { if (dropPrev !== me) return; drawDropWave(); requestAnimationFrame(frame); };
+  requestAnimationFrame(frame);
+}
+$('droplisten').onclick = () => listenDrop();
+// the canvas has no size while its tab is hidden: redraw when it gets one
+if (window.ResizeObserver) new ResizeObserver(() => drawDropWave()).observe($('dropwave'));
+$('drop').addEventListener('input', drawDropWave);
 $('vol').addEventListener('input', () => {
   $('volv').textContent = $('vol').value;
   if (master) master.gain.value = +$('vol').value / 100;
