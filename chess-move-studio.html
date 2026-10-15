@@ -303,7 +303,7 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
       </div>
       <div class="group">
         <h3>Cảnh Brilliant (nước !!)</h3>
-        <div class="field"><label for="brstyle">Kiểu cảnh</label><select id="brstyle" data-seg><option value="aura" data-sub="quân xoáy chậm rồi đập xuống">Aura</option><option value="classic" data-sub="thẻ BRILLIANT MOVE">Cổ điển</option></select></div>
+        <div class="field"><label for="brstyle">Kiểu cảnh</label><select id="brstyle" data-seg><option value="aura" data-sub="quân xoáy chậm rồi đập xuống">Aura</option><option value="classic" data-sub="thẻ BRILLIANT MOVE">Cổ điển</option><option value="flip" data-sub="quân lật 3D, nền mờ">Lật đồng xu</option></select></div>
         <div class="field"><label for="brsub">Chữ phụ</label><input type="text" id="brsub" value="IN KNIGHT OPENING"></div>
       </div>
       <details class="more">
@@ -3070,6 +3070,17 @@ function drawPiece(p, x, y, opt = {}) {
   ctx.save();
   ctx.translate(x + .5, y + .5);
   if (opt.rot) ctx.rotate(opt.rot);
+  // edge: the piece has a thickness, seen this far to the side (squares, signed): dark copies fill the gap
+  // between the back and the face, so a piece turned side-on shows as a thin bar
+  if (opt.edge) {
+    if (opt.alpha != null) ctx.globalAlpha = opt.alpha;
+    // a layer every 2px or so, so the side reads as solid
+    const sil = silhouette(im, PALETTE.ghost), n = clamp(Math.ceil(Math.abs(opt.edge) * clip._s / 2), 4, 48);
+    for (let i = n; i >= 1; i--) {
+      ctx.save(); ctx.translate(opt.edge * i / n, 0); ctx.scale(opt.sx || 1, opt.sy || 1);
+      ctx.drawImage(sil, -.5, -.5 - (opt.lift || 0), 1, 1); ctx.restore();
+    }
+  }
   ctx.scale(opt.sx || 1, opt.sy || 1);
   if (opt.alpha != null) ctx.globalAlpha = opt.alpha;
   if (opt.shadow) { ctx.shadowColor = 'rgba(0,0,0,.22)'; ctx.shadowBlur = .25 * clip._s; ctx.shadowOffsetY = .06 * clip._s; }
@@ -3128,7 +3139,7 @@ function auraPose(p, t) {
 }
 // the piece's shadow on the board under it (smaller and lighter the higher it is) and a glow in the brilliant colour
 function drawAuraShadow(p, t) {
-  const q = auraPose(p, t), lift = clamp(q.h / AURA.hover), gx = q.x + .5, gy = q.y + q.h + .62;
+  const q = (p.scene.pose || auraPose)(p, t), lift = clamp(q.h / AURA.hover), gx = q.x + .5, gy = q.y + q.h + .62;
   ctx.fillStyle = `rgba(0,0,0,${.45 - .2 * lift})`;
   ctx.beginPath(); ctx.ellipse(gx, gy, .42 - .15 * lift, .14 - .05 * lift, 0, 0, Math.PI * 2); ctx.fill();
   if (lift > 0) {
@@ -3146,8 +3157,9 @@ function drawAuraPiece(p, t) {
   ctx.fillStyle = hexA(BR.glow, .5 * Math.sin(Math.PI * clamp(k / .7))); ctx.fillRect(p.from[0], p.from[1], 1, 1);
   drawAuraShadow(p, t);
   // a faint trail of where it just was keeps the slow turn readable
-  for (let j = 3; j >= 1; j--) { const g = auraPose(p, t - j * .06); drawPiece(pc, g.x, g.y, {...g.opt, shadow: false, alpha: .16 * (1 - j / 4)}); }
-  const q = auraPose(p, t); drawPiece(pc, q.x, q.y, q.opt);
+  const pose = p.scene.pose || auraPose;
+  for (let j = 3; j >= 1; j--) { const g = pose(p, t - j * .06); drawPiece(pc, g.x, g.y, {...g.opt, shadow: false, edge: 0, alpha: .16 * (1 - j / 4)}); }
+  const q = pose(p, t); drawPiece(pc, q.x, q.y, q.opt);
 }
 // BRILLIANT MOVE (and the subtitle) near the bottom while the piece turns in slow motion; gone as it dives
 function drawAuraTitle(p, t) {
@@ -3340,6 +3352,8 @@ function renderBoard(t) {
     else if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
   }
 
+  // a brilliant scene may soften the board behind its piece (under the title)
+  for (const q of plies) if (q.scene && q.scene.blur) q.scene.blur(q, t);
   // a flash over the whole frame when the move lands (under the title and the callouts)
   if (p && arrived) STYLE.flash.draw(p, t);
 
@@ -3706,6 +3720,46 @@ const BRILLIANT_STYLES = {
     under() {},
     over(p, t) { if (cardUp(p, t)) drawCard(p, t); },
   },
+};
+// flip: the aura's timing, but the piece is a thick coin turning about its upright axis (FLIP.spin rad/s in the
+// slow motion), swaying a little; the board behind goes soft (shallow focus) and a ring marks the target, then
+// the slam cuts back to a sharp board
+const FLIP = {spin: 2.4, thick: .13, sway: .1, blurScale: 8, blur: .92};
+function flipPose(p, t) {
+  const q = auraPose(p, t), a = p.aura, G = AURA.grow;
+  const hoverLen = Math.max(.01, p.moveStart - a.hover0), th0 = Math.PI + hoverLen * FLIP.spin;
+  let th, g = q.opt.sx / (q.opt.sx ? 1 : 1);
+  if (t < a.hover0) th = Math.PI * Math.pow(clamp((t - a.rise0) / Math.max(.01, a.hover0 - a.rise0)), 2);
+  else if (t < p.moveStart) th = Math.PI + (t - a.hover0) * FLIP.spin;
+  else { const f = Math.pow(clamp((t - p.moveStart) / p.dur), 2.2), th1 = Math.ceil(th0 / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2; th = lerp(th0, th1, f); }
+  // size without the aura's spin squash: the aura scales sx and sy alike outside the crouch
+  g = q.opt.sy;
+  const sway = t < p.moveStart ? Math.sin((t - a.rise0) * 1.3) * FLIP.sway * clamp((t - a.rise0) / .4) : 0;
+  return {...q, opt: {sx: g * Math.cos(th), sy: g, edge: FLIP.thick * g * Math.sin(th), rot: sway, shadow: true}};
+}
+// the target ring: pops in as the slow motion begins, breathing until the slam
+function flipRing(p, t) {
+  const a = p.aura; if (t < a.hover0 || t >= p.arrive) return;
+  const k = EASE.pop(clamp((t - a.hover0) / clip.M.med)), r = .52 * k * (1 + .06 * Math.sin((t - a.hover0) * 6)), cx = p.to[0] + .5, cy = p.to[1] + .5;
+  ctx.save(); boardTf(clip._cam);
+  ctx.fillStyle = hexA(BR.glow, .22 * k); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = hexA(BR.glow, .9 * k); ctx.lineWidth = .07; ctx.stroke();
+  ctx.restore();
+}
+// shallow focus: the frame so far, shrunk and scaled back up over itself (cheap blur), from the lift to the slam
+function flipBlur(p, t) {
+  const a = p.aura; if (t < a.rise0 || t >= p.arrive) return;
+  const k = t < a.hover0 ? auraRise(p, t) : 1, s = fxCanvas('soft', Math.ceil(W / FLIP.blurScale), Math.ceil(H / FLIP.blurScale));
+  const g = s.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(cv, 0, 0, s.width, s.height);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = FLIP.blur * k; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(s, 0, 0, W, H); ctx.restore();
+}
+BRILLIANT_STYLES.flip = {
+  ...BRILLIANT_STYLES.aura,
+  pose: flipPose,
+  blur: flipBlur,
+  under(p, t) { if (auraUp(p, t)) { dimBoard(0, .35 * auraRise(p, t)); drawAuraPiece(p, t); } },
+  over(p, t) { flipRing(p, t); drawAuraTitle(p, t); },
 };
 function silhouette(im, color) {
   const key = im.src.length + ':' + im.src.slice(-40) + color;
