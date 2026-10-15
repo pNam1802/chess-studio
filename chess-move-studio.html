@@ -278,9 +278,10 @@ input[type=file]::file-selector-button{font:inherit;font-weight:700;border-radiu
       <div class="group">
         <h3>Phong cách</h3>
         <div class="field"><label for="preset">Bộ phong cách</label><select id="preset" data-seg><option value="studio" data-sub="mặc định">Studio</option><option value="online" data-sub="như chơi online">Bàn online</option><option value="night" data-sub="nền tối">Đêm</option><option value="wood" data-sub="gọn, ít hiệu ứng">Gỗ</option><option value="custom" data-sub="tự chọn">Tùy chỉnh</option></select>
-          <p class="hint">Mỗi bộ chọn sẵn màu bàn cờ, kiểu cảnh Brilliant và ba mục dưới đây. Đổi riêng mục nào thì bộ chuyển sang Tùy chỉnh.</p></div>
+          <p class="hint">Mỗi bộ chọn sẵn màu bàn cờ, kiểu cảnh Brilliant và các mục dưới đây. Đổi riêng mục nào thì bộ chuyển sang Tùy chỉnh.</p></div>
         <div class="field"><label for="shigh">Ô vừa đi</label><select id="shigh" data-seg><option value="glow" data-sub="phát sáng">Sáng</option><option value="flat" data-sub="tô màu">Phẳng</option><option value="outline" data-sub="viền ô">Viền</option></select></div>
         <div class="field"><label for="slane">Dải tấn công</label><select id="slane" data-seg><option value="squares" data-sub="ô bật đỏ">Ô</option><option value="arrow" data-sub="mũi tên">Mũi tên</option></select></div>
+        <div class="field"><label for="sflash">Loé màn hình khi đáp</label><select id="sflash" data-seg><option value="none" data-sub="không">Tắt</option><option value="tint" data-sub="đỏ khi chiếu, xanh khi ăn quân">Theo tình huống</option></select></div>
         <div class="field"><label for="sbadge">Huy hiệu</label><select id="sbadge" data-seg><option value="round" data-sub="tròn">Tròn</option><option value="sticker" data-sub="nhãn dán">Sticker</option></select></div>
       </div>
       <div class="group">
@@ -2233,6 +2234,7 @@ const PALETTE = {
   rim: '#F4F4F2', ghost: '#3C3C3A',       // x-ray: outline and body of the pieces around the impact
   brilliant: {glow: '#2FE3D0', text: '#7FF5E8', badge: '#1FB5A0', sub: '#F2F2F0', subGlow: 'rgba(255,255,255,.5)'},
   callout: {red: {fill: '#FF5A4F', glow: '#FF3B30', outline: 'rgba(70,6,4,.8)'}},
+  tint: {check: '#FF3B30', capture: '#3FBF5A'},   // screen flashes (FLASH_STYLES.tint)
 };
 // hex colour + alpha as an rgba() string (hexA below does the same, greyed with the brilliant's dimmed board)
 function withAlpha(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
@@ -3336,6 +3338,9 @@ function renderBoard(t) {
     else if (p.badge && t > p.arrive + M.tick) drawBadge(p, EASE.pop(clamp((t - p.arrive - M.tick) / M.med)), 1);
   }
 
+  // a flash over the whole frame when the move lands (under the title and the callouts)
+  if (p && arrived) STYLE.flash.draw(p, t);
+
   // overlays in screen space
   ctx.setTransform(1,0,0,1,shk[0],shk[1]);
   for (const i of [idx - 1, idx]) drawFork(i, t);
@@ -3945,25 +3950,45 @@ Object.assign(BADGE_STYLES, {
     },
   },
 });
+const FLASH_STYLES = {
+  none: {draw() {}},
+  // the frame takes a colour as the move lands, strongest at the edges: red for a check, green for a capture
+  // (not on the brilliant, which has its own impact, nor on a blunder, which has its red wash); in over a tick,
+  // out over a long beat
+  tint: {
+    draw(p, t) {
+      if (p.brilliant || p.blunder) return;
+      const col = /[+#]/.test(p.mv.san) ? PALETTE.tint.check : p.mv.captured ? PALETTE.tint.capture : null; if (!col) return;
+      const M = clip.M, d = t - p.arrive, a = EASE.snap(clamp(d / M.tick)) * (1 - EASE.travel(clamp((d - M.tick) / M.long)));
+      if (a <= 0) return;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .2, W / 2, H / 2, Math.hypot(W, H) / 2);
+      g.addColorStop(0, hexA(col, .1 * a)); g.addColorStop(1, hexA(col, .42 * a));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    },
+  },
+};
 // ---------- style slots ----------
 // each slot holds named variants with the same functions (BADGE_STYLES, HIGHLIGHT_STYLES, LANE_STYLES,
 // BRILLIANT_STYLES, BLUNDER_STYLES); the
 // drawing code only calls STYLE.<slot>, so a new look for a slot is a new entry in its registry
 let STYLE = {badge: BADGE_STYLES.round, highlight: HIGHLIGHT_STYLES.glow, lane: LANE_STYLES.squares,
-             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch};
+             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch, flash: FLASH_STYLES.none};
 // the slots as the settings pick them (the board colours come from THEMES through clip.theme)
 function pickStyle() {
   const v = (reg, id, def) => reg[$(id).value] || reg[def];
   STYLE = {badge: v(BADGE_STYLES, 'sbadge', 'round'), highlight: v(HIGHLIGHT_STYLES, 'shigh', 'glow'),
-           lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.glitch};
+           lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.glitch,
+           flash: v(FLASH_STYLES, 'sflash', 'none')};
 }
 // a preset is one choice per setting; picking one fills them in, changing one of them shows the preset that
 // matches (or Tùy chỉnh)
 const PRESETS = {
-  studio: {theme: 'gray',  brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'round'},
-  online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round'},
-  night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker'},
-  wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round'},
+  studio: {theme: 'gray',  brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'round',   sflash: 'none'},
+  online: {theme: 'green', brstyle: 'classic', shigh: 'flat',    slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
+  night:  {theme: 'night', brstyle: 'aura',    shigh: 'glow',    slane: 'squares', sbadge: 'sticker', sflash: 'tint'},
+  wood:   {theme: 'brown', brstyle: 'classic', shigh: 'outline', slane: 'arrow',   sbadge: 'round',   sflash: 'none'},
 };
 const PRESET_KEYS = Object.keys(PRESETS.studio);
 const matchPreset = () => Object.keys(PRESETS).find(n => PRESET_KEYS.every(k => PRESETS[n][k] === $(k).value)) || 'custom';
@@ -4586,7 +4611,7 @@ $('preset').addEventListener('input', () => {
   syncSegs();
 });
 PRESET_KEYS.forEach(k => $(k).addEventListener('input', () => { $('preset').value = matchPreset(); syncSegs(); saveSettings(); }));
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash'].forEach(id => $(id).addEventListener('input', () => {
   $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
@@ -4882,7 +4907,7 @@ $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));
