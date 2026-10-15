@@ -23,7 +23,7 @@ Khung xem trước dùng như trình phát video: bấm vào video hoặc phím 
 
 Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*, *TikTok*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ, mũi tên, hoặc *lộ trình*: đường đỏ phát sáng theo đúng đường quân đi, chữ L cho mã), loé màn hình khi đáp (đỏ khi chiếu, xanh khi ăn quân), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant (Aura, Cổ điển, *Lật đồng xu*: quân dày lật 3D trên nền mờ, có vòng đánh dấu ô đích).
 
-**Cảnh chiếu hết:** *Vua đổ* (vua ngã xuống) hoặc *Chém kiểu anime*: một vòng quay vũ khí (kiếm, thương, liềm, rìu) quay quanh quân chiếu hết rồi dừng ở một món, vũ khí lấy đà rồi chém qua vua (vệt chém sáng, vài khung hình đảo màu, tia tốc độ, rung màn hình), vua đứt làm đôi. Mỗi vũ khí có đường chém riêng: kiếm chém xiên, thương đâm ngang, liềm chém vòng, rìu bổ dọc. Chọn *Ngẫu nhiên* (cố định theo ván) hoặc một vũ khí cụ thể.
+**Cảnh chiếu hết:** *Vua đổ* (vua ngã xuống) hoặc *Chém kiểu anime*: quân chiếu hết bay lên, một vòng quay vũ khí (kiếm, thương, liềm, rìu) quay quanh nó càng lúc càng nhanh rồi khựng lại chốt một món, vua bị khoá mục tiêu; quân giơ vũ khí lao xuống và chém đôi vua ngay lúc chạm bàn (khung hình đảo màu, vệt chém, tia lửa, chữ 斬, rung màn hình). Mỗi vũ khí có đường chém riêng. Chọn *Ngẫu nhiên* (cố định theo nước chiếu hết) hoặc một vũ khí cụ thể.
 
 Huy hiệu ghi sau nước: `!!` `!` `*` (★ tốt nhất) `=` (📖 lý thuyết) `!?` `?!` `?` `??`.
 
