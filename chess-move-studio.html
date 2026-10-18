@@ -370,6 +370,17 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
         </div>
       </div>
       <div class="group">
+        <h3>Kể chuyện</h3>
+        <div class="swrow"><label for="evalbar">Thanh đánh giá (cần Tự tìm nước hay)</label><select id="evalbar" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+      </div>
+      <div class="group">
+        <h3>Chuyển động</h3>
+        <div class="swrow"><label for="focus">Tiêu điểm: các ô khác tối đi khi quân đi</label><select id="focus" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="swrow"><label for="trail">Vệt sáng theo quân</label><select id="trail" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
+        <div class="field"><label for="capfx">Quân bị ăn</label><select id="capfx" data-seg><option value="knock" data-sub="bị hất văng ra">Văng ra</option><option value="fade" data-sub="mờ dần tại chỗ">Mờ dần</option></select></div>
+        <div class="field"><label for="ending">Kết video</label><select id="ending" data-seg><option value="hold" data-sub="dừng ở thế cuối">Đứng yên</option><option value="rewind" data-sub="tua về đầu, xem lặp liền mạch">Tua ngược</option></select></div>
+      </div>
+      <div class="group">
         <h3>Cảnh chiếu hết</h3>
         <div class="field"><label for="smate">Kiểu</label><select id="smate" data-seg><option value="fall" data-sub="vua ngã xuống">Vua đổ</option><option value="slash" data-sub="bay lên quay chọn vũ khí, chém đôi vua">Chém kiểu anime</option></select></div>
         <div class="field"><label for="sweapon">Vũ khí</label><select id="sweapon" data-seg><option value="random" data-sub="vòng quay tự chọn">Ngẫu nhiên</option><option value="sword" data-sub="chém xiên">Kiếm</option><option value="spear" data-sub="đâm ngang">Thương</option><option value="scythe" data-sub="chém vòng">Liềm</option><option value="axe" data-sub="bổ dọc">Rìu</option></select></div>
@@ -391,7 +402,7 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
           <div class="swrow"><label for="accel">Nhiều nước thì tăng tốc phần đầu (có nhạc: chỉ khi cần để !! kịp cao trào)</label><select id="accel" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
           <label class="swrow"><span>Dải tấn công</span><input type="checkbox" class="sw" id="clane" checked></label>
           <label class="swrow"><span>Quân bị tấn công nảy lên</span><input type="checkbox" class="sw" id="lbounce" checked></label>
-          <label class="swrow"><span>Chữ FORK khi đánh 2 quân</span><input type="checkbox" class="sw" id="lfork" checked></label>
+          <label class="swrow"><span>Chữ chiến thuật (FORK, PIN, SKEWER, BLUNDER)</span><input type="checkbox" class="sw" id="lfork" checked></label>
           <p class="hint">Dải tấn công: các ô từ quân vừa đi tới mục tiêu lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Không áp dụng ở nước !!.</p>
         </div>
       </details>
@@ -404,6 +415,8 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
         <div class="field"><label for="mvol">Âm lượng nhạc: <span id="mvolv">80</span>%</label><input type="range" id="mvol" min="0" max="150" step="5" value="80"></div>
         <div class="swrow"><label for="sync">Khớp nhạc: nước !! đập xuống đúng cao trào</label><select id="sync" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
         <div class="swrow"><label for="snapall">Các nước khác cũng rơi theo nhịp</label><select id="snapall" data-seg="switch"><option value="on">Bật</option><option value="off" selected>Tắt</option></select></div>
+        <div class="swrow"><label for="beatmode">Bám beat thật của bài (thay vì lưới nhịp đều)</label><select id="beatmode" data-seg="switch"><option value="real" selected>Bật</option><option value="grid">Tắt</option></select></div>
+        <div class="swrow"><label for="drama">Lặng trước cao trào: nhạc tối dần, tiếng dâng lên, khựng một nhịp rồi đập</label><select id="drama" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
         <div class="field"><label id="droplbl" for="dropwave">Cao trào: <span id="dropval">chưa có nhạc</span></label>
           <canvas id="dropwave" class="wave" tabindex="0" role="slider" aria-labelledby="droplbl" aria-valuemin="0"></canvas>
           <div class="dropbar">
@@ -2266,6 +2279,24 @@ const AURA = {liftBeats: 2, slowBeats: 4, hover: 1.4, grow: 1.7, slowSpin: 1.1, 
 // motion blur for fast flights: ghosts trail the piece `spacing` seconds apart once it moves faster than minSpeed
 // squares per second
 const MOTION_BLUR = {ghosts: 4, spacing: 1 / 120, minSpeed: 6, alpha: .3};
+// focus ("tiêu điểm"), lit like a film scene (low-key): while a move plays the frame sinks into a cool near-black
+// (`dim` of `shade`) and only two soft pools of warm light stay, on the start square and the target. each pool is
+// fully lit within r0 squares of the square's centre and falls off to dark at r1 (light spills a little onto the
+// neighbours, like a real spot). the light hands over as the piece flies: the start pool keeps 1 - handoff, the
+// target grows to full, flaring by `flare` as the piece lands. warm = the key light's colour added in the pools
+// (teal-and-orange: cool shadows, warm light); dust motes drift in the beams; a vignette and 24 fps film grain
+// come in with the dark. in: over the pan (at least `inMin` s); out: a short beat after the landing, over a long one
+const FOCUS = {dim: .86, shade: [4, 7, 14], r0: .58, r1: 1.05, handoff: .7, flare: .5, warm: [255, 178, 102], warmA: .2,
+               motes: 9, vignette: .6, grain: .09, grainFps: 24, inMin: .25};
+// light trail: a glowing ribbon `len` seconds of flight long behind the moving piece, `width` squares at the piece
+const TRAIL = {len: .26, width: .22, alpha: .8, steps: 18};
+// capture "văng ra": the taken piece is knocked away along the move (`speed` squares/s, lifting at `up` squares/s
+// under `gravity`, turning `spin` radians/s, growing by `grow` at the top), fading out by `time` seconds; a shock
+// ring `ring` squares wide and `bits` chips fly off its square
+const KNOCK = {time: .8, speed: 3.2, up: 3.5, gravity: 11, spin: 7, grow: .35, ring: 1.4, bits: 8};
+// ending "tua ngược": after the last move the game runs back to the first frame in `len` seconds (so the video
+// loops), the song slowing to a stop over `stop` seconds like a tape
+const REWIND = {len: 1.4, stop: .35, split: 10};
 
 // ---------- blunder and promotion (stage 3) ----------
 // blunder (??, and ? at `light` strength): the board greys (`gray`) under a red wash (`red`), the moved piece
@@ -2307,6 +2338,7 @@ const PALETTE = {
   rim: '#F4F4F2', ghost: '#3C3C3A',       // x-ray: outline and body of the pieces around the impact
   brilliant: {glow: '#2FE3D0', text: '#7FF5E8', badge: '#1FB5A0', sub: '#F2F2F0', subGlow: 'rgba(255,255,255,.5)'},
   callout: {red: {fill: '#FF5A4F', glow: '#FF3B30', outline: 'rgba(70,6,4,.8)'}},
+  eval: {white: '#F4F4F2', black: '#24242A', frame: 'rgba(20,20,18,.82)'},   // the eval bar
   tint: {check: '#FF3B30', capture: '#3FBF5A'},   // screen flashes (FLASH_STYLES.tint)
 };
 // hex colour + alpha as an rgba() string (hexA below does the same, greyed with the brilliant's dimmed board)
@@ -2418,7 +2450,7 @@ function readGame() {
     const {san, ann, targets} = readTok(tk);
     const mv = game.move(san, {sloppy:true});
     if (!mv) throw bad(tk);
-    moves.push({mv, ann, targets, board: game.board()});
+    moves.push({mv, ann, targets, board: game.board(), fen: game.fen()});
   };
   toks(pre).forEach(add);
   const split = moves.length;
@@ -2434,18 +2466,19 @@ function parse() {
     return {mv, badge, targets};
   });
   const boards = [g.split ? g.moves[g.split - 1].board : g.startBoard, ...main.map(m => m.board)];
+  const fens = [g.split ? g.moves[g.split - 1].fen : g.startFen, ...main.map(m => m.fen)];   // for the eval bar
   if (!plies.length) throw new Error('Thêm ít nhất một nước sau dấu |.');
   // keep only the last N moves animated; everything before them is already on the board
   const n = parseInt($('nplies').value, 10), total = plies.length;
   let note = 'Mỗi lần một bên đi quân tính là 1 nước. Video dựng các nước cuối ván, các nước trước đó được xếp sẵn lên bàn.';
   if (n > 0 && n < total) {
     const skip = total - n, hadBrilliant = plies.some(p => p.badge === BADGES['!!']);
-    plies.splice(0, skip); boards.splice(0, skip);
+    plies.splice(0, skip); boards.splice(0, skip); fens.splice(0, skip);
     note = 'Có ' + total + ' nước sau dấu |, video dựng ' + n + ' nước cuối (bắt đầu từ ' + plies[0].mv.san + ').';
     if (hadBrilliant && !plies.some(p => p.badge === BADGES['!!'])) note += ' Lưu ý: nước !! nằm ngoài ' + n + ' nước này nên không có cảnh Brilliant.';
   } else if (n > 0) note = 'Có ' + total + ' nước sau dấu |, video dựng tất cả.';
   $('npliesnote').textContent = note;
-  return {plies, boards};
+  return {plies, boards, fens};
 }
 
 // ---------- move list: click a move to set its badge, start the animation there, pick its targets ----------
@@ -2537,7 +2570,7 @@ $('movelist').addEventListener('click', e => {
   const p = selMove >= 0 && clip && clip.plies[selMove - firstAnimated(listGame)];
   if (p && !recorder) {
     if (playing) { playing = false; stopAudio(); }
-    cur = clamp(p.start, clip.from, clip.to); render(cur); syncUI();
+    cur = clamp(toVideo(p.start), clip.from, clip.to); render(cur); syncUI();
   }
 });
 $('mvedit').addEventListener('click', e => {
@@ -2624,10 +2657,30 @@ function pickLanes(b, mv, written, warn) {
   return pairs.sort((x, y) => val(y[1]) - val(x[1])).slice(0, LANE.max)
     .map(([a, t]) => lanePath(pieceAt(b, a) ? pieceAt(b, a).type : 'p', a, t));
 }
+// a line tactic by the moved bishop, rook or queen, looking past the first enemy piece on each of its lines:
+// PIN when the one behind is worth more (the front piece cannot move away), SKEWER when the front one is worth
+// more (it must move and gives up the one behind). only for pieces worth a minor piece or more
+function lineTactic(b, mv) {
+  const pc = pieceAt(b, mv.to); if (!pc || !'brq'.includes(pc.type)) return null;
+  const f0 = mv.to.charCodeAt(0) - 97, r0 = +mv.to[1];
+  const dirs = [...(pc.type !== 'b' ? [[1, 0], [-1, 0], [0, 1], [0, -1]] : []), ...(pc.type !== 'r' ? [[1, 1], [1, -1], [-1, 1], [-1, -1]] : [])];
+  let label = null;
+  for (const [df, dr] of dirs) {
+    const hit = [];
+    for (let f = f0 + df, r = r0 + dr; f >= 0 && f < 8 && r >= 1 && r <= 8 && hit.length < 2; f += df, r += dr) {
+      const q = pieceAt(b, 'abcdefgh'[f] + r); if (q) hit.push(q);
+    }
+    if (hit.length < 2 || hit.some(q => q.color === pc.color)) continue;
+    const [a, c] = hit.map(q => LANE_VAL[q.type]);
+    if (a > c && c >= 3) return 'SKEWER';
+    if (a < c && c >= 5) label = 'PIN';
+  }
+  return label;
+}
 
 // lay the whole video out. boost scales the opening speed-up; drop overrides the music drop (song seconds)
 function layout(boost = 1, dropAt = null) {
-  const {plies, boards} = parse();
+  const {plies, boards, fens} = parse();
   const sp = parseFloat($('speed').value);
   const hold = parseFloat($('hold').value);
   // when a long game has to be squeezed in front of the drop, the opening full-board shot shrinks too
@@ -2736,6 +2789,7 @@ function layout(boost = 1, dropAt = null) {
     const promoT = p.promo ? M.short + M.med : 0;
     p.blunderDelay = promoT;   // seconds after landing (the landing itself may still move onto a bar line)
     const before = promoT + (p.blunder ? M.long : 0);
+    p.blunderText = p.blunder === 1 && forkOn ? 'BLUNDER' : null;   // the ?? says so in words, for viewers without sound
     if (before) p.end = Math.max(p.end, p.arrive + before + .5);
     // attack lanes: the squares from the attacker to each target light up one after another, each target hops
     // when its lane reaches it, and the camera pulls back over every lane. the brilliant keeps its own scene.
@@ -2751,10 +2805,10 @@ function layout(boost = 1, dropAt = null) {
         const steps = lanes.map(l => fork ? longest * M.short / (l.length - 1) : M.short);
         // whole lanes plus a one-square margin on every side (and room for FORK! above the attacker)
         // callout: several pieces checking the king = DOUBLE CHECK; one attacker with two or more targets = FORK!
-        // (double check wins when both apply)
+        // (double check wins when both apply); else PIN / SKEWER along the moved piece's lines (lineTactic)
         const key = q => q[0] + ',' + q[1], attackers = new Set(lanes.map(l => key(l[0]))), targets = new Set(lanes.map(l => key(l[l.length - 1])));
         const label = /[+#]/.test(mv.san) && attackers.size > 1 && targets.size === 1 && !p.targets ? 'DOUBLE CHECK'
-                    : attackers.size === 1 && targets.size > 1 ? 'FORK!' : null;
+                    : attackers.size === 1 && targets.size > 1 ? 'FORK!' : lineTactic(boards[pi + 1], mv);
         const pts = [...lanes.flat(), ...(label && forkOn ? [[p.to[0], p.to[1] - .9]] : [])], m = Math.min(W, H);
         const x0 = Math.min(...pts.map(q => q[0])) - 1, x1 = Math.max(...pts.map(q => q[0])) + 2;
         const y0 = Math.min(...pts.map(q => q[1])) - 1, y1 = Math.max(...pts.map(q => q[1])) + 2;
@@ -2820,11 +2874,26 @@ function layout(boost = 1, dropAt = null) {
   if (sync && slamHit != null) musicStart = sync.drop - slamHit;
   else if (sync) { const P = sync.period, a = anchor != null ? anchor : 0; musicStart = ((sync.drop - a) % P + P) % P; }
   clip = {plies, boards, T, M, HOP, flip, insertVol: +$('clipvol').value / 100, dur: t + (plies.length && plies[plies.length - 1].final ? 0 : T.outro), sync, titleHit, slamHit, musicStart, theme: THEMES[$('theme').value],
-          view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim()};
+          view: parseFloat($('zoom').value), brsub: $('brsub').value.trim(), title: $('title').value.trim(), handle: $('handle').value.trim(),
+          focus: $('focus').value === 'on', trail: $('trail').value === 'on', knock: $('capfx').value === 'knock'};
   // optionally drop the silence before the song comes in (never a move). the end is never cut: a video longer
   // than the rest of the song plays it again from the start (see startMusic), fading out with the video
+  // real beats: from here on clip.from / to / dur and musicStart are video time; plies and scenes stay on the grid
+  // (render and soundEvents convert). video 0 stays grid 0, the song shifts by as much
+  clip.warp = sync ? beatWarp(sync, musicStart) : null;
+  if (clip.warp) { const z = toVideo(0); clip.warp.vs = clip.warp.vs.map(v => v - z); clip.musicStart += z; clip.dur = toVideo(clip.dur); }
   clip.from = 0; clip.to = clip.dur;
-  if (sync && $('trim').value === 'cut' && musicStart < 0) clip.from = Math.min(-musicStart, Math.max(0, plies[0].start - .4));
+  if (sync && $('trim').value === 'cut' && clip.musicStart < 0) clip.from = Math.min(-clip.musicStart, Math.max(0, toVideo(plies[0].start - .4)));
+  // tua ngược: REWIND.len more seconds, in which render runs the video back from `at` to its first frame
+  clip.rew = $('ending').value === 'rewind' ? {at: clip.to, len: REWIND.len, back: clip.from} : null;
+  if (clip.rew) { clip.to += REWIND.len; clip.dur += REWIND.len; }
+  // eval bar: White's winning chance before the first move and after each one, once the moves were judged
+  // (Tự tìm nước hay); missing any position = no bar
+  clip.evals = null;
+  if ($('evalbar').value === 'on') try {
+    const ev = fens.map(f => evalCache.get(fenKey(f)));
+    if (ev.every(Boolean)) clip.evals = ev.map(e => ({cp: e.cp, w: winPct(e.cp)}));
+  } catch {}   // the engine's code further down is not loaded yet on the first build
   clip.insertRange = insReady ? insertRange() : null;
   clip.camTrack = CAMERA_MODE === 'spring' ? buildCamTrack() : null;
   $('scrub').min = clip.from.toFixed(2);
@@ -2838,7 +2907,63 @@ function layout(boost = 1, dropAt = null) {
 // while the song covers the whole video; the chosen drop is always kept
 const MAX_BOOST = 8;
 let dropCands = [];   // strong rises found in the current song (song seconds), shown in the drop picker
-let songOn = null;    // the song's bass onsets, 100 per second (see analyzeSong), for snapping a picked drop
+let songOn = null;    // the song's bass onsets, ONSET_FPS per second (see analyzeSong), for snapping a picked drop
+// onset frames: 110 samples at 11025 Hz, so slightly more than 100 per second (an even 100 drifts 0.23%)
+const ONSET_SR = 11025, ONSET_HOP = Math.round(ONSET_SR * .01), ONSET_FPS = ONSET_SR / ONSET_HOP;
+
+// ---------- real beats: the layout runs on an even beat grid, warped onto the song's own beats ----------
+// window / spread: where the next beat is looked for around the tempo's guess (share of a beat); stretch: how far
+// one beat may differ from the tempo (the picture speeds up or slows down by as much); follow: how fast the tempo
+// follows the song
+const BEAT = {window: .15, spread: .07, stretch: .12, follow: .2};
+let beatCache = null;
+// the song's beats (song seconds), followed out from the drop both ways: each one is the strongest clear bass
+// onset near where the tempo puts it; a quiet stretch keeps the tempo going
+function songBeats(sync) {
+  if (!songOn || !songBuf) return null;
+  const key = sync.drop + '|' + sync.period;
+  if (beatCache && beatCache.on === songOn && beatCache.key === key) return beatCache.beats;
+  const on = songOn, n = on.length, P0 = sync.period * ONSET_FPS, d0 = sync.drop * ONSET_FPS;
+  // a beat must stand out: above most frames, and at least a quarter of the song's strongest onsets
+  const sorted = Float32Array.from(on).sort(), thr = Math.max(sorted[Math.floor(n * .9)], .25 * sorted[Math.floor(n * .995)]);
+  const walk = dir => {
+    const out = []; let last = d0, P = P0;
+    for (;;) {
+      const pred = last + dir * P, w = Math.round(P * BEAT.window);
+      if (pred < 1 || pred > n - 2) break;
+      let bi = -1, bs = 0;
+      for (let i = Math.max(1, Math.round(pred) - w); i <= Math.min(n - 2, Math.round(pred) + w); i++) {
+        const s = on[i] * Math.exp(-.5 * ((i - pred) / (P * BEAT.spread)) ** 2);
+        if (on[i] >= thr && s > bs) { bs = s; bi = i; }
+      }
+      const gap = clamp(Math.abs((bi < 0 ? pred : bi) - last), P0 * (1 - BEAT.stretch), P0 * (1 + BEAT.stretch));
+      if (bi >= 0) P = lerp(P, gap, BEAT.follow);
+      last += dir * gap; out.push(last / ONSET_FPS);
+    }
+    return out;
+  };
+  const beats = [...walk(-1).reverse(), sync.drop, ...walk(1)];
+  beatCache = {on: songOn, key, beats};
+  return beats;
+}
+// grid time -> video time: grid line j away from the one on the drop lands on the song's j-th beat from the drop
+function beatWarp(sync, musicStart) {
+  if ($('beatmode').value !== 'real') return null;
+  const beats = songBeats(sync); if (!beats) return null;
+  const j0 = beats.indexOf(sync.drop), u0 = sync.drop - musicStart;
+  return {us: beats.map((b, j) => u0 + (j - j0) * sync.period), vs: beats.map(b => b - musicStart)};
+}
+// piecewise linear through the knots, slope 1 past either end
+function mapT(xs, ys, x) {
+  const n = xs.length;
+  if (x <= xs[0]) return ys[0] + x - xs[0];
+  if (x >= xs[n - 1]) return ys[n - 1] + x - xs[n - 1];
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (xs[m] <= x) lo = m; else hi = m; }
+  return ys[lo] + (x - xs[lo]) * (ys[hi] - ys[lo]) / (xs[hi] - xs[lo]);
+}
+const toVideo = u => clip && clip.warp ? mapT(clip.warp.us, clip.warp.vs, u) : u;
+const toGrid = v => clip && clip.warp ? mapT(clip.warp.vs, clip.warp.us, v) : v;
 // drop picker state: waveform cache, dragging, the listen preview {src, at, from, to}; DROP_PREV: seconds of song
 // "Nghe thử" plays before and after the drop
 let songPeaks = null, dropDrag = false, dropPrev = null, listenPos = 0;   // listenPos: where "Nghe cả bài" resumes
@@ -2865,7 +2990,7 @@ function buildClip() {
 // the whole-board shot (intro, reveal before a brilliant): in short frames the board shrinks and moves
 // down so it sits between the title and the channel name instead of under them
 function fullView() {
-  const m = Math.min(W, H), top = clip.title ? FRAME.top + 112 + 24 : 30, bottom = H - (clip.handle ? FRAME.bottom + 40 : 30);
+  const m = Math.min(W, H), top = clip.title ? FRAME.top + 112 + 24 + evalBand() : clip.evals ? FRAME.top + 24 : 30, bottom = H - (clip.handle ? FRAME.bottom + 40 : 30);
   if (H / 2 - 4 * m / RV.view >= top && H / 2 + 4 * m / RV.view <= bottom) return {V: RV.view, c: [4, 4]};
   const s = Math.min(m / RV.view, (bottom - top) / 8);
   return {V: m / s, c: [4, 4 - ((top + bottom) / 2 - H / 2) / s]};
@@ -2888,10 +3013,13 @@ function titleLayout() {
   const tw = Math.min(ctx.measureText(clip.title).width + 80, W - 80);
   return {font: ctx.font, lines: [clip.title], lh: 112, box: [W/2 - tw/2, FRAME.top, tw, 112], radius: 56};
 }
+// height the eval bar adds under the title (side frames keep it in the title column)
+function evalBand() { return clip.evals && !FRAME.side ? EVALBAR.band : 0; }
 // screen rectangles [x0, y0, x1, y1] covered by the title and the channel name
 function overlayRects() {
   const out = [], tl = titleLayout();
   if (tl) out.push([tl.box[0], tl.box[1], tl.box[0] + tl.box[2], tl.box[1] + tl.box[3]]);
+  if (clip.evals) { const [x, y, w, h] = evalBarRect(); out.push([x - 5, y - 5, x + w + 5, y + h + 5]); }
   if (clip.handle) {
     ctx.font = font(700, 40);
     out.push([54, H - FRAME.bottom - 32, 54 + ctx.measureText(clip.handle).width, H - FRAME.bottom + 10]);
@@ -2903,8 +3031,8 @@ window.overlayRects = overlayRects;
 // name, or right of the title column in side frames
 function safeRect() {
   const pad = CAM.safePad;
-  if (FRAME.side) return {x0: clip.title || clip.handle ? FRAME.side : pad, y0: pad, x1: W - pad, y1: H - pad};
-  return {x0: 0, y0: clip.title ? FRAME.top + 112 + pad : 0, x1: W, y1: clip.handle ? H - FRAME.bottom - 34 - pad : H};
+  if (FRAME.side) return {x0: clip.title || clip.handle || clip.evals ? FRAME.side : pad, y0: pad, x1: W - pad, y1: H - pad};
+  return {x0: 0, y0: clip.title ? FRAME.top + 112 + pad + evalBand() : clip.evals ? FRAME.top + pad : 0, x1: W, y1: clip.handle ? H - FRAME.bottom - 34 - pad : H};
 }
 
 // ---------- camera, spring mode ----------
@@ -3179,6 +3307,10 @@ function drawPiece(p, x, y, opt = {}) {
 
 function render(t) {
   if (!clip) return;
+  // the rewind shows the video running backwards, easing out of the last frame and into the first
+  const rw = clip.rew && t > clip.rew.at ? clamp((t - clip.rew.at) / clip.rew.len) : 0;
+  if (rw > 0) t = lerp(clip.rew.at, clip.rew.back, EASE.travel(rw));
+  t = toGrid(t);   // video time -> the layout's beat grid (the same unless locked to the song's real beats)
   // hard landing: brief screen shake right after the brilliant piece hits
   // hard landing / title slam: brief screen shake
   const sh = clip.M.med;
@@ -3197,13 +3329,27 @@ function render(t) {
     if (f && f.t != null) boardT = f.t;
     if (f && f.hide) hiddenSq = f.hide;
   }
-  paintGray = grayAt(t);
+  paintGray = Math.max(grayAt(t), .5 * Math.sin(Math.PI * rw));
   renderBoard(boardT);
   hiddenSq = null; paintGray = 0;
   for (const p of clip.plies) if (p.scene) p.scene.under(p, t);
   for (const p of clip.plies) if (p.brilliant && t >= p.start && t < p.end + .2) drawImpact(p, t);
   for (const p of clip.plies) if (p.scene) p.scene.over(p, t);
   postFx(t);
+  drawFilmLook(t, clip._focus);
+  if (rw > 0) drawRewind(rw);
+}
+// the rewind's tape look: colour fringes and bright bands rolling up the frame, strongest halfway, gone at both ends
+function drawRewind(k) {
+  const s = Math.sin(Math.PI * k); if (s < .01) return;
+  rgbSplit(REWIND.split * s);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const rnd = seededRandom(Math.floor(k * 40) + 1);
+  for (let i = 0; i < 3; i++) {
+    const y = ((rnd() + k * (1.5 + i)) % 1) * H, h = 8 + rnd() * 30;
+    ctx.fillStyle = `rgba(255,255,255,${(.1 + rnd() * .12) * s})`; ctx.fillRect(0, H - y, W, h);
+  }
+  ctx.restore();
 }
 
 // ---------- aura brilliant: the piece lifts off and turns in slow motion above the board ----------
@@ -3292,17 +3438,19 @@ function postFx(t) {
     b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
     ctx.globalCompositeOperation = 'copy'; ctx.filter = 'grayscale(1) invert(1) contrast(4)';
     ctx.drawImage(buf, 0, 0); ctx.filter = 'none';
-  } else if (d < BRILLIANT_FX.aberration) {
-    const off = BRILLIANT_FX.aberrationPx * Math.pow(1 - d / BRILLIANT_FX.aberration, 2);
-    b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
-    const ch = fxCanvas('chan', W, H), c = ch.getContext('2d');
-    ctx.globalCompositeOperation = 'copy'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-    // each colour channel on its own, shifted sideways, added back together
-    for (const [col, dx] of [['#FF0000', -off], ['#00FF00', 0], ['#0000FF', off]]) {
-      c.globalCompositeOperation = 'copy'; c.drawImage(buf, 0, 0);
-      c.globalCompositeOperation = 'multiply'; c.fillStyle = col; c.fillRect(0, 0, W, H);
-      ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ch, dx, 0);
-    }
+  } else if (d < BRILLIANT_FX.aberration) rgbSplit(BRILLIANT_FX.aberrationPx * Math.pow(1 - d / BRILLIANT_FX.aberration, 2));
+  ctx.restore();
+}
+// RGB split over the whole frame: each colour channel on its own, shifted sideways by off px, added back together
+function rgbSplit(off) {
+  const buf = fxCanvas('buf', W, H), b = buf.getContext('2d'), ch = fxCanvas('chan', W, H), c = ch.getContext('2d');
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  b.globalCompositeOperation = 'copy'; b.drawImage(cv, 0, 0);
+  ctx.globalCompositeOperation = 'copy'; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  for (const [col, dx] of [['#FF0000', -off], ['#00FF00', 0], ['#0000FF', off]]) {
+    c.globalCompositeOperation = 'copy'; c.drawImage(buf, 0, 0);
+    c.globalCompositeOperation = 'multiply'; c.fillStyle = col; c.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ch, dx, 0);
   }
   ctx.restore();
 }
@@ -3396,6 +3544,9 @@ function renderBoard(t) {
     const opt = (arrived && laneHop(p, x, y, t)) || {}, tb = arrived && !p.brilliant && tileBump(p, x, y, t);
     drawPiece(pc, x, y, tb && tb.lift > 0 ? {...opt, lift: (opt.lift || 0) + tb.lift} : opt);
   }
+  // the spotlight goes over the still pieces, under the moving one, its dots and its trail
+  clip._focus = 0;
+  if (p) { drawFocus(p, Math.max(focusAmount(p, t), focusAmount(plies[idx - 1], t)), t); drawTrail(p, t); }
   if (p) {
     const mover = boards[idx][7 - (clip.flip ? p.from[1] : 7 - p.from[1])][clip.flip ? 7 - p.from[0] : p.from[0]];
     const landed = boards[idx+1][7 - (clip.flip ? p.to[1] : 7 - p.to[1])][clip.flip ? 7 - p.to[0] : p.to[0]];
@@ -3406,9 +3557,11 @@ function renderBoard(t) {
       drawMover(p, mover, t);
     } else {
       const d = t - p.arrive;
-      if (p.capSq) {
+      const taken = p.capSq && boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]];
+      if (taken && clip.knock) knockShock(p, taken, d);
+      else if (taken) {
         const ca = 1 - clamp(d / M.med);
-        if (ca > 0) { const cp = boards[idx][7 - (clip.flip ? p.capSq[1] : 7 - p.capSq[1])][clip.flip ? 7 - p.capSq[0] : p.capSq[0]]; if (cp) drawPiece(cp, p.capSq[0], p.capSq[1], {alpha: ca, sx: .6+.4*ca, sy: .6+.4*ca}); }
+        if (ca > 0) drawPiece(taken, p.capSq[0], p.capSq[1], {alpha: ca, sx: .6+.4*ca, sy: .6+.4*ca});
       }
       if (p.rook) { const rk = sqAt(p.rook.to[0], p.rook.to[1]); if (rk) drawPiece(rk, p.rook.to[0], p.rook.to[1]); }
       const pr = p.promo;
@@ -3431,6 +3584,8 @@ function renderBoard(t) {
         const x = p.to[0] + STYLE.blunder.piece(p, t, landed);
         drawPiece(landed, x, p.to[1], {sx: 1 + .1*hard*wob, sy: 1 - .12*hard*wob});
       }
+      // the knocked-off piece flies over everything on the board
+      if (taken && clip.knock) knockPiece(p, taken, d);
     }
     if (mate) mate.style.king(p, t, sqAt(mate.sq[0], mate.sq[1]));
     // a lane style's part that goes over the pieces (the path's line)
@@ -3452,7 +3607,7 @@ function renderBoard(t) {
 
   // overlays in screen space
   ctx.setTransform(1,0,0,1,shk[0],shk[1]);
-  for (const i of [idx - 1, idx]) drawFork(i, t);
+  for (const i of [idx - 1, idx]) { drawFork(i, t); drawBlunderText(i, t); }
   const fadeIn = clamp(t / .5);
   const tl = titleLayout();
   if (tl) {
@@ -3465,12 +3620,133 @@ function renderBoard(t) {
     else tl.lines.forEach((ln, i) => ctx.fillText(ln, bx + bw / 2, by + 20 + tl.lh * (i + .5), bw - 40));
     ctx.globalAlpha = 1;
   }
+  drawEvalBar(idx, t, fadeIn);
   if (clip.handle) {
     ctx.font = font(700, 40);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.lineWidth = 6; ctx.strokeStyle = PALETTE.textOutline; ctx.strokeText(clip.handle, 54, H - FRAME.bottom);
     ctx.fillStyle = PALETTE.text; ctx.fillText(clip.handle, 54, H - FRAME.bottom);
   }
+}
+
+// ---------- focus, light trail, knocked-off captures ----------
+// the colour the trail uses: the badge's, except a blunder's, which stays a surprise
+// until it lands
+const moveColor = p => p.blunder ? PALETTE.glow : p.glow;
+// how much ply q's spotlight shows at time t (0..1); the brilliant and the checkmate scenes light their own board
+function focusAmount(q, t) {
+  if (!clip.focus || !q || q.scene || q.brilliant) return 0;
+  const M = clip.M;
+  return EASE.travel(clamp((t - q.start) / Math.max(FOCUS.inMin, q.pan))) * (1 - EASE.travel(clamp((t - q.arrive - M.short) / M.long)));
+}
+// the two pools of light at time t: [square, light 0..1, extra flare 0..1]
+function focusPools(p, t) {
+  const u = EASE.travel(clamp((t - p.moveStart) / p.dur)), d = t - p.arrive;
+  const flare = d > 0 ? FOCUS.flare * Math.exp(-d / clip.M.med) : 0;
+  return [[p.from, 1 - FOCUS.handoff * u, 0], [p.to, 1 - FOCUS.handoff + FOCUS.handoff * u, flare]];
+}
+// the dark with its two soft holes, drawn over the still pieces (the moving piece goes on top, lit); returns
+// nothing, leaves clip._focus = k for the film look drawn over the whole frame at the end
+function drawFocus(p, k, t) {
+  clip._focus = k;
+  if (k <= 0) return;
+  const F = FOCUS, cam = clip._cam, fc = fxCanvas('focus', W, H), g = fc.getContext('2d'), pools = focusPools(p, t);
+  const at = sq => { const [x, y] = toScreen(cam, sq[0] + .5, sq[1] + .5); return [x + shk[0], y + shk[1]]; };
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy';
+  g.fillStyle = `rgba(${F.shade},${F.dim * k})`; g.fillRect(0, 0, W, H);
+  // the vignette darkens the frame's edges further (under the title and the channel name, which stay readable)
+  const R = Math.hypot(W, H) / 2, v = g.createRadialGradient(W / 2, H / 2, R * .45, W / 2, H / 2, R);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${F.vignette * k})`);
+  g.globalCompositeOperation = 'source-over'; g.fillStyle = v; g.fillRect(0, 0, W, H);
+  // soft holes: full light inside r0, about a third of it halfway out, none at r1
+  g.globalCompositeOperation = 'destination-out';
+  for (const [sq, a] of pools) {
+    const [x, y] = at(sq), r = F.r1 * cam.s, gr = g.createRadialGradient(x, y, 0, x, y, r), m = F.r0 / F.r1;
+    gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(m, `rgba(0,0,0,${a})`);
+    gr.addColorStop((m + 1) / 2, `rgba(0,0,0,${a * .32})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fc, 0, 0);
+  // the warm key light in each pool, and dust drifting slowly through it
+  ctx.globalCompositeOperation = 'lighter';
+  pools.forEach(([sq, a, flare], i) => {
+    const [x, y] = at(sq), r = F.r1 * cam.s, w = k * Math.min(1, a + flare);
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(${F.warm},${F.warmA * w})`); gr.addColorStop(1, `rgba(${F.warm},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+    const rnd = seededRandom(sq[0] * 8 + sq[1] + 101 * i);
+    for (let j = 0; j < F.motes; j++) {
+      const ox = rnd() * 2 - 1, oy = rnd() * 2 - 1, ph = rnd() * 6.28, sz = 1.2 + rnd() * 2;
+      const mx = x + (ox * .7 + .08 * Math.sin(t * .6 + ph)) * cam.s, my = y + (oy * .7 - ((t * .05 + rnd()) % .4)) * cam.s;
+      ctx.fillStyle = `rgba(255,230,200,${.55 * w * (.5 + .5 * Math.sin(t * 2.3 + ph))})`;
+      ctx.beginPath(); ctx.arc(mx, my, sz, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+// film grain over the whole frame while the focus is up, a new grain 24 times a second
+const grainTiles = [];
+function drawFilmLook(t, k) {
+  if (!(k > 0)) return;
+  const F = FOCUS;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (!grainTiles.length) for (let i = 0; i < 4; i++) {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'), im = g.createImageData(256, 256), rnd = seededRandom(900 + i);
+    for (let j = 0; j < im.data.length; j += 4) { const n = rnd() * 255; im.data[j] = im.data[j + 1] = im.data[j + 2] = n; im.data[j + 3] = 255; }
+    g.putImageData(im, 0, 0); grainTiles.push(c);
+  }
+  const f = Math.floor(t * F.grainFps), tile = grainTiles[f % 4], off = (f * 97) % 256;
+  ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = F.grain * k;
+  ctx.translate(-off, -off); ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+// a glowing ribbon over the last TRAIL.len seconds of the flight, thin and faint at its tail; after the landing
+// the tail catches up with the piece
+function drawTrail(p, t) {
+  if (!clip.trail || p.scene || t <= p.moveStart || t >= p.arrive + TRAIL.len) return;
+  const head = Math.min(t, p.arrive), tail = Math.max(p.moveStart, t - TRAIL.len);
+  if (head - tail < .01) return;
+  const pts = [];
+  for (let i = 0; i <= TRAIL.steps; i++) {
+    const q = moverPose(p, lerp(tail, head, i / TRAIL.steps));
+    pts.push([q.x + .5, q.y + .5 - (q.opt.lift || 0) * (q.opt.sy || 1)]);
+  }
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.shadowColor = hexA(moveColor(p), .9); ctx.shadowBlur = .3 * clip._s;
+  for (const [col, wk] of [[moveColor(p), 1], ['#FFFFFF', .35]]) for (let i = 0; i < TRAIL.steps; i++) {
+    const k = (i + 1) / TRAIL.steps;
+    ctx.beginPath(); ctx.moveTo(...pts[i]); ctx.lineTo(...pts[i + 1]);
+    ctx.lineWidth = TRAIL.width * wk * k; ctx.strokeStyle = hexA(col, TRAIL.alpha * k * k); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the hit on the taken piece's square: a shock ring and chips flying out, on the board under the pieces' tops
+function knockShock(p, pc, d) {
+  const [x, y] = p.capSq, cx = x + .5, cy = y + .5, k = clamp(d / (clip.M.long * .8));
+  if (k < 1) {
+    ctx.beginPath(); ctx.arc(cx, cy, lerp(.3, KNOCK.ring / 2, eout(k)), 0, Math.PI * 2);
+    ctx.lineWidth = .1 * (1 - k); ctx.strokeStyle = `rgba(255,255,255,${.75 * (1 - k)})`; ctx.stroke();
+  }
+  const rnd = seededRandom(p.capSq[0] * 8 + p.capSq[1] + 1), col = pc.color === 'w' ? PALETTE.eval.white : PALETTE.eval.black;
+  for (let i = 0; i < KNOCK.bits; i++) {
+    const a = rnd() * Math.PI * 2, v = 1.5 + rnd() * 2.5, sz = .05 + rnd() * .06, life = .35 + rnd() * .25, u = d / life;
+    if (u >= 1) continue;
+    ctx.fillStyle = col; ctx.globalAlpha = 1 - u;
+    ctx.save(); ctx.translate(cx + Math.cos(a) * v * d, cy + Math.sin(a) * v * d + 3 * d * d); ctx.rotate(a + d * 9);
+    ctx.fillRect(-sz / 2, -sz / 2, sz, sz); ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+// the taken piece knocked away along the move: thrown up and off, turning, falling back and fading
+function knockPiece(p, pc, d) {
+  if (d >= KNOCK.time) return;
+  let dx = p.to[0] - p.from[0], dy = p.to[1] - p.from[1];
+  const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+  const h = KNOCK.up * d - KNOCK.gravity * d * d / 2, peak = KNOCK.up * KNOCK.up / (2 * KNOCK.gravity);
+  const sc = 1 + KNOCK.grow * Math.max(0, h) / peak, a = 1 - clamp((d - KNOCK.time * .55) / (KNOCK.time * .45));
+  drawPiece(pc, p.capSq[0] + dx * KNOCK.speed * d, p.capSq[1] + dy * KNOCK.speed * d,
+            {lift: h, sx: sc, sy: sc, rot: (dx < 0 ? -1 : 1) * KNOCK.spin * d, alpha: a, shadow: true});
 }
 
 // ---------- blunder ----------
@@ -3645,6 +3921,47 @@ function drawFork(i, t) {
   const q = clip.plies[i], a = q && q.lane && q.lane.text ? laneAlpha(i, t) : 0; if (a <= 0) return;
   drawCallout(q.lane.text, STYLE.lane.callout, [q.to[0] + .5, q.to[1] - .55], q.arrive + q.lane.start, t, a);
 }
+// screen space: BLUNDER over a ?? once its glitch starts, gone with the next move (unless the move has its own word)
+function drawBlunderText(i, t) {
+  const q = clip.plies[i], n = clip.plies[i + 1];
+  if (!q || !q.blunderText || (q.lane && q.lane.text)) return;
+  const t0 = q.arrive + q.blunderDelay, a = t < t0 ? 0 : n ? 1 - clamp((t - (n.reveal ? n.reveal.start : n.start)) / clip.M.med) : 1;
+  if (a > 0) drawCallout(q.blunderText, PALETTE.callout.red, [q.to[0] + .5, q.to[1] - .55], t0, t, a);
+}
+// ---------- eval bar: White's winning chance (Win%) under the title, sliding to the new value as a move lands ----
+// band: room it takes from the camera's safe area; swing: Win% change that makes the bar flash in the move's colour
+const EVALBAR = {h: 30, gap: 16, band: 46, swing: 20};
+function evalBarRect() {
+  const tl = titleLayout(), [bx, by, bw, bh] = tl ? tl.box : [60, FRAME.top - EVALBAR.h - EVALBAR.gap, W - 120, 0];
+  return FRAME.side ? [bx, by + bh + EVALBAR.gap, bw, EVALBAR.h] : [60, by + bh + EVALBAR.gap, W - 120, EVALBAR.h];
+}
+function drawEvalBar(idx, t, alpha) {
+  const ev = clip.evals; if (!ev) return;
+  const p = clip.plies[idx], before = ev[Math.max(0, idx)], after = ev[idx + 1];
+  const k = p && after ? EASE.travel(clamp((t - p.arrive) / clip.M.long)) : 0;
+  const w = idx < 0 ? ev[0].w : lerp(before.w, after.w, k), cp = idx < 0 || k < .5 ? before.cp : after.cp;
+  // a big swing flashes the bar in the move's badge colour for a moment
+  const big = p && after && Math.abs(after.w - before.w) >= EVALBAR.swing && t >= p.arrive;
+  const flash = big ? 1 - clamp((t - p.arrive) / (clip.M.long * 1.5)) : 0;
+  const [x, y, bw, h] = evalBarRect(), r = h / 2;
+  ctx.save(); ctx.globalAlpha = alpha;
+  if (flash > 0) { ctx.shadowColor = p.glow; ctx.shadowBlur = 40 * flash; }
+  ctx.fillStyle = PALETTE.eval.frame; rr(x - 5, y - 5, bw + 10, h + 10, r + 5); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = PALETTE.eval.black; rr(x, y, bw, h, r); ctx.fill();
+  ctx.save(); rr(x, y, bw, h, r); ctx.clip();
+  ctx.fillStyle = PALETTE.eval.white; ctx.fillRect(x, y, bw * w / 100, h);
+  if (flash > 0) { ctx.globalAlpha = alpha * .6 * flash; ctx.fillStyle = p.glow; ctx.fillRect(x, y, bw, h); ctx.globalAlpha = alpha; }
+  ctx.fillStyle = 'rgba(128,128,128,.6)'; ctx.fillRect(x + bw / 2 - 1.5, y, 3, h);   // the even mark
+  ctx.restore();
+  // the number on the leading side: +1.5 / -0.8 for White, # for a forced mate
+  const txt = Math.abs(cp) >= 1000 ? '#' : (cp > 0 ? '+' : cp < 0 ? '−' : '') + (Math.abs(cp) / 100).toFixed(1);
+  ctx.font = font(800, h * .78); ctx.textBaseline = 'middle';
+  const white = w >= 50;
+  ctx.textAlign = white ? 'left' : 'right'; ctx.fillStyle = white ? PALETTE.eval.black : PALETTE.eval.white;
+  ctx.fillText(txt, white ? x + 14 : x + bw - 14, y + h / 2 + 1);
+  ctx.restore();
+}
 // shared callout: a word in the BRILLIANT MOVE font that pops up with a bounce over a board point, glowing in
 // its colour over a dark outline, kept inside the safe area. for FORK!, DOUBLE CHECK and the tactics to come
 function drawCallout(text, color, at, t0, t, alpha) {
@@ -3653,6 +3970,7 @@ function drawCallout(text, color, at, t0, t, alpha) {
   ctx.font = font(900, size, FONT.display); ctx.letterSpacing = '3px';
   // long words shrink to fit the safe area's width
   const tw = ctx.measureText(text).width, maxW = (R.x1 - R.x0) - 60;
+  ctx.letterSpacing = '0px';   // (set outside the save below: the title measures its text with this context)
   if (tw > maxW) size *= maxW / tw;
   const half = Math.min(tw, maxW) / 2 + 20;
   const x = clamp(sx, R.x0 + half, R.x1 - half), y = Math.max(sy, R.y0 + size * .7);
@@ -4888,6 +5206,40 @@ function boom(when, vol = 1) {
   ng.gain.value = 1.4*vol;
   n.connect(lp); lp.connect(ng); ng.connect(fxOut()); n.start(when);
 }
+// riser: noise through a band-pass sweeping up, over a rising sawtooth, both swelling until they stop dead
+let riserNoise = null;
+function riser(when, len, vol = 1) {
+  if (!riserNoise) {
+    riserNoise = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
+    const d = riserNoise.getChannelData(0), rnd = seededRandom(7);
+    for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1;
+  }
+  if (len <= .1) return;
+  const end = when + len, n = actx.createBufferSource(), bp = actx.createBiquadFilter(), ng = actx.createGain();
+  n.buffer = riserNoise; n.loop = true; bp.type = 'bandpass'; bp.Q.value = 1.8;
+  bp.frequency.setValueAtTime(300, when); bp.frequency.exponentialRampToValueAtTime(6000, end);
+  ng.gain.setValueAtTime(0, when); ng.gain.linearRampToValueAtTime(1.6 * vol, end - .01); ng.gain.linearRampToValueAtTime(0, end);
+  n.connect(bp); bp.connect(ng); ng.connect(fxOut()); n.start(when); n.stop(end + .02);
+  const o = actx.createOscillator(), lp = actx.createBiquadFilter(), og = actx.createGain();
+  o.type = 'sawtooth'; lp.type = 'lowpass'; lp.frequency.value = 2200;
+  o.frequency.setValueAtTime(110, when); o.frequency.exponentialRampToValueAtTime(660, end);
+  og.gain.setValueAtTime(0, when); og.gain.linearRampToValueAtTime(.3 * vol, end - .01); og.gain.linearRampToValueAtTime(0, end);
+  o.connect(lp); lp.connect(og); og.connect(fxOut()); o.start(when); o.stop(end + .02);
+}
+// tape spooling back: noise through a band-pass climbing in pitch, warbling fast, fading in and out
+function rewindSnd(when, len, vol = 1) {
+  riser(when, .01);   // (makes the shared noise buffer)
+  const end = when + len, n = actx.createBufferSource(), bp = actx.createBiquadFilter(), ng = actx.createGain();
+  n.buffer = riserNoise; n.loop = true; bp.type = 'bandpass'; bp.Q.value = 4;
+  bp.frequency.setValueAtTime(900, when); bp.frequency.exponentialRampToValueAtTime(3800, end);
+  ng.gain.setValueAtTime(0, when); ng.gain.linearRampToValueAtTime(.9 * vol, when + .15);
+  ng.gain.setValueAtTime(.9 * vol, end - .25); ng.gain.linearRampToValueAtTime(0, end);
+  const lfo = actx.createOscillator(), depth = actx.createGain(), wob = actx.createGain();
+  lfo.frequency.setValueAtTime(14, when); lfo.frequency.linearRampToValueAtTime(34, end); depth.gain.value = .5;
+  lfo.connect(depth); depth.connect(wob.gain); wob.gain.value = .5;
+  n.connect(bp); bp.connect(wob); wob.connect(ng); ng.connect(fxOut());
+  n.start(when); n.stop(end + .02); lfo.start(when); lfo.stop(end + .02);
+}
 // short "fail" sting for a blunder: two falling notes, a sawtooth through a low-pass (synthesized, no clip needed)
 function failSound(when, vol = 1) {
   for (const [dt, f0, f1, len] of [[0, 392, 330, .16], [.17, 311, 196, .42]]) {
@@ -4929,16 +5281,23 @@ function soundEvents() {
     // begins is skipped
     const ins = clip.insertRange;
     if (p.scene && p.scene.insert && ins && clip.insertVol > 0) {
-      const len = ins.to - ins.from, a = p.arrive - len, s = Math.max(a, clip.from);
+      const len = ins.to - ins.from, a = p.arrive - len, s = Math.max(a, toGrid(clip.from));
       if (len - (s - a) > .05) ev.push(['g' + i, s, w => playSegment(insBuf, w, ins.from + (s - a), len - (s - a), clip.insertVol)]);
     }
     ev.push(['m' + i, p.arrive, w => playPly(p, w)]);
     if (p.brilliant) ev.push(['b' + i, p.arrive, w => boom(w)]);
+    // the riser climbs over the last beats of the flight and stops in the silence before the slam
+    if (p.brilliant && $('drama').value === 'on') {
+      const len = DRAMA.beats * (clip.sync ? clip.sync.period : .5);
+      ev.push(['r' + i, p.arrive - len, w => riser(w, len - DRAMA.gap, DRAMA.riser)]);
+    }
     if (p.mate && sndBuf.mate) ev.push(['k' + i, p.mate.hit, w => clipAt(sndBuf.mate, w)]);
     if (p.scene && p.scene.sounds) p.scene.sounds(p, i, ev);
     if (p.blunder && BLUNDER_FX.sound > 0) ev.push(['x' + i, p.arrive + p.blunderDelay, w => failSound(w, p.blunder * BLUNDER_FX.sound)]);
   });
-  return ev;
+  const out = clip.warp ? ev.map(([key, a, fire]) => [key, toVideo(a), fire]) : ev;
+  if (clip.rew) out.push(['rew', clip.rew.at, w => rewindSnd(w, clip.rew.len)]);   // (already video time)
+  return out;
 }
 function soundAhead(t) {
   if (!actx || !clip || $('sound').value !== 'on') return;
@@ -4952,7 +5311,7 @@ function soundAhead(t) {
 // ---------- music ----------
 const SONG_DATA = null;
 // SONG_DATA is null in copies without an embedded song; then the music comes only from the file picker
-let songBuf = null, songName = SONG_DATA ? 'Montagem Perigosa' : null, songSrc = null, musicGain = null, songLoading = null;
+let songBuf = null, songName = SONG_DATA ? 'Montagem Perigosa' : null, songSrc = [], musicGain = null, songLoading = null;
 function musicSync() {
   if ($('sync').value !== 'on') return null;
   const drop = parseFloat(String($('drop').value).replace(',', '.')), bpm = parseFloat(String($('bpm').value).replace(',', '.'));
@@ -4980,7 +5339,7 @@ function musicFade(g, t0) {
   if (clip.to - clip.from < 3 * MUSIC_FADE) return;
   g.setValueAtTime(1, Math.max(0, a)); g.linearRampToValueAtTime(0, Math.max(0, end));
 }
-function stopMusic() { if (songSrc) { try { songSrc.stop(); } catch {} songSrc = null; } }
+function stopMusic() { for (const s of songSrc) try { s.stop(); } catch {} songSrc = []; }
 // only one thing plays at a time: the song, the effects of the last playback and the drop picker's listening all
 // stop together before anything else starts (pause, seek, replay, a setting changed while playing, "Nghe thử")
 function stopAudio() {
@@ -5036,13 +5395,72 @@ function startMusic(fromT, toRecorder, lead) {
   if (actx) { fxSession = actx.createGain(); fxSession.connect(master); insSession = actx.createGain(); insSession.connect(limiter); }
   if (!clip || !clip.sync || !songBuf || !actx) return;
   musicInit();
-  const pos = fromT + clip.musicStart, when = actx.currentTime + lead;
-  const src = actx.createBufferSource(), fade = actx.createGain(); src.buffer = songBuf; src.loop = true;
-  src.connect(fade); fade.connect(musicGain);
-  musicFade(fade.gain, when - fromT);
-  if (pos >= 0) src.start(when, pos % songBuf.duration);
-  else src.start(when - pos, 0);
-  songSrc = src;
+  songSrc = scheduleMusic(actx, musicGain, actx.currentTime + lead - fromT, fromT);
+}
+// the song in video-time pieces. pos: song second at the piece's start v0 (negative: the song comes in that much later)
+function musicPieces() {
+  return [{v0: clip.from, v1: Infinity, pos: clip.from + clip.musicStart, main: true}];
+}
+// schedule the song on context c into dest. base: context time of video 0; from: the first video second heard.
+// returns the sources (to stop them)
+function scheduleMusic(c, dest, base, from) {
+  const fade = c.createGain(); fade.connect(dest); musicFade(fade.gain, base);
+  const out = [];
+  for (const m of musicPieces()) {
+    const s = Math.max(m.v0, from); if (s >= m.v1 || (clip.rew && s >= clip.rew.at)) continue;
+    let pos = m.pos + s - m.v0, at = base + s;
+    if (pos < 0) { at -= pos; pos = 0; }
+    if (at >= base + m.v1) continue;
+    const src = c.createBufferSource(), g = c.createGain(); src.buffer = songBuf; src.loop = true; src.connect(g);
+    (m.main ? musicDrama(c, g, base, from) : g).connect(fade);
+    src.start(at, pos % songBuf.duration);
+    // a hard cut, with a few milliseconds of fade so it does not click
+    if (m.v1 < Infinity) { g.gain.setValueAtTime(1, base + m.v1 - .025); g.gain.linearRampToValueAtTime(0, base + m.v1); src.stop(base + m.v1 + .01); }
+    // tua ngược: the song slows to a stop like a tape as the rewind starts
+    const rw = clip.rew && base + clip.rew.at;
+    if (rw && rw > at) {
+      src.playbackRate.setValueAtTime(1, rw); src.playbackRate.exponentialRampToValueAtTime(.15, rw + REWIND.stop);
+      g.gain.setValueAtTime(1, rw); g.gain.linearRampToValueAtTime(0, rw + REWIND.stop); src.stop(rw + REWIND.stop + .02);
+    }
+    out.push(src);
+  }
+  return out;
+}
+// "lặng trước cao trào": before the !! the song darkens (low-pass sweep) and drops away, leaving DRAMA.gap of
+// silence before the slam brings it back whole on the drop; on a ?? it dies for a beat and comes back
+// (times in video seconds)
+const DRAMA = {beats: 2, gap: .16, floor: .5, cutoff: 350, stopFade: .18, stopBack: .25, riser: .5};
+function dramaMoments() {
+  if ($('drama').value !== 'on' || !clip.sync) return [];
+  const out = [];
+  for (const p of clip.plies) {
+    if (p.brilliant) out.push({kind: 'drop', at: toVideo(p.arrive)});
+    else if (p.blunder === 1) out.push({kind: 'stop', at: toVideo(p.arrive + p.blunderDelay)});
+  }
+  return out;
+}
+function musicDrama(c, input, base, from) {
+  const ms = dramaMoments(); if (!ms.length) return input;
+  const lp = c.createBiquadFilter(), g = c.createGain(), P = clip.sync.period;
+  lp.type = 'lowpass'; lp.frequency.value = 20000; input.connect(lp); lp.connect(g);
+  const f = lp.frequency, v = g.gain;
+  for (const m of ms) {
+    const a = base + m.at;
+    if (m.kind === 'drop') {
+      if (m.at < from) continue;
+      const s = a - DRAMA.beats * P, e = a - DRAMA.gap;
+      f.setValueAtTime(20000, s); f.exponentialRampToValueAtTime(DRAMA.cutoff, e); f.setValueAtTime(20000, a);
+      v.setValueAtTime(1, s); v.linearRampToValueAtTime(DRAMA.floor, e - .04); v.linearRampToValueAtTime(0, e);
+      v.setValueAtTime(0, a - .003); v.linearRampToValueAtTime(1, a);
+    } else {
+      if (m.at + P < from) continue;
+      f.setValueAtTime(20000, a); f.exponentialRampToValueAtTime(DRAMA.cutoff, a + DRAMA.stopFade);
+      v.setValueAtTime(1, a); v.linearRampToValueAtTime(0, a + DRAMA.stopFade);
+      f.setValueAtTime(DRAMA.cutoff, a + P); f.exponentialRampToValueAtTime(20000, a + P + DRAMA.stopBack);
+      v.setValueAtTime(0, a + P); v.linearRampToValueAtTime(1, a + P + DRAMA.stopBack);
+    }
+  }
+  return g;
 }
 function fmt(x) { return (Math.round(x * 1000) / 1000).toFixed(3).replace(/\.?0+$/, ''); }
 function syncInfo() {
@@ -5051,7 +5469,7 @@ function syncInfo() {
   if (!clip || !clip.sync) { el.textContent = $('sync').value === 'on' ? 'Điền cao trào và BPM hợp lệ để bật khớp nhạc.' : 'Khớp nhạc đang tắt: video chạy tự do, không phát nhạc.'; return; }
   const m = clip.musicStart, parts = [];
   parts.push(m >= 0 ? 'Nhạc bắt đầu từ giây ' + fmt(m) + ' của bài.' : clip.from >= -m - .01 ? 'Nhạc vào ngay từ đầu video (từ đầu bài).' : 'Video chạy trước ' + fmt(-m) + 's rồi nhạc mới vào (từ đầu bài).');
-  if (clip.slamHit != null) parts.push('Quân Brilliant đập xuống ở giây ' + fmt(clip.slamHit - clip.from) + ' của video = giây ' + fmt(clip.sync.drop) + ' của bài (cao trào).');
+  if (clip.slamHit != null) parts.push('Quân Brilliant đập xuống ở giây ' + fmt(toVideo(clip.slamHit) - clip.from) + ' của video = giây ' + fmt(clip.sync.drop) + ' của bài (cao trào).');
   else parts.push('Chưa có nước "!!": nhạc chạy từ đầu bài, nước đầu tiên rơi đúng nhịp.');
   if (songBuf && clip.to + clip.musicStart > songBuf.duration) parts.push('Video dài hơn phần còn lại của bài nên nhạc được phát lại từ đầu bài, và nhỏ dần ở giây cuối.');
   if (clip.boost > 1.001) parts.push('Ván dài: đã tăng tốc phần đầu thêm ×' + clip.boost.toFixed(2) + ' để vừa với nhạc.');
@@ -5061,12 +5479,19 @@ function syncInfo() {
   if (cut > .01) parts.push('Đã cắt ' + (clip.from > 0 ? fmt(clip.from) + 's đầu' : '') + (clip.from > 0 && clip.to < clip.dur ? ' và ' : '') + (clip.to < clip.dur ? fmt(clip.dur - clip.to) + 's cuối' : '') + ' không có nhạc, video còn ' + fmt(clip.to - clip.from) + 's.');
   else if ($('trim').value === 'cut') parts.push('Video có nhạc từ đầu đến cuối, không cần cắt.');
   parts.push((songName ? 'Bài: ' + songName + (songBuf ? '' : ' (đang nạp…)') : 'Chưa có nhạc: chọn file nhạc ở trên') + ', nhịp ' + fmt(clip.sync.period) + 's/beat.');
+  if (clip.warp) {
+    // how far the song's real beats drift from an even grid over the video (what "Lưới đều" would be off by)
+    const {us, vs} = clip.warp, j = us.findIndex(u => toVideo(u) >= clip.from);
+    let dev = 0;
+    for (let i = Math.max(0, j); i < us.length && vs[i] <= clip.to; i++) dev = Math.max(dev, Math.abs(vs[i] - us[i] - (vs[Math.max(0, j)] - us[Math.max(0, j)])));
+    parts.push('Bám beat thật: mỗi nhịp khớp đúng beat của bài' + (dev > .005 ? ' (lưới đều sẽ lệch tới ' + Math.round(dev * 1000) + ' ms trong video này).' : ', bài giữ nhịp rất đều.'));
+  } else if ($('beatmode').value === 'real') parts.push('Bám beat thật cần phân tích bài nhạc trước, tạm dùng lưới đều.');
   el.textContent = parts.join(' ');
 }
 
 // drop + tempo detection with Web Audio: bass envelope -> biggest sustained rise; tempo from onset autocorrelation
 async function analyzeSong(buf, hint = -1) {
-  const sr = 11025, n = Math.ceil(buf.duration * sr);
+  const sr = ONSET_SR, n = Math.ceil(buf.duration * sr), fps = ONSET_FPS;
   const render = async lowpass => {
     const off = new OfflineAudioContext(1, n, sr);
     const src = off.createBufferSource(); src.buffer = buf;
@@ -5076,7 +5501,7 @@ async function analyzeSong(buf, hint = -1) {
     return (await off.startRendering()).getChannelData(0);
   };
   const [low, full] = [await render(true), await render(false)];
-  const hop = Math.round(sr * .01), frames = Math.floor(n / hop);
+  const hop = ONSET_HOP, frames = Math.floor(n / hop);
   const env = x => { const e = new Float32Array(frames); for (let i = 0; i < frames; i++) { let a = 0; for (let j = i * hop, k = j + hop; j < k; j++) a += x[j] * x[j]; e[i] = 10 * Math.log10(a / hop + 1e-10); } return e; };
   const L = env(low), A = env(full);
   const mean = (e, a, b) => { a = Math.max(0, a); b = Math.min(frames, b); let s = 0; for (let i = a; i < b; i++) s += e[i]; return s / Math.max(1, b - a); };
@@ -5087,11 +5512,11 @@ async function analyzeSong(buf, hint = -1) {
   // refine the period to sub-frame precision with a parabola through the peak
   const ac = lag => { let c = 0; for (let i = lag; i < frames; i++) c += on[i] * on[i - lag]; return c; };
   const y0 = ac(bestLag - 1), y1 = bestC, y2 = ac(bestLag + 1), d = (y0 - y2) / (2 * (y0 - 2 * y1 + y2) || 1);
-  let bpm = 6000 / (bestLag + (Math.abs(d) < 1 ? d : 0));
+  let bpm = 60 * fps / (bestLag + (Math.abs(d) < 1 ? d : 0));
   while (bpm < 80) bpm *= 2; while (bpm > 170) bpm /= 2;
   // drop: biggest loudness rise + quarter of bass rise (2s after vs 2s before),
   // searched within 6s of a hint when one is given, else across the whole song
-  const lo = hint >= 0 ? Math.max(200, Math.round((hint - 6) * 100)) : 300, hi = hint >= 0 ? Math.min(frames - 200, Math.round((hint + 6) * 100)) : frames - 300;
+  const lo = hint >= 0 ? Math.max(200, Math.round((hint - 6) * fps)) : 300, hi = hint >= 0 ? Math.min(frames - 200, Math.round((hint + 6) * fps)) : frames - 300;
   let pick = {i: lo, s: -1e9};
   for (let i = lo; i < hi; i += 5) {
     const sc = (mean(A, i, i + 200) - mean(A, i - 200, i)) + .25 * (mean(L, i, i + 200) - mean(L, i - 200, i));
@@ -5296,9 +5721,9 @@ function drawDropWave() {
 // the nearest strong bass hit within 0.15s of song second s (the drop sits on a hit, like the found ones)
 function snapDrop(s) {
   if (!songOn) return s;
-  const c = Math.round(s * 100); let bi = c, bv = -1;
+  const c = Math.round(s * ONSET_FPS); let bi = c, bv = -1;
   for (let i = Math.max(1, c - 15); i <= Math.min(songOn.length - 1, c + 15); i++) if (songOn[i] > bv) { bv = songOn[i]; bi = i; }
-  return bv > 0 ? bi / 100 : s;
+  return bv > 0 ? bi / ONSET_FPS : s;
 }
 // commit: the drop field drives everything else (rebuild, saved settings)
 function setDrop(s, commit = true) {
@@ -5383,9 +5808,9 @@ function markDrop() {
   const s = listenAt(), near = dropCands.find(c => c >= s - .6 && c <= s + .2);
   if (near != null) { setDrop(near); return; }
   if (!songOn) { setDrop(s); return; }
-  let bi = Math.round(s * 100), bv = -1;
-  for (let i = Math.max(1, Math.round((s - .35) * 100)); i <= Math.min(songOn.length - 1, Math.round((s + .1) * 100)); i++) if (songOn[i] > bv) { bv = songOn[i]; bi = i; }
-  setDrop(bv > 0 ? bi / 100 : s);
+  let bi = Math.round(s * ONSET_FPS), bv = -1;
+  for (let i = Math.max(1, Math.round((s - .35) * ONSET_FPS)); i <= Math.min(songOn.length - 1, Math.round((s + .1) * ONSET_FPS)); i++) if (songOn[i] > bv) { bv = songOn[i]; bi = i; }
+  setDrop(bv > 0 ? bi / ONSET_FPS : s);
 }
 $('songplay').onclick = toggleSong;
 $('dropmark').onclick = markDrop;
@@ -5424,7 +5849,7 @@ $('preset').addEventListener('input', () => {
   syncSegs();
 });
 PRESET_KEYS.forEach(k => $(k).addEventListener('input', () => { $('preset').value = matchPreset(); syncSegs(); saveSettings(); }));
-['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon'].forEach(id => $(id).addEventListener('input', () => {
+['moves','fen','nplies','orient','aspect','theme','zoom','speed','title','handle','brsub','hold','sound','sync','drop','bpm','trim','mspeed','accel','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','beatmode','drama','evalbar','focus','trail','capfx','ending','sflash','smate','sweapon'].forEach(id => $(id).addEventListener('input', () => {
   $('clipvolv').textContent = $('clipvol').value; insertNote();
   $('zoomv').textContent = $('zoom').value; $('speedv').textContent = (+$('speed').value).toFixed(1); $('holdv').textContent = (+$('hold').value).toFixed(1); $('mspeedv').textContent = (+$('mspeed').value).toFixed(1);
   if (recorder) return;   // the timeline is locked while exporting
@@ -5455,11 +5880,8 @@ async function renderAudio(withSound, withMusic) {
     if (withSound) for (const [, a, fire] of soundEvents()) if (a >= clip.from - .03 && a < clip.to) fire(Math.max(0, a - clip.from));
   } finally { [actx, master, limiter] = live; }
   if (withMusic) {
-    const g = off.createGain(), fade = off.createGain(), src = off.createBufferSource(), pos = clip.from + clip.musicStart;
-    g.gain.value = +$('mvol').value / 100; g.connect(out);
-    src.buffer = songBuf; src.loop = true; src.connect(fade); fade.connect(g);
-    musicFade(fade.gain, -clip.from);
-    if (pos >= 0) src.start(0, pos % songBuf.duration); else src.start(-pos, 0);
+    const g = off.createGain(); g.gain.value = +$('mvol').value / 100; g.connect(out);
+    scheduleMusic(off, g, -clip.from, clip.from);
   }
   return off.startRendering();
 }
@@ -5731,7 +6153,7 @@ $('glink').addEventListener('keydown', e => { if (e.key === 'Enter') $('gload').
 // ---------- remember settings between visits ----------
 // only this browser keeps them; a chosen song file is not stored, so its drop/BPM are not restored either
 const SAVE_KEY = 'chess-move-studio:settings:v1', DEFAULT_SONG = songName;
-const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','sflash','smate','sweapon','uimode','qlen'];
+const SAVED_IDS = ['moves','fen','nplies','orient','aspect','theme','zoom','speed','mspeed','accel','title','handle','brsub','hold','sound','vol','sync','drop','bpm','mvol','trim','recmusic','clane','lbounce','lfork','oppcam','brstyle','sndin','sndout','clipvol','preset','shigh','slane','sbadge','snapall','beatmode','drama','evalbar','focus','trail','capfx','ending','sflash','smate','sweapon','uimode','qlen'];
 // checkboxes are stored as 'true' / 'false'
 const fieldValue = el => el.type === 'checkbox' ? String(el.checked) : el.value;
 const DEFAULTS = Object.fromEntries(SAVED_IDS.map(id => [id, fieldValue($(id))]));

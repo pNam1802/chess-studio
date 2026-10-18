@@ -36,7 +36,7 @@ Máy chấm theo đúng thực lực của nước đi, nên vài nước nổi 
    Hoặc lấy cả ván có sẵn: dán link ván / chương nghiên cứu Lichess vào ô **Lấy ván từ Lichess**, hay dán PGN (ví dụ từ Chess.com: Share → PGN) vào ô Nước đi. Header, bình luận, biến thể được bỏ qua, `[FEN]` thành thế bắt đầu, ký hiệu `$1`…`$6` thành huy hiệu.
    Bấm vào một nước trong danh sách nước dưới ô nhập để gắn huy hiệu, chọn **Bắt đầu dựng từ nước này**, hoặc bấm ô trên bàn cờ nhỏ để vẽ dải tấn công. Trang tự ghi lại vào ô Nước đi theo đúng cú pháp trên.
 3. Chọn tỉ lệ khung hình: 9:16 (TikTok, Reels, Shorts), 4:5 (Instagram), 1:1, 16:9 (YouTube).
-4. Chọn file nhạc, bấm **Tự tìm cao trào** để quân Brilliant đập xuống đúng lúc nhạc dồn. Nếu máy chọn sai đoạn: bấm **Nghe cả bài**, nghe tới chỗ nhạc dồn thì bấm **Đặt cao trào ở đây** (trong lúc nghe, bấm lên dải sóng nhạc để tua). Cũng có thể bấm / kéo thẳng trên dải hoặc chọn một mốc gợi ý, chỉnh bằng **‹ 1 nhịp / 1 nhịp ›**, rồi **Nghe quanh cao trào** để kiểm tra. Mặc định chỉ nước `!!` khớp nhạc, các nước khác đi theo tốc độ đã chỉnh; bật **Các nước khác cũng rơi theo nhịp** nếu muốn mọi nước chạm bàn đúng nhịp.
+4. Chọn file nhạc, bấm **Tự tìm cao trào** để quân Brilliant đập xuống đúng lúc nhạc dồn. Nếu máy chọn sai đoạn: bấm **Nghe cả bài**, nghe tới chỗ nhạc dồn thì bấm **Đặt cao trào ở đây** (trong lúc nghe, bấm lên dải sóng nhạc để tua). Cũng có thể bấm / kéo thẳng trên dải hoặc chọn một mốc gợi ý, chỉnh bằng **‹ 1 nhịp / 1 nhịp ›**, rồi **Nghe quanh cao trào** để kiểm tra. Mặc định chỉ nước `!!` khớp nhạc, các nước khác đi theo tốc độ đã chỉnh; bật **Các nước khác cũng rơi theo nhịp** nếu muốn mọi nước chạm bàn đúng nhịp. **Lặng trước cao trào** (bật sẵn): 2 nhịp trước nước `!!` nhạc tối dần, một tiếng riser dâng lên, rồi im hẳn khoảng 0,16 giây trước khi quân đập xuống cùng cao trào; ở nước `??` nhạc tắt một nhịp rồi vào lại. **Bám beat thật của bài** (bật sẵn) dò từng beat trong nhạc, lần ra từ cao trào, nên các nước vẫn rơi đúng beat khi bài nhanh chậm dần hoặc BPM đo hơi lệch; tắt đi thì dùng lưới nhịp đều theo BPM.
 5. Bấm **Phát xem trước**, rồi **Xuất video** để tải file `.mp4`.
 
 Cài đặt được tự lưu trong trình duyệt; nút **Về mặc định** đưa mọi thứ về ban đầu.
@@ -52,6 +52,22 @@ Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn 
 Huy hiệu ghi sau nước: `!!` `!` `*` (★ tốt nhất) `=` (📖 lý thuyết) `!?` `?!` `?` `??`.
 
 Trong code, mỗi phần là một "khe" có nhiều biến thể cùng giao diện hàm: `BADGE_STYLES`, `HIGHLIGHT_STYLES`, `LANE_STYLES`, `BRILLIANT_STYLES`, `BLUNDER_STYLES`; màu và font nằm ở `PALETTE`, `FONT`, `THEMES`, `BADGES`. Thêm một kiểu mới là thêm một mục vào khe đó (và một nút trong ô chọn), bộ phong cách nằm ở `PRESETS`.
+
+## Kể chuyện
+
+- **Thanh đánh giá:** dưới chữ phía trên, cho thấy cơ hội thắng của Trắng (Win%) và điểm số; trượt sang giá trị mới khi quân đáp, loé theo màu huy hiệu khi thế cờ đổi mạnh. Chỉ hiện khi mọi thế cờ trong đoạn dựng đã được đánh giá (bấm **Tự tìm nước hay**, hoặc ván Lichess có `[%eval]`).
+- **Chữ chiến thuật:** ngoài FORK! và DOUBLE CHECK, trang tự ghi **SKEWER** (xiên) và **PIN** (ghim) khi quân Tượng / Xe / Hậu vừa đi nhắm qua một quân vào quân phía sau, và **BLUNDER** trên nước `??`. Chữ PIN / SKEWER đi kèm dải tấn công, nên hiện khi nước đi chiếu Vua hoặc có ghi mục tiêu `{…}`.
+
+## Chuyển động
+
+Trong Phong cách → **Chuyển động**, mỗi mục bật/tắt riêng:
+
+- **Tiêu điểm:** khi một quân bắt đầu đi, khung hình chìm vào bóng tối (ánh sáng kiểu phim, low-key), chỉ còn hai vùng sáng ấm, mềm mép ở ô đi và ô đến, có bụi lơ lửng trong ánh đèn; khi quân bay, ánh sáng chuyển dần từ ô đi sang ô đến và loé lên lúc quân đáp. Đi kèm viền tối quanh khung hình và hạt phim. Quân đáp xong thì bàn sáng lại. Không áp dụng ở cảnh `!!` và cảnh chiếu hết kiểu anime (chúng có cảnh riêng).
+- **Vệt sáng theo quân:** một dải sáng bám sau quân đang bay, đuôi mảnh và mờ dần.
+- **Quân bị ăn:** *Văng ra*: quân bị hất bay theo hướng nước đi, xoay, rơi rồi mờ đi, kèm vòng sóng và mảnh vụn ở ô đó; *Mờ dần*: như cũ.
+- **Kết video:** *Tua ngược*: sau nước cuối, cả video chạy ngược về khung đầu trong 1,4 giây (lệch màu, vạch nhiễu như băng từ, nhạc chậm dần rồi tắt như băng dừng, có tiếng tua), khung cuối trùng khung đầu nên video lặp lại liền mạch trên TikTok / Shorts.
+
+Vệt sáng dùng màu huy hiệu của nước đó, trừ nước `?` / `??` dùng màu vàng thường để không lộ trước khi quân đáp.
 
 ## Hiệu ứng và camera
 
