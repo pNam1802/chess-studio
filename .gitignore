@@ -4,3 +4,5 @@ frames/
 *.mp3
 !sounds/*.mp3
 *.backup.html
+# the trained models: from the Kaggle notebook (ChessReD is CC BY-NC-SA), uploaded by modal deploy
+live/weights/

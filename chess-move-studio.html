@@ -208,6 +208,16 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
 .qana .head button{margin-left:auto}
 .qana .track{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .qana .fill{height:100%;width:0;background:var(--accent);transition:width .2s}
+/* camera mode: the live video in place of the preview, what was read from it drawn over it */
+.stage.live > :not(.livescreen),.stage:not(.live) > .livescreen{display:none}
+#lvkey{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.stage > .livescreen{position:relative;width:min(720px,calc(100vw - 32px));aspect-ratio:var(--ar,16/9);border-radius:18px;overflow:hidden;background:#111}
+.livescreen video,.livescreen canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;aspect-ratio:auto;max-width:none;border-radius:0;background:none}
+.livescreen .empty{border-radius:18px}
+#lvmoves[hidden]{display:none}
+#lvmoves .lvmv{font-family:var(--font-mono);font-size:13px;padding:2px 4px}
+#lvmoves .lvmv:last-child{background:var(--accent);color:var(--accent-ink);border-radius:4px}
+.lvbest{margin:0;font-weight:700}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}.kload svg{animation-duration:9.6s}.expbar .rider.hop{animation:none}}
 </style>
 
@@ -237,6 +247,15 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
         <div class="btns"><button class="primary" type="button" id="emptysample">Thử ván mẫu</button><button type="button" id="emptylink">Dán link Lichess</button></div>
       </div>
     </div>
+    <div class="livescreen" id="livescreen">
+      <video id="livevid" playsinline muted aria-label="Camera bàn cờ"></video>
+      <canvas id="liveov" aria-hidden="true"></canvas>
+      <div class="empty" id="liveempty">
+        <svg aria-hidden="true"><use href="#knight"/></svg>
+        <h2>Camera đang tắt</h2>
+        <p>Đặt camera nhìn chéo xuống bàn cờ, thấy đủ 4 góc bàn, rồi bấm Bật camera.</p>
+      </div>
+    </div>
     <div class="scrub"><span id="tcur">0.0s</span><input type="range" id="scrub" min="0" max="10" step="0.01" value="0" aria-label="Tua video"><span id="tdur">0.0s</span></div>
     <div class="actions">
       <button id="play" type="button">Phát xem trước</button>
@@ -253,14 +272,14 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
   </div>
 
   <div class="controls">
-    <div class="modebar"><select id="uimode" data-seg aria-label="Chế độ cài đặt"><option value="quick" data-sub="3 bước">Nhanh</option><option value="custom" data-sub="mọi cài đặt">Tùy chỉnh</option></select></div>
+    <div class="modebar"><select id="uimode" data-seg aria-label="Chế độ cài đặt"><option value="quick" data-sub="3 bước">Nhanh</option><option value="custom" data-sub="mọi cài đặt">Tùy chỉnh</option><option value="live" data-sub="ván thật">Camera</option></select></div>
     <section class="pane" id="pane-quick" aria-label="Chế độ nhanh" hidden>
       <div class="qstep">
         <h3><b>1</b>Ván cờ</h3>
         <div class="field">
           <label for="qsrc">Link Lichess, PGN hoặc nước đi</label>
           <textarea id="qsrc" spellcheck="false" placeholder="https://lichess.org/abcd1234&#10;hoặc dán PGN (Chess.com: Share → PGN), hoặc e4 e5 Nf3 Nc6 …"></textarea>
-          <div class="btns small"><button type="button" class="primary" id="qload">Dùng ván này</button><select id="qsample" class="compact" aria-label="Thử ván mẫu"><option value="">Thử ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999</option></select></div>
+          <div class="btns small"><button type="button" class="primary" id="qload">Dùng ván này</button><select id="qsample" class="compact" aria-label="Thử ván mẫu"><option value="">Thử ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999</option><option value="lasker">Ván thử: Lasker – Thomas 1912 (chiếu đôi, nhập thành chiếu hết)</option><option value="fried">Ván thử: Fried Liver (đủ huy hiệu, FORK, PIN)</option><option value="endgame">Ván thử: tàn cuộc (bắt tốt qua đường, SKEWER, phong cấp)</option></select></div>
           <p class="hint" id="qnote"></p>
         </div>
         <p class="qsum" id="qsum"></p>
@@ -291,6 +310,34 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
       </div>
       <p class="qcustom" id="qcustom" hidden><span></span><button type="button" class="link" id="qcustomopen">Mở Tùy chỉnh</button></p>
     </section>
+    <section class="pane" id="pane-live" aria-label="Camera ván thật" hidden>
+      <div class="qstep">
+        <h3><b>1</b>Máy chủ nhận diện</h3>
+        <div class="grid2">
+          <div class="field"><label for="lvurl">Địa chỉ máy chủ</label><input type="text" id="lvurl" spellcheck="false" placeholder="https://…modal.run"></div>
+          <div class="field"><label for="lvkey">Mã truy cập</label><input type="password" id="lvkey" autocomplete="off"></div>
+        </div>
+        <p class="hint">Máy chủ chạy trên GPU của Modal, cài theo mục <b>Camera ván thật</b> trong README.</p>
+      </div>
+      <div class="qstep">
+        <h3><b>2</b>Camera</h3>
+        <div class="field"><label for="lvcam">Camera</label><select id="lvcam"><option value="">Camera mặc định</option></select></div>
+        <div class="btns small"><button type="button" class="primary" id="lvstart">Bật camera</button><button type="button" id="lvrot">Xoay bàn 90°</button></div>
+        <p class="hint" id="lvstat" role="status"></p>
+        <div class="swrow"><label for="lvboxes">Hiện khung nhận diện</label><select id="lvboxes" data-seg="switch"><option value="on">Hiện</option><option value="off" selected>Ẩn</option></select></div>
+      </div>
+      <div class="qstep">
+        <h3><b>3</b>Ván đấu</h3>
+        <p class="qsum" id="lvsum"></p>
+        <p class="lvbest" id="lvbest"></p>
+        <div class="movelist" id="lvmoves" hidden></div>
+        <div class="btns small"><button type="button" id="lvundo">Lùi 1 nước</button><button type="button" id="lvnew">Ván mới</button></div>
+        <div class="field"><label for="lvturn">Bàn đang bày dở</label><select id="lvturn" data-seg><option value="w">Trắng đi</option><option value="b">Đen đi</option></select>
+          <div class="btns small"><button type="button" id="lvtake">Dùng thế đang thấy</button></div>
+          <p class="hint">Ván mới bắt đầu khi camera thấy thế ban đầu. Bàn đang chơi dở thì chọn bên đi rồi bấm Dùng thế đang thấy.</p></div>
+        <button type="button" class="primary qbig" id="lvstudio">Dựng video từ ván này</button>
+      </div>
+    </section>
     <div class="tabs" role="tablist" aria-label="Cài đặt">
       <button type="button" role="tab" id="tab-game" aria-controls="pane-game" aria-selected="true">Ván cờ</button>
       <button type="button" role="tab" id="tab-look" aria-controls="pane-look" aria-selected="false" tabindex="-1">Hình ảnh</button>
@@ -306,7 +353,7 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
       <div class="field">
         <div class="labelrow">
           <label for="moves">Nước đi</label>
-          <select id="sample" class="compact" aria-label="Ván mẫu"><option value="">Ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999 (24.Rxd4!!)</option></select>
+          <select id="sample" class="compact" aria-label="Ván mẫu"><option value="">Ván mẫu…</option><option value="blackburne">Bẫy Blackburne Shilling</option><option value="kasparov">Kasparov – Topalov 1999 (24.Rxd4!!)</option><option value="lasker">Ván thử: Lasker – Thomas 1912 (chiếu đôi, nhập thành chiếu hết)</option><option value="fried">Ván thử: Fried Liver (đủ huy hiệu, FORK, PIN)</option><option value="endgame">Ván thử: tàn cuộc (bắt tốt qua đường, SKEWER, phong cấp)</option></select>
         </div>
         <textarea id="moves" spellcheck="false">e4 e5 Nf3 Nc6 Bc4 | Nd4?! Nxe5?? Qg5!! Nxf7</textarea>
         <p class="hint">Gõ hoặc dán nước đi, rồi bấm vào một nước bên dưới để gắn huy hiệu, chọn nước bắt đầu dựng, hoặc chọn ô bị tấn công.</p>
@@ -402,7 +449,7 @@ button.qbig{width:100%;padding:14px 20px;font-size:16px}
           <div class="swrow"><label for="accel">Nhiều nước thì tăng tốc phần đầu (có nhạc: chỉ khi cần để !! kịp cao trào)</label><select id="accel" data-seg="switch"><option value="on">Bật</option><option value="off">Tắt</option></select></div>
           <label class="swrow"><span>Dải tấn công</span><input type="checkbox" class="sw" id="clane" checked></label>
           <label class="swrow"><span>Quân bị tấn công nảy lên</span><input type="checkbox" class="sw" id="lbounce" checked></label>
-          <label class="swrow"><span>Chữ chiến thuật (FORK, PIN, SKEWER, BLUNDER)</span><input type="checkbox" class="sw" id="lfork" checked></label>
+          <label class="swrow"><span>Chữ chiến thuật (FORK, PIN, SKEWER)</span><input type="checkbox" class="sw" id="lfork" checked></label>
           <p class="hint">Dải tấn công: các ô từ quân vừa đi tới mục tiêu lần lượt bật đỏ, camera lùi ra cho thấy cả dải. Không áp dụng ở nước !!.</p>
         </div>
       </details>
@@ -2259,12 +2306,12 @@ const CAM = {zoomOut: 1.35, zoomIn: .8, deadZone: .7, maxW: 40,
              safePad: 16};
 
 // ---------- lane and brilliant effects (stage 2) ----------
-// lanes: dim = darkening of the board squares outside the lanes; the attacker's square is drawn as a red outline
-// (it sits under the move highlight, where a light fill was lost); targets hop hopLift squares high, growing to
+// lanes: dim = darkening of the board squares outside the lanes (the attacker's square keeps the move's
+// highlight, with no red of its own); targets hop hopLift squares high, growing to
 // hopScale. bump: the "lego" hit when a lane reaches its target — the target's tile is pressed down by `sink`,
 // the tiles around it jump up to `lift` squares ring by ring (rings deep, each ring `decay` times weaker),
 // growing by `scale`, flashing red at `tint`
-const LANE_FX = {dim: .2, outline: .07, hopLift: .25, hopScale: 1.15,
+const LANE_FX = {dim: .2, hopLift: .25, hopScale: 1.15,
                  bump: {rings: 2, lift: .16, decay: .5, scale: .1, tint: .35, sink: .1, jitter: .35}};
 // brilliant: ramp = slow motion in the middle of the flight and a rush into the slam (0 = off; same total time);
 // impactFrames = inverted black-and-white frames at contact (60fps frames); aberration = seconds of RGB split,
@@ -2280,14 +2327,14 @@ const AURA = {liftBeats: 2, slowBeats: 4, hover: 1.4, grow: 1.7, slowSpin: 1.1, 
 // squares per second
 const MOTION_BLUR = {ghosts: 4, spacing: 1 / 120, minSpeed: 6, alpha: .3};
 // focus ("tiêu điểm"), lit like a film scene (low-key): while a move plays the frame sinks into a cool near-black
-// (`dim` of `shade`) and only two soft pools of warm light stay, on the start square and the target. each pool is
-// fully lit within r0 squares of the square's centre and falls off to dark at r1 (light spills a little onto the
-// neighbours, like a real spot). the light hands over as the piece flies: the start pool keeps 1 - handoff, the
-// target grows to full, flaring by `flare` as the piece lands. warm = the key light's colour added in the pools
-// (teal-and-orange: cool shadows, warm light); dust motes drift in the beams; a vignette and 24 fps film grain
+// (`dim` of `shade`) and only two squares stay lit, the start square and the target, their light spilling `spill`
+// squares onto the neighbours. each lit square gets a thin tint (`fill`) and light glowing out round it (`glow`:
+// [blur in squares, strength] per layer, see squareGlow): white while the piece flies, the move's colour once it lands (green for a good move,
+// blue for a brilliant one, see p.glow). the light hands over as the piece flies: the start square keeps
+// 1 - handoff, the target grows to full, flaring by `flare` as the piece lands. a vignette and 24 fps film grain
 // come in with the dark. in: over the pan (at least `inMin` s); out: a short beat after the landing, over a long one
-const FOCUS = {dim: .86, shade: [4, 7, 14], r0: .58, r1: 1.05, handoff: .7, flare: .5, warm: [255, 178, 102], warmA: .2,
-               motes: 9, vignette: .6, grain: .09, grainFps: 24, inMin: .25};
+const FOCUS = {dim: .86, shade: [4, 7, 14], spill: .45, handoff: .7, flare: .5, fill: .14, glow: [[.32, .8], [.12, 1]],
+               vignette: .6, grain: .09, grainFps: 24, inMin: .25};
 // light trail: a glowing ribbon `len` seconds of flight long behind the moving piece, `width` squares at the piece
 const TRAIL = {len: .26, width: .22, alpha: .8, steps: 18};
 // capture "văng ra": the taken piece is knocked away along the move (`speed` squares/s, lifting at `up` squares/s
@@ -2302,8 +2349,8 @@ const REWIND = {len: 1.4, stop: .35, split: 10};
 // blunder (??, and ? at `light` strength): the board greys (`gray`) under a red wash (`red`), the moved piece
 // glitches for a long beat (RGB split of `split` squares + sideways jumps up to `jump` squares, seeded per frame),
 // the badge falls in from `drop` squares above and bounces instead of popping up, and a short "fail" sting plays
-// (`sound` = its volume, 0 = off)
-const BLUNDER_FX = {gray: .6, red: .16, split: .08, jump: .12, drop: 1, light: .4, sound: 1};
+// (`sound` = its volume, 0 = off); `cut`: the song dies for a beat on a ?? (see DRAMA). both off: a blunder is silent
+const BLUNDER_FX = {gray: .6, red: .16, split: .08, jump: .12, drop: 1, light: .4, sound: 0, cut: false};
 // promotion: a white flash on the square while the pawn shrinks away (a short beat), then the new piece pops in
 // (a med beat) inside a soft glow of PALETTE.promo, `glowSize` squares across
 const PROMO_FX = {flash: .8, glowSize: 1.6};
@@ -2329,6 +2376,8 @@ const PALETTE = {
   textOutline: 'rgba(0,0,0,.55)',         // outline of the channel name
   titleBox: 'rgba(20,20,18,.82)',         // pill / box behind the title
   glow: '#F5CD3A',                        // highlight of a move without a badge
+  good: '#3DDC6E',                        // square light of a good move (! and ★)
+  genius: '#2E9BFF',                      // square light of a brilliant move (!!)
   lane: '#E24B4A',                        // attack lanes and the tiles they hit
   mate: '#E5392B',                        // the mated king's square
   blunder: '#E5392B',                     // red wash over the board under a blunder
@@ -2781,7 +2830,11 @@ function layout(boost = 1, dropAt = null) {
       p.rook = {from: sqxy((ks?'h':'a') + r), to: sqxy((ks?'f':'d') + r)};
     }
     p.cam = [lerp(p.from[0], p.to[0], .62) + .5, lerp(p.from[1], p.to[1], .62) + .5];
-    p.glow = p.badge ? p.badge.c : PALETTE.glow;
+    // the square's light: green for a good move, blue for a brilliant one, else the badge's colour
+    p.glow = p.badge === BADGES['!!'] ? PALETTE.genius : p.badge === BADGES['!'] || p.badge === BADGES['*'] ? PALETTE.good
+           : p.badge ? p.badge.c : PALETTE.glow;
+    // only a move that is not a mistake (no ?!, ? or ??) glows out round its square
+    p.shine = ![BADGES['?!'], BADGES['?'], BADGES['??']].includes(p.badge);
     // promotion and blunder run on landing, one after the other (see the order under PROMO_FX); `before` is how
     // long they take, so an attack lane starts after them
     p.promo = !p.brilliant && mv.flags.includes('p') ? {shrink: M.short, grow: M.med} : null;
@@ -2789,7 +2842,7 @@ function layout(boost = 1, dropAt = null) {
     const promoT = p.promo ? M.short + M.med : 0;
     p.blunderDelay = promoT;   // seconds after landing (the landing itself may still move onto a bar line)
     const before = promoT + (p.blunder ? M.long : 0);
-    p.blunderText = p.blunder === 1 && forkOn ? 'BLUNDER' : null;   // the ?? says so in words, for viewers without sound
+    p.blunderText = p.blunder === 1 && forkOn && STYLE.blunder.text ? 'BLUNDER' : null;   // the ?? in words (glitch style only)
     if (before) p.end = Math.max(p.end, p.arrive + before + .5);
     // attack lanes: the squares from the attacker to each target light up one after another, each target hops
     // when its lane reaches it, and the camera pulls back over every lane. the brilliant keeps its own scene.
@@ -3658,30 +3711,41 @@ function drawFocus(p, k, t) {
   const R = Math.hypot(W, H) / 2, v = g.createRadialGradient(W / 2, H / 2, R * .45, W / 2, H / 2, R);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${F.vignette * k})`);
   g.globalCompositeOperation = 'source-over'; g.fillStyle = v; g.fillRect(0, 0, W, H);
-  // soft holes: full light inside r0, about a third of it halfway out, none at r1
+  // square holes with soft edges (the blur of a shadow cast by the hole itself), drawn in board space so they
+  // turn with the camera
+  const o = toScreen(cam, 0, 0), c = Math.cos(cam.roll) * cam.s, sn = Math.sin(cam.roll) * cam.s;
+  g.setTransform(c, sn, -sn, c, o[0] + shk[0], o[1] + shk[1]);
   g.globalCompositeOperation = 'destination-out';
   for (const [sq, a] of pools) {
-    const [x, y] = at(sq), r = F.r1 * cam.s, gr = g.createRadialGradient(x, y, 0, x, y, r), m = F.r0 / F.r1;
-    gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(m, `rgba(0,0,0,${a})`);
-    gr.addColorStop((m + 1) / 2, `rgba(0,0,0,${a * .32})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+    g.fillStyle = g.shadowColor = `rgba(0,0,0,${a})`; g.shadowBlur = F.spill * cam.s;
+    g.fillRect(sq[0], sq[1], 1, 1);
   }
+  g.shadowBlur = 0; g.setTransform(1, 0, 0, 1, 0, 0);
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fc, 0, 0);
-  // the warm key light in each pool, and dust drifting slowly through it
-  ctx.globalCompositeOperation = 'lighter';
+  // each lit square: a thin tint and light glowing out round it, white until the piece lands, then the move's
+  // colour (a bad move's target only tinted)
+  boardTf(cam);
   pools.forEach(([sq, a, flare], i) => {
-    const [x, y] = at(sq), r = F.r1 * cam.s, w = k * Math.min(1, a + flare);
-    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, `rgba(${F.warm},${F.warmA * w})`); gr.addColorStop(1, `rgba(${F.warm},0)`);
-    ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
-    const rnd = seededRandom(sq[0] * 8 + sq[1] + 101 * i);
-    for (let j = 0; j < F.motes; j++) {
-      const ox = rnd() * 2 - 1, oy = rnd() * 2 - 1, ph = rnd() * 6.28, sz = 1.2 + rnd() * 2;
-      const mx = x + (ox * .7 + .08 * Math.sin(t * .6 + ph)) * cam.s, my = y + (oy * .7 - ((t * .05 + rnd()) % .4)) * cam.s;
-      ctx.fillStyle = `rgba(255,230,200,${.55 * w * (.5 + .5 * Math.sin(t * 2.3 + ph))})`;
-      ctx.beginPath(); ctx.arc(mx, my, sz, 0, Math.PI * 2); ctx.fill();
-    }
+    const landed = i && t >= p.arrive;
+    squareGlow(sq, landed ? p.glow : '#FFFFFF', k * Math.min(1, a + flare), !landed || p.shine);
   });
+  ctx.restore();
+}
+// a square lit in `col` at strength a (0..1), in board space: a thin tint inside and light spilling out round it,
+// no line on its edge. the spill is the blurred shadow of the square with the square itself clipped away, laid
+// twice: wide and soft, then tight and brighter. spill = false leaves just the tint
+function squareGlow(sq, col, a, spill = true) {
+  if (a <= 0) return;
+  const F = FOCUS;
+  ctx.save();
+  ctx.fillStyle = hexA(col, F.fill * a); ctx.fillRect(sq[0], sq[1], 1, 1);
+  if (!spill) { ctx.restore(); return; }
+  ctx.beginPath(); ctx.rect(sq[0] - 4, sq[1] - 4, 9, 9); ctx.rect(sq[0], sq[1], 1, 1); ctx.clip('evenodd');
+  ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#000';
+  for (const [blur, k] of F.glow) {
+    ctx.shadowColor = hexA(col, k * a); ctx.shadowBlur = blur * clip._s;
+    ctx.fillRect(sq[0], sq[1], 1, 1);
+  }
   ctx.restore();
 }
 // film grain over the whole frame while the focus is up, a new grain 24 times a second
@@ -3791,6 +3855,16 @@ const BLUNDER_STYLES = {
     },
   },
 };
+Object.assign(BLUNDER_STYLES, {
+  // calm: the board keeps its colours and the piece stays still; only the badge falls in and bounces
+  calm: {
+    square: c => c,
+    wash() {},
+    piece: () => 0,
+    badge: BLUNDER_STYLES.glitch.badge,
+  },
+});
+BLUNDER_STYLES.glitch.text = true;   // the glitch also writes BLUNDER over a ??
 // ease-out bounce (a dropped object bouncing to rest)
 function bounceOut(k) {
   const n = 7.5625, d = 2.75;
@@ -3835,13 +3909,12 @@ const LANE_STYLES = {
         ctx.fillStyle = `rgba(0,0,0,${dim})`;
         for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (!lit.has(x + ',' + y)) ctx.fillRect(x, y, 1.002, 1.002);
       }
-      const w = LANE_FX.outline;
       for (const [key, {a, fill}] of lit) {
+        if (!fill) continue;
         const [x, y] = key.split(',').map(Number);
         const tb = fill && tileBump(q, x, y, t);
         if (tb && tb.scale < 1) drawTile(x, y, {...tb, red: a * out}, tint((x + y) % 2 ? clip.theme.dark : clip.theme.light));
-        else if (fill) { ctx.fillStyle = hexA(PALETTE.lane, a * out); ctx.fillRect(x, y, 1, 1); }
-        else { ctx.strokeStyle = hexA(PALETTE.lane, a * out); ctx.lineWidth = w; ctx.strokeRect(x + w / 2, y + w / 2, 1 - w, 1 - w); }
+        else { ctx.fillStyle = hexA(PALETTE.lane, a * out); ctx.fillRect(x, y, 1, 1); }
       }
     },
   },
@@ -4342,7 +4415,7 @@ const BADGE_STYLES = {
   },
 };
 const HIGHLIGHT_STYLES = {
-  // the from square tinted, the target glowing in a soft halo; the last move's squares fade as the next begins
+  // the from square tinted, the target tinted with a glowing frame; the last move's squares fade as the next begins
   glow: {
     fade(q, a) {
       ctx.fillStyle = hexA(q.glow, .45*a); ctx.fillRect(q.to[0], q.to[1], 1, 1); ctx.fillStyle = hexA(q.glow, .25*a); ctx.fillRect(q.from[0], q.from[1], 1, 1);
@@ -4351,12 +4424,9 @@ const HIGHLIGHT_STYLES = {
       const M = clip.M, a = EASE.snap(clamp((t - p.moveStart) / M.short));
       ctx.fillStyle = hexA(p.glow, .28*a); ctx.fillRect(p.from[0], p.from[1], 1, 1);
       if (!arrived) return;
-      const d = t - p.arrive, [tx, ty] = p.to, cx = tx + .5, cy = ty + .5;
-      const ga = EASE.snap(clamp(d / M.short));
-      const g = ctx.createRadialGradient(cx, cy, .1, cx, cy, 1.45);
-      g.addColorStop(0, hexA(p.glow, .55*ga)); g.addColorStop(.45, hexA(p.glow, .28*ga)); g.addColorStop(1, hexA(p.glow, 0));
-      ctx.fillStyle = g; ctx.fillRect(cx-1.5, cy-1.5, 3, 3);
-      ctx.fillStyle = hexA(p.glow, .62*ga); ctx.fillRect(tx, ty, 1, 1);
+      const ga = EASE.snap(clamp((t - p.arrive) / M.short));
+      ctx.fillStyle = hexA(p.glow, .5*ga); ctx.fillRect(p.to[0], p.to[1], 1, 1);
+      squareGlow(p.to, p.glow, ga, p.shine);
     },
   },
 };
@@ -5067,12 +5137,12 @@ const MATE_STYLES = {
 // BRILLIANT_STYLES, BLUNDER_STYLES); the
 // drawing code only calls STYLE.<slot>, so a new look for a slot is a new entry in its registry
 let STYLE = {badge: BADGE_STYLES.round, highlight: HIGHLIGHT_STYLES.glow, lane: LANE_STYLES.squares,
-             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.glitch, flash: FLASH_STYLES.none, mate: MATE_STYLES.fall};
+             brilliant: BRILLIANT_STYLES.aura, blunder: BLUNDER_STYLES.calm, flash: FLASH_STYLES.none, mate: MATE_STYLES.fall};
 // the slots as the settings pick them (the board colours come from THEMES through clip.theme)
 function pickStyle() {
   const v = (reg, id, def) => reg[$(id).value] || reg[def];
   STYLE = {badge: v(BADGE_STYLES, 'sbadge', 'round'), highlight: v(HIGHLIGHT_STYLES, 'shigh', 'glow'),
-           lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.glitch,
+           lane: v(LANE_STYLES, 'slane', 'squares'), brilliant: v(BRILLIANT_STYLES, 'brstyle', 'aura'), blunder: BLUNDER_STYLES.calm,
            flash: v(FLASH_STYLES, 'sflash', 'none'), mate: v(MATE_STYLES, 'smate', 'fall')};
 }
 // a preset is one choice per setting; picking one fills them in, changing one of them shows the preset that
@@ -5427,7 +5497,7 @@ function scheduleMusic(c, dest, base, from) {
   return out;
 }
 // "lặng trước cao trào": before the !! the song darkens (low-pass sweep) and drops away, leaving DRAMA.gap of
-// silence before the slam brings it back whole on the drop; on a ?? it dies for a beat and comes back
+// silence before the slam brings it back whole on the drop; on a ?? (with BLUNDER_FX.cut) it dies for a beat and comes back
 // (times in video seconds)
 const DRAMA = {beats: 2, gap: .16, floor: .5, cutoff: 350, stopFade: .18, stopBack: .25, riser: .5};
 function dramaMoments() {
@@ -5435,7 +5505,7 @@ function dramaMoments() {
   const out = [];
   for (const p of clip.plies) {
     if (p.brilliant) out.push({kind: 'drop', at: toVideo(p.arrive)});
-    else if (p.blunder === 1) out.push({kind: 'stop', at: toVideo(p.arrive + p.blunderDelay)});
+    else if (p.blunder === 1 && BLUNDER_FX.cut) out.push({kind: 'stop', at: toVideo(p.arrive + p.blunderDelay)});
   }
   return out;
 }
@@ -5604,7 +5674,7 @@ document.addEventListener('keydown', e => {
   // a focused field or slider keeps its own keys (arrows move a volume slider, not the video); only Space on
   // the timeline still plays / pauses
   const field = e.target.closest('input, textarea, select, button, canvas[tabindex]');
-  if (e.ctrlKey || e.metaKey || e.altKey || (field && !(e.target.id === 'scrub' && e.code === 'Space'))) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || (field && !(e.target.id === 'scrub' && e.code === 'Space')) || $('uimode').value === 'live') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); seek(cur + (e.key === 'ArrowLeft' ? -1 : 1)); }
 });
@@ -6081,12 +6151,32 @@ const SAMPLES = {
            '18. Na5 Ba8 19. Bh3 d5 20. Qf4+ Ka7 21. Rhe1 d4 | 22. Nd5 Nbxd5 23. exd5 Qd6 24. Rxd4!! cxd4 ' +
            '25. Re7+ Kb6 26. Qxd4+ Kxa5 27. b4+ Ka4',
     title: 'Kasparov – Topalov 1999', brsub: "KASPAROV'S IMMORTAL"},
+  // test games, between them every case the studio draws (see each line)
+  // Ed. Lasker - Thomas, London 1912 (Lasker mated with 18.Kd2#; 18.O-O-O# mates too): the queen sacrifice,
+  // a double check, a king hunt of checks, castling long with mate
+  lasker: {
+    moves: '1. d4 e6 2. Nf3 f5 3. Nc3 Nf6 4. Bg5 Be7 5. Bxf6 Bxf6 6. e4 fxe4 7. Nxe4 b6 8. Ne5 O-O 9. Bd3 Bb7 | ' +
+           '10. Qh5 Qe7? 11. Qxh7+!! Kxh7 12. Nxf6+ Kh6 13. Neg4+ Kg5 14. h4+ Kf4 15. g3+ Kf3 16. Be2+ Kg2 ' +
+           '17. Rh2+ Kg1 18. O-O-O#',
+    title: 'Lasker – Thomas 1912', brsub: 'QUEEN SACRIFICE'},
+  // Fried Liver: the = * !? ?! ! ? badges, a fork and two pins written as targets, a check with its lane
+  // turned off ({}), castling short
+  fried: {
+    moves: '1. e4= e5 2. Nf3 Nc6= 3. Bc4* Nf6 4. Ng5!? d5 5. exd5 Nxd5?! 6. Nxf7!{d8,h8} Kxf7 7. Qf3+{} Ke6 ' +
+           '8. Nc3 Nb4? 9. Qe4{e5} c6 10. a3 Na6 11. d4 Nc7 12. O-O',
+    title: 'Ván thử: Fried Liver', brsub: 'FRIED LIVER'},
+  // an endgame from a FEN: en passant, a skewer, a ?? blunder, promotion with check, mate
+  endgame: {
+    fen: '8/8/8/3kPp1q/8/8/6PP/R5K1 w - f6 0 1',
+    moves: '1. exf6! Qg5?? 2. Ra5+ Kc6 3. Rxg5 Kd7 4. Rg7+ Ke8 5. f7+ Kd7 6. f8=Q+!? Kc6 7. Qc8+ Kb6 ' +
+           '8. Rb7+ Ka5 9. Qa8#',
+    title: 'Ván thử: tàn cuộc', brsub: 'ENDGAME'},
 };
 $('sample').addEventListener('change', () => {
   const s = SAMPLES[$('sample').value]; $('sample').value = '';
   if (!s || recorder) return;
   if (playing) { playing = false; stopAudio(); }
-  $('moves').value = s.moves; $('fen').value = ''; $('nplies').value = '0'; $('orient').value = 'auto';
+  $('moves').value = s.moves; $('fen').value = s.fen || ''; $('nplies').value = '0'; $('orient').value = 'auto';
   $('title').value = s.title; $('brsub').value = s.brsub; selMove = -1; importResult = '';
   cur = 0; rebuild(); syncUI();
 });
@@ -6448,6 +6538,357 @@ anaEls('clear').forEach(b => b.onclick = () => {
   writeGame(g); anaNote('Đã xoá ' + left.length + ' ký hiệu tự động.');
 });
 
+// ---------- camera mode: a real board, read live ----------
+// the camera's frames go to the vision server (live/modal_app.py, on a Modal GPU), which answers with the board's
+// corners, the piece it sees on each square and how much the board moved since the frame before. the moves are
+// read here: once the board has stood still for a few frames, their boards are voted into one, and the legal move
+// (or two, or a take-back) that turns the game's board into it is played. Stockfish's best move is then drawn as an
+// arrow lying on the board in the video. up to LIVE.inflight frames wait for their answer at once, so a far server
+// still gets frames fast enough
+const LIVE = {
+  side: 960, quality: .72,   // the frame sent: long side (px) and JPEG quality
+  fps: 15, inflight: 3,      // frames sent per second at most, and waiting for their answer at once
+  still: .02,                // motion (mean change per pixel, 0..1) under which the board counts as still
+  settle: 4,                 // still frames whose boards are voted into the one a move is read from
+  maxOff: 3,                 // squares the board may still differ in from the game once a move explains it (the
+                             // detector's misses; a wrong piece of the right colour counts half)
+  startOff: 6,               // the same, for the starting position that begins a game
+};
+const LIVE_SAVE = 'chess-move-studio:live';
+// rot: the server's corners are named rot steps off (see turnBoard); raw: the last voted board as the server
+// names its squares; off: how far the game's board is from it
+const lv = {stream: null, ws: null, raf: 0, sent: 0, sentAt: 0, waiting: new Map(), lastId: 0, res: null, times: [],
+  rtt: 0, note: '', moving: false, obs: [], raw: '', rot: 0, game: null, start: '', last: null, off: 0, best: null,
+  eng: Promise.resolve(), engRun: 0, listKey: null};
+const lvShot = document.createElement('canvas');
+try { const s = JSON.parse(localStorage.getItem(LIVE_SAVE)) || {}; $('lvurl').value = s.url || ''; $('lvkey').value = s.key || ''; } catch {}
+['lvurl', 'lvkey'].forEach(id => $(id).addEventListener('change', () => {
+  try { localStorage.setItem(LIVE_SAVE, JSON.stringify({url: $('lvurl').value.trim(), key: $('lvkey').value})); } catch {}
+}));
+// boards are 64 characters, a8..h8 down to a1..h1 as in a FEN, '.' for an empty square (as the server sends them)
+const boardOf = c => c.board().flat().map(p => !p ? '.' : p.color === 'w' ? p.type.toUpperCase() : p.type).join('');
+// the board with the corners named k steps on: true corner i is the server's (i + k) % 4, and square (f, r) moves
+// to (r, 7 - f) each step, like turn() in live/chessvision.py
+function turnBoard(s, k) {
+  for (; k > 0; k--) { const o = []; for (let i = 0; i < 64; i++) o[(i % 8) * 8 + 7 - (i >> 3)] = s[i]; s = o.join(''); }
+  return s;
+}
+// how far apart two boards are: 1 per square that is empty in one only or holds the other colour, 1/2 for the
+// wrong piece of the right colour (the detector mixes up bishops and pawns more than it mixes up colours)
+function boardOff(a, b) {
+  let d = 0;
+  for (let i = 0; i < 64; i++) {
+    const x = a[i], y = b[i];
+    if (x !== y) d += x === '.' || y === '.' || (x < 'a') !== (y < 'a') ? 1 : .5;
+  }
+  return d;
+}
+// a seen board as a FEN; castling only where king and rook still stand at home
+function fenOfBoard(b, turn) {
+  const rows = [], at = (sq, p) => b[(8 - +sq[1]) * 8 + 'abcdefgh'.indexOf(sq[0])] === p;
+  for (let r = 0; r < 8; r++) rows.push(b.slice(r * 8, r * 8 + 8).replace(/\.+/g, m => m.length));
+  const cas = (at('e1', 'K') ? (at('h1', 'R') ? 'K' : '') + (at('a1', 'R') ? 'Q' : '') : '') +
+              (at('e8', 'k') ? (at('h8', 'r') ? 'k' : '') + (at('a8', 'r') ? 'q' : '') : '');
+  return rows.join('/') + ' ' + turn + ' ' + (cas || '-') + ' - 0 1';
+}
+const evalText = cp => Math.abs(cp) >= 1000 ? (cp > 0 ? 'Trắng' : 'Đen') + ' thắng'
+  : (cp > 0 ? '+' : cp < 0 ? '−' : '') + Math.abs(cp / 100).toFixed(1).replace('.', ',');
+// board coordinates -> the image: a1's outer corner (0, 0), h1's (8, 0), h8's (8, 8), a8's (0, 8), from the four
+// corners (solving the 8 x 8 system of the homography)
+function homography(dst) {
+  const src = [[0, 0], [8, 0], [8, 8], [0, 8]], A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+  }
+  for (let i = 0; i < 8; i++) {
+    let p = i; for (let r = i + 1; r < 8; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+    [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]];
+    for (let r = 0; r < 8; r++) if (r !== i) { const f = A[r][i] / A[i][i]; for (let k = i; k < 8; k++) A[r][k] -= f * A[i][k]; b[r] -= f * b[i]; }
+  }
+  const h = b.map((x, i) => x / A[i][i]);
+  return (x, y) => { const w = h[6] * x + h[7] * y + 1; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; };
+}
+const sqXY = sq => ['abcdefgh'.indexOf(sq[0]) + .5, +sq[1] - .5];
+
+// a board has settled: the game catches up with it
+function liveSeen(raw) {
+  const g = lv.game;
+  if (!g) {   // waiting for the starting position, seen from any side
+    const start = boardOf(new Chess());
+    let k = lv.rot;
+    for (let j = 0; j < 4; j++) if (boardOff(turnBoard(raw, j), start) < boardOff(turnBoard(raw, k), start)) k = j;
+    if (boardOff(turnBoard(raw, k), start) <= LIVE.startOff) { lv.rot = k; liveNew(new Chess().fen()); }
+    return liveShow();
+  }
+  const seen = turnBoard(raw, lv.rot), off = () => boardOff(boardOf(g), seen), now = off();
+  lv.off = now;
+  if (!now) return liveShow();
+  // one move; a move and the reply (both made while the board was covered); or the last move taken back
+  let best = {d: now, line: null};
+  for (const m of g.moves({verbose: true})) {
+    g.move(m); const d = off();
+    if (d < best.d) best = {d, line: [m]};
+    if (d > 1) for (const r of g.moves({verbose: true})) { g.move(r); const d2 = off() + 1; if (d2 < best.d) best = {d: d2, line: [m, r]}; g.undo(); }
+    g.undo();
+  }
+  const last = g.undo();
+  if (last) { const d = off(); if (d < best.d) best = {d, line: []}; g.move(last); }
+  if (!best.line || best.d > LIVE.maxOff || now - best.d < 1.5) return liveShow();
+  if (best.line.length) best.line.forEach(m => g.move(m)); else g.undo();
+  lv.off = best.d;
+  liveMoved();
+}
+function liveNew(fen) { lv.game = new Chess(fen); lv.start = fen; lv.off = 0; liveMoved(); }
+// after the game changed: the last move, the panel, then Stockfish's best move. the analyses queue up (the engine
+// answers one at a time) and the ones for positions already gone are skipped
+function liveMoved() {
+  const g = lv.game, h = g ? g.history({verbose: true}) : [];
+  lv.last = h[h.length - 1] || null; lv.best = null;
+  const run = ++lv.engRun;
+  liveShow();
+  if (!g || g.game_over()) return;
+  const fen = g.fen();
+  lv.eng = lv.eng.then(async () => {
+    if (run !== lv.engRun) return;
+    let e = evalCache.get(fenKey(fen));
+    if (!e || !e.best) {
+      if (anaBusy) return;   // the engine is judging the studio's game
+      let w; try { w = await engine(); } catch { lv.note = 'Không tải được Stockfish (cần mạng).'; return liveShow(); }
+      if (run !== lv.engRun) return;
+      anaBusy = true; try { e = await sfAnalyse(w, fen); } finally { anaBusy = false; }
+    }
+    if (run !== lv.engRun || !e || !e.best) return;
+    const m = new Chess(fen).move(uciMove(e.best));
+    if (m) { lv.best = {from: m.from, to: m.to, san: m.san, cp: e.cp}; liveShow(); }
+  });
+}
+// a server answer: while the board stands still, the last LIVE.settle boards vote square by square
+function liveTrack(r) {
+  lv.moving = !!r.board && !(r.motion != null && r.motion <= LIVE.still);
+  if (!r.board || lv.moving) { lv.obs = []; return; }
+  lv.obs.push(r.board); if (lv.obs.length > LIVE.settle) lv.obs.shift();
+  if (lv.obs.length < LIVE.settle) return;
+  let vote = '';
+  for (let i = 0; i < 64; i++) {
+    const n = {'.': 0}; let top = '.';
+    for (const b of lv.obs) { n[b[i]] = (n[b[i]] || 0) + 1; if (n[b[i]] > n[top]) top = b[i]; }
+    vote += top;
+  }
+  if (vote !== lv.raw) { lv.raw = vote; liveSeen(vote); }
+}
+
+// the server: https://…modal.run as typed, reached at wss://…/ws?key=…
+function liveWs() {
+  let u = $('lvurl').value.trim(); if (!u) return '';
+  if (!/^\w+:\/\//.test(u)) u = 'https://' + u;
+  try {
+    const x = new URL(u);
+    x.protocol = x.protocol === 'http:' ? 'ws:' : 'wss:'; x.pathname = x.pathname.replace(/\/(ws)?$/, '') + '/ws';
+    x.search = '?key=' + encodeURIComponent($('lvkey').value);
+    return x.href;
+  } catch { return ''; }
+}
+function liveConnect() {
+  if (!lv.stream) return;
+  let ws; try { ws = new WebSocket(liveWs()); } catch { lv.note = 'Địa chỉ máy chủ không hợp lệ.'; return liveShow(); }
+  ws.binaryType = 'arraybuffer'; lv.ws = ws; lv.waiting.clear();
+  ws.onopen = () => { if (lv.ws === ws) { liveShow(); liveSend(); } };
+  ws.onmessage = e => {
+    if (lv.ws !== ws) return;
+    let r; try { r = JSON.parse(e.data); } catch { return; }
+    const now = performance.now(), t0 = lv.waiting.get(r.id);
+    lv.waiting.delete(r.id); if (t0) lv.rtt = now - t0;
+    lv.times.push(now); while (now - lv.times[0] > 2000) lv.times.shift();
+    if (r.id > lv.lastId && !r.error) { lv.lastId = r.id; lv.res = r; liveTrack(r); }
+    liveShow(); liveSend();
+  };
+  ws.onclose = e => {
+    if (lv.ws !== ws) return;
+    lv.ws = null;
+    if (e.code === 4401) { liveStop(); lv.note = 'Sai mã truy cập.'; return liveShow(); }
+    liveShow();
+    setTimeout(() => { if (lv.stream && !lv.ws) liveConnect(); }, 2000);
+  };
+}
+// send frames while fewer than LIVE.inflight wait for an answer, at most LIVE.fps a second
+let lvSending = false;
+async function liveSend() {
+  if (lvSending) return;
+  lvSending = true;
+  try {
+    const v = $('livevid');
+    for (;;) {
+      const ws = lv.ws, now = performance.now();
+      if (!ws || ws.readyState !== 1) break;
+      if (!v.videoWidth) { setTimeout(liveSend, 200); break; }   // the camera's first frame is still coming
+      for (const [id, t] of lv.waiting) if (now - t > 5000) lv.waiting.delete(id);   // lost answers
+      if (lv.waiting.size >= LIVE.inflight) { setTimeout(liveSend, 1000); break; }
+      const wait = lv.sentAt + 1000 / LIVE.fps - now;
+      if (wait > 0) { await new Promise(r => setTimeout(r, wait)); continue; }
+      const k = Math.min(1, LIVE.side / Math.max(v.videoWidth, v.videoHeight));
+      lvShot.width = Math.round(v.videoWidth * k); lvShot.height = Math.round(v.videoHeight * k);
+      lvShot.getContext('2d').drawImage(v, 0, 0, lvShot.width, lvShot.height);
+      const jpg = await new Promise(r => lvShot.toBlob(r, 'image/jpeg', LIVE.quality));
+      if (!jpg || lv.ws !== ws || ws.readyState !== 1) break;
+      const id = ++lv.sent;
+      lv.sentAt = performance.now(); lv.waiting.set(id, lv.sentAt);
+      ws.send(new Blob([new Uint32Array([id]), jpg]));
+    }
+  } finally { lvSending = false; }
+}
+async function liveCams() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  const sel = $('lvcam'), cur = sel.value;
+  const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  sel.replaceChildren(new Option('Camera mặc định', ''), ...cams.map((d, i) => new Option(d.label || 'Camera ' + (i + 1), d.deviceId)));
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
+}
+async function liveStart() {
+  if (!liveWs()) { lv.note = 'Nhập địa chỉ máy chủ ở bước 1.'; return liveShow(); }
+  if (!navigator.mediaDevices) { lv.note = 'Trình duyệt không cho dùng camera ở trang này (mở bằng Chrome / Edge, từ file hoặc https).'; return liveShow(); }
+  const cam = $('lvcam').value;
+  lv.note = 'Đang mở camera…'; liveShow();
+  try {
+    lv.stream = await navigator.mediaDevices.getUserMedia({audio: false,
+      video: Object.assign({width: {ideal: 1280}, height: {ideal: 720}}, cam ? {deviceId: {exact: cam}} : {facingMode: 'environment'})});
+  } catch (e) { lv.note = 'Không mở được camera: ' + (e.message || e.name); return liveShow(); }
+  if ($('uimode').value !== 'live') return liveStop();   // left the mode meanwhile
+  const v = $('livevid'); v.srcObject = lv.stream; v.play().catch(() => {});
+  lv.note = ''; lv.obs = []; lv.raw = '';
+  liveCams(); liveConnect();
+  cancelAnimationFrame(lv.raf); liveDraw(); liveShow();
+}
+function liveStop() {
+  const s = lv.stream, ws = lv.ws;
+  lv.stream = lv.ws = lv.res = null; lv.obs = []; lv.raw = ''; lv.note = '';
+  if (s) s.getTracks().forEach(t => t.stop());
+  if (ws) ws.close();
+  cancelAnimationFrame(lv.raf);
+  $('livevid').srcObject = null;
+  const c = $('liveov'); c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  liveShow();
+}
+// called by applyMode: the camera only runs in its own mode
+function liveMode(on) {
+  document.querySelector('.stage').classList.toggle('live', on);
+  if (!on && lv.stream) liveStop(); else liveShow();
+}
+
+// the overlay, every frame of the video: the board's edge, the last move's squares glowing, the best move's arrow
+// lying on the board, and (Hiện khung nhận diện) the squares, the detector's boxes and where the board is off
+function liveDraw() {
+  lv.raf = requestAnimationFrame(liveDraw);
+  const v = $('livevid'), c = $('liveov'), g = c.getContext('2d');
+  if (!v.videoWidth) return;
+  if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
+    c.width = v.videoWidth; c.height = v.videoHeight; $('livescreen').style.setProperty('--ar', c.width / c.height);
+  }
+  g.clearRect(0, 0, c.width, c.height);
+  const r = lv.res; if (!r || !r.corners) return;
+  const W = c.width, H = c.height, u = Math.max(W, H) / 1000;
+  const P = homography([0, 1, 2, 3].map(i => { const [x, y] = r.corners[(i + lv.rot) % 4]; return [x * W, y * H]; }));
+  const path = pts => { g.beginPath(); pts.forEach(([x, y], i) => { const [px, py] = P(x, y); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.closePath(); };
+  const square = sq => { const [x, y] = sqXY(sq); path([[x - .5, y - .5], [x + .5, y - .5], [x + .5, y + .5], [x - .5, y + .5]]); };
+  g.save();
+  g.lineWidth = 2 * u; g.strokeStyle = 'rgba(255,255,255,.5)'; path([[0, 0], [8, 0], [8, 8], [0, 8]]); g.stroke();
+  const boxes = $('lvboxes').value === 'on';
+  if (boxes) {
+    g.lineWidth = u; g.strokeStyle = 'rgba(255,255,255,.35)';
+    for (let k = 1; k < 8; k++) { path([[k, 0], [k, 8]]); g.stroke(); path([[0, k], [8, k]]); g.stroke(); }
+    g.font = font(700, 13 * u); g.textBaseline = 'bottom';
+    for (const [x0, y0, x1, y1, p, cf] of r.boxes) {
+      g.strokeStyle = g.fillStyle = p < 'a' ? '#FFFFFF' : '#FF9F1C';
+      g.strokeRect(x0 * W, y0 * H, (x1 - x0) * W, (y1 - y0) * H);
+      g.fillText(p + ' ' + Math.round(cf * 100), x0 * W + 2 * u, y0 * H - u);
+    }
+    if (lv.game && lv.raw) {   // where the board seen and the game disagree
+      const seen = turnBoard(lv.raw, lv.rot), want = boardOf(lv.game);
+      g.fillStyle = withAlpha(PALETTE.lane, .45);
+      for (let i = 0; i < 64; i++) if (seen[i] !== want[i]) { square('abcdefgh'[i % 8] + (8 - (i >> 3))); g.fill(); }
+    }
+  }
+  // the last move: its two squares, filled, glowing softly
+  if (lv.last) {
+    g.shadowColor = PALETTE.glow; g.shadowBlur = 16 * u;
+    for (const [sq, a] of [[lv.last.from, .28], [lv.last.to, .42]]) { g.fillStyle = withAlpha(PALETTE.glow, a); square(sq); g.fill(); }
+    g.shadowBlur = 0;
+  }
+  // the best move: an arrow from square centre to square centre, drawn in board coordinates so it lies flat
+  if (lv.best) {
+    const [x0, y0] = sqXY(lv.best.from), [x1, y1] = sqXY(lv.best.to), L = Math.hypot(x1 - x0, y1 - y0);
+    const ux = (x1 - x0) / L, uy = (y1 - y0) / L, nx = -uy, ny = ux, sw = .12, hw = .32, hl = .5;
+    const sx = x0 + ux * .25, sy = y0 + uy * .25, bx = x1 - ux * hl, by = y1 - uy * hl;
+    path([[sx + nx * sw, sy + ny * sw], [bx + nx * sw, by + ny * sw], [bx + nx * hw, by + ny * hw], [x1, y1],
+          [bx - nx * hw, by - ny * hw], [bx - nx * sw, by - ny * sw], [sx - nx * sw, sy - ny * sw]]);
+    const col = PALETTE.good;
+    g.shadowColor = col; g.shadowBlur = 14 * u; g.fillStyle = withAlpha(col, .88); g.fill();
+    g.shadowBlur = 0; g.lineWidth = 1.5 * u; g.strokeStyle = 'rgba(255,255,255,.7)'; g.stroke();
+    // its name and the evaluation, top left
+    const t = lv.best.san + '  ' + evalText(lv.best.cp);
+    g.font = font(800, 26 * u); g.textBaseline = 'middle';
+    const tw = g.measureText(t).width, px = 16 * u, py = 16 * u, ph = 44 * u;
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.beginPath(); g.roundRect(px, py, tw + 28 * u, ph, ph / 2); g.fill();
+    g.fillStyle = '#fff'; g.fillText(t, px + 14 * u, py + ph / 2);
+  }
+  g.restore();
+}
+
+function liveShow() {
+  $('lvstart').textContent = lv.stream ? 'Tắt camera' : 'Bật camera';
+  $('liveempty').hidden = !!lv.stream;
+  const r = lv.res, ws = lv.ws, n = lv.times.length;
+  const fps = n > 1 ? (n - 1) * 1000 / (lv.times[n - 1] - lv.times[0]) : 0;
+  $('lvstat').textContent = lv.note || (!lv.stream ? 'Camera đang tắt.'
+    : !ws ? 'Mất kết nối máy chủ, đang nối lại…'
+    : ws.readyState === 0 ? 'Đang nối máy chủ… (lần đầu GPU khởi động mất khoảng nửa phút)'
+    : !r ? 'Đã nối máy chủ, đang gửi hình…'
+    : fps.toFixed(0) + ' khung/giây · trễ ' + Math.round(lv.rtt) + ' ms (GPU ' + Math.round(r.ms) + ' ms)'
+      + (!r.corners ? ' · không thấy bàn cờ' : lv.moving ? ' · đang có chuyển động' : ''));
+  const g = lv.game;
+  $('lvsum').textContent = !g ? 'Xếp quân về thế ban đầu để bắt đầu ván, hoặc bấm Dùng thế đang thấy.'
+    : g.in_checkmate() ? 'Chiếu hết! ' + (g.turn() === 'w' ? 'Đen' : 'Trắng') + ' thắng.'
+    : g.game_over() ? 'Ván hoà.'
+    : (g.turn() === 'w' ? 'Trắng' : 'Đen') + ' đi' + (g.in_check() ? ', đang bị chiếu' : '')
+      + (lv.off >= 1 ? ' · bàn lệch ván ' + Math.ceil(lv.off) + ' ô (quân bị che hoặc đặt chưa đúng ô?)' : '');
+  $('lvbest').textContent = lv.best ? 'Nước tốt nhất: ' + lv.best.san + ' (' + evalText(lv.best.cp) + ')'
+    : g && !g.game_over() ? 'Đang tìm nước tốt nhất…' : '';
+  const h = g ? g.history() : [], key = lv.start + ' ' + h.join(' ');
+  if (key !== lv.listKey) {
+    lv.listKey = key;
+    const el = $('lvmoves'), f = lv.start.split(' '), black = f[1] === 'b', items = [];
+    h.forEach((san, i) => {
+      const ply = i + (black ? 1 : 0);
+      if (ply % 2 === 0 || i === 0) items.push(Object.assign(document.createElement('span'), {className: 'mvn', textContent: (+f[5] + (ply >> 1)) + (ply % 2 ? '…' : '.')}));
+      items.push(Object.assign(document.createElement('span'), {className: 'lvmv', textContent: san}));
+    });
+    el.replaceChildren(...items); el.hidden = !h.length; el.scrollTop = el.scrollHeight;
+  }
+  $('lvundo').disabled = !h.length; $('lvstudio').disabled = !h.length || !!recorder; $('lvtake').disabled = !lv.raw;
+}
+
+$('lvstart').onclick = () => lv.stream ? liveStop() : liveStart();
+$('lvcam').addEventListener('change', () => { if (lv.stream) { liveStop(); liveStart(); } });
+$('lvrot').onclick = () => { lv.rot = (lv.rot + 1) % 4; if (lv.raw) liveSeen(lv.raw); };
+$('lvundo').onclick = () => { if (lv.game && lv.game.undo()) { lv.off = 0; liveMoved(); } };
+$('lvnew').onclick = () => { lv.game = null; lv.start = ''; lv.off = 0; liveMoved(); if (lv.raw) liveSeen(lv.raw); };
+$('lvtake').onclick = () => {
+  if (!lv.raw) return;
+  const b = turnBoard(lv.raw, lv.rot), fen = fenOfBoard(b, $('lvturn').value);
+  if (!b.includes('K') || !b.includes('k') || !new Chess().validate_fen(fen).valid) { lv.note = 'Thế đang thấy chưa phải một thế cờ hợp lệ (thiếu Vua?).'; return liveShow(); }
+  lv.note = ''; liveNew(fen);
+};
+// the game played in front of the camera, into the quick mode to make its video
+$('lvstudio').onclick = () => {
+  const g = lv.game; if (!g || !g.history().length || recorder) return;
+  const std = lv.start === new Chess().fen();
+  if (!importPgn((std ? '' : '[FEN "' + lv.start + '"]\n') + g.history().join(' '))) return;
+  $('uimode').value = 'quick'; ['input', 'change'].forEach(ev => $('uimode').dispatchEvent(new Event(ev)));
+  $('qnote').textContent = 'Đã nạp ván vừa chơi trước camera.';
+  quickAfterLoad();
+};
+
 // ---------- quick mode: three steps (game, look, music & export) over the same settings ----------
 // it keeps no settings of its own: every control writes the fields of the full settings (Tùy chỉnh), so switching
 // back and forth loses nothing and both give the same video. QUICK_LEN: target video length (seconds) per choice
@@ -6457,9 +6898,10 @@ const QUICK_SHOWN = new Set(['moves','fen','nplies','orient','title','handle','a
 const QUICK_MIRROR = [['qtitle','title'], ['qhandle','handle'], ['qaspect','aspect']];
 const quick = () => $('uimode').value === 'quick';
 function applyMode() {
-  const q = quick();
-  $('pane-quick').hidden = !q; document.querySelector('.tabs').hidden = q;
-  tabs.forEach(t => { $(t.getAttribute('aria-controls')).hidden = q || t.getAttribute('aria-selected') !== 'true'; });
+  const m = $('uimode').value, full = m === 'custom';
+  $('pane-quick').hidden = m !== 'quick'; $('pane-live').hidden = m !== 'live'; document.querySelector('.tabs').hidden = !full;
+  tabs.forEach(t => { $(t.getAttribute('aria-controls')).hidden = !full || t.getAttribute('aria-selected') !== 'true'; });
+  liveMode(m === 'live');
 }
 // the field's name as its label shows it, without the live value or the explanation in brackets
 function fieldName(id) {

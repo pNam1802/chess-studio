@@ -2,7 +2,7 @@
 
 Dựng video nước cờ kiểu TikTok ngay trong trình duyệt: camera bám quân, quân nảy và xoay, ô đích phát sáng, huy hiệu đánh giá (`!!`, `!`, `?!`, `??`…), cảnh "BRILLIANT MOVE", dải chiếu đỏ khi chiếu Vua, vua đổ khi chiếu hết, và khớp nước đi theo nhịp nhạc.
 
-Toàn bộ là một file `chess-move-studio.html`, không cần cài đặt hay server.
+Toàn bộ là một file `chess-move-studio.html`, không cần cài đặt hay server. Riêng chế độ **Camera** (đọc ván cờ thật qua camera) cần một máy chủ nhận diện chạy trên GPU, xem [Camera ván thật](#camera-ván-thật).
 
 ## Chế độ Nhanh
 
@@ -36,7 +36,7 @@ Máy chấm theo đúng thực lực của nước đi, nên vài nước nổi 
    Hoặc lấy cả ván có sẵn: dán link ván / chương nghiên cứu Lichess vào ô **Lấy ván từ Lichess**, hay dán PGN (ví dụ từ Chess.com: Share → PGN) vào ô Nước đi. Header, bình luận, biến thể được bỏ qua, `[FEN]` thành thế bắt đầu, ký hiệu `$1`…`$6` thành huy hiệu.
    Bấm vào một nước trong danh sách nước dưới ô nhập để gắn huy hiệu, chọn **Bắt đầu dựng từ nước này**, hoặc bấm ô trên bàn cờ nhỏ để vẽ dải tấn công. Trang tự ghi lại vào ô Nước đi theo đúng cú pháp trên.
 3. Chọn tỉ lệ khung hình: 9:16 (TikTok, Reels, Shorts), 4:5 (Instagram), 1:1, 16:9 (YouTube).
-4. Chọn file nhạc, bấm **Tự tìm cao trào** để quân Brilliant đập xuống đúng lúc nhạc dồn. Nếu máy chọn sai đoạn: bấm **Nghe cả bài**, nghe tới chỗ nhạc dồn thì bấm **Đặt cao trào ở đây** (trong lúc nghe, bấm lên dải sóng nhạc để tua). Cũng có thể bấm / kéo thẳng trên dải hoặc chọn một mốc gợi ý, chỉnh bằng **‹ 1 nhịp / 1 nhịp ›**, rồi **Nghe quanh cao trào** để kiểm tra. Mặc định chỉ nước `!!` khớp nhạc, các nước khác đi theo tốc độ đã chỉnh; bật **Các nước khác cũng rơi theo nhịp** nếu muốn mọi nước chạm bàn đúng nhịp. **Lặng trước cao trào** (bật sẵn): 2 nhịp trước nước `!!` nhạc tối dần, một tiếng riser dâng lên, rồi im hẳn khoảng 0,16 giây trước khi quân đập xuống cùng cao trào; ở nước `??` nhạc tắt một nhịp rồi vào lại. **Bám beat thật của bài** (bật sẵn) dò từng beat trong nhạc, lần ra từ cao trào, nên các nước vẫn rơi đúng beat khi bài nhanh chậm dần hoặc BPM đo hơi lệch; tắt đi thì dùng lưới nhịp đều theo BPM.
+4. Chọn file nhạc, bấm **Tự tìm cao trào** để quân Brilliant đập xuống đúng lúc nhạc dồn. Nếu máy chọn sai đoạn: bấm **Nghe cả bài**, nghe tới chỗ nhạc dồn thì bấm **Đặt cao trào ở đây** (trong lúc nghe, bấm lên dải sóng nhạc để tua). Cũng có thể bấm / kéo thẳng trên dải hoặc chọn một mốc gợi ý, chỉnh bằng **‹ 1 nhịp / 1 nhịp ›**, rồi **Nghe quanh cao trào** để kiểm tra. Mặc định chỉ nước `!!` khớp nhạc, các nước khác đi theo tốc độ đã chỉnh; bật **Các nước khác cũng rơi theo nhịp** nếu muốn mọi nước chạm bàn đúng nhịp. **Lặng trước cao trào** (bật sẵn): 2 nhịp trước nước `!!` nhạc tối dần, một tiếng riser dâng lên, rồi im hẳn khoảng 0,16 giây trước khi quân đập xuống cùng cao trào. **Bám beat thật của bài** (bật sẵn) dò từng beat trong nhạc, lần ra từ cao trào, nên các nước vẫn rơi đúng beat khi bài nhanh chậm dần hoặc BPM đo hơi lệch; tắt đi thì dùng lưới nhịp đều theo BPM.
 5. Bấm **Phát xem trước**, rồi **Xuất video** để tải file `.mp4`.
 
 Cài đặt được tự lưu trong trình duyệt; nút **Về mặc định** đưa mọi thứ về ban đầu.
@@ -44,6 +44,8 @@ Cài đặt được tự lưu trong trình duyệt; nút **Về mặc định**
 Khung xem trước dùng như trình phát video: bấm vào video hoặc phím Space để phát/dừng, kéo thanh để tua, phím ← → tua 1 giây.
 
 ## Phong cách
+
+**Nước sai (`?`, `??`):** bàn cờ giữ nguyên màu, ô đến chỉ tô nhạt màu cam / đỏ, huy hiệu rơi xuống và nảy. Kiểu cũ (bàn xám, phủ đỏ, quân giật hình, chữ BLUNDER) vẫn còn trong code là `BLUNDER_STYLES.glitch`.
 
 Thẻ giao diện có mục **Phong cách**: chọn một bộ (*Studio*, *Bàn online*, *Đêm*, *Gỗ*, *TikTok*) rồi đổi riêng từng phần nếu muốn: ô vừa đi (sáng, phẳng, viền), dải tấn công (ô bật đỏ, mũi tên, hoặc *lộ trình*: đường đỏ phát sáng theo đúng đường quân đi, chữ L cho mã), loé màn hình khi đáp (đỏ khi chiếu, xanh khi ăn quân), huy hiệu (tròn hoặc sticker), cùng màu bàn cờ và kiểu cảnh Brilliant (Aura, Cổ điển, *Lật đồng xu*: quân dày lật 3D trên nền mờ, có vòng đánh dấu ô đích).
 
@@ -56,13 +58,13 @@ Trong code, mỗi phần là một "khe" có nhiều biến thể cùng giao di�
 ## Kể chuyện
 
 - **Thanh đánh giá:** dưới chữ phía trên, cho thấy cơ hội thắng của Trắng (Win%) và điểm số; trượt sang giá trị mới khi quân đáp, loé theo màu huy hiệu khi thế cờ đổi mạnh. Chỉ hiện khi mọi thế cờ trong đoạn dựng đã được đánh giá (bấm **Tự tìm nước hay**, hoặc ván Lichess có `[%eval]`).
-- **Chữ chiến thuật:** ngoài FORK! và DOUBLE CHECK, trang tự ghi **SKEWER** (xiên) và **PIN** (ghim) khi quân Tượng / Xe / Hậu vừa đi nhắm qua một quân vào quân phía sau, và **BLUNDER** trên nước `??`. Chữ PIN / SKEWER đi kèm dải tấn công, nên hiện khi nước đi chiếu Vua hoặc có ghi mục tiêu `{…}`.
+- **Chữ chiến thuật:** ngoài FORK! và DOUBLE CHECK, trang tự ghi **SKEWER** (xiên) và **PIN** (ghim) khi quân Tượng / Xe / Hậu vừa đi nhắm qua một quân vào quân phía sau. Chữ PIN / SKEWER đi kèm dải tấn công, nên hiện khi nước đi chiếu Vua hoặc có ghi mục tiêu `{…}`.
 
 ## Chuyển động
 
 Trong Phong cách → **Chuyển động**, mỗi mục bật/tắt riêng:
 
-- **Tiêu điểm:** khi một quân bắt đầu đi, khung hình chìm vào bóng tối (ánh sáng kiểu phim, low-key), chỉ còn hai vùng sáng ấm, mềm mép ở ô đi và ô đến, có bụi lơ lửng trong ánh đèn; khi quân bay, ánh sáng chuyển dần từ ô đi sang ô đến và loé lên lúc quân đáp. Đi kèm viền tối quanh khung hình và hạt phim. Quân đáp xong thì bàn sáng lại. Không áp dụng ở cảnh `!!` và cảnh chiếu hết kiểu anime (chúng có cảnh riêng).
+- **Tiêu điểm:** khi một quân bắt đầu đi, khung hình chìm vào bóng tối (ánh sáng kiểu phim, low-key), chỉ còn ô đi và ô đến sáng lên thành hai ô vuông, ánh sáng hắt mềm ra xung quanh mỗi ô (trắng khi quân đang bay; lúc quân đáp, ô đến đổi sang màu của nước đi: xanh lá cho nước tốt `!` / `★`, xanh lam cho nước thiên tài `!!`, nước sai `?!` / `?` / `??` chỉ tô nhạt màu vàng / cam / đỏ trong ô, không hắt sáng); khi quân bay, ánh sáng chuyển dần từ ô đi sang ô đến và loé lên lúc quân đáp. Đi kèm viền tối quanh khung hình và hạt phim. Quân đáp xong thì bàn sáng lại. Không áp dụng ở cảnh `!!` và cảnh chiếu hết kiểu anime (chúng có cảnh riêng).
 - **Vệt sáng theo quân:** một dải sáng bám sau quân đang bay, đuôi mảnh và mờ dần.
 - **Quân bị ăn:** *Văng ra*: quân bị hất bay theo hướng nước đi, xoay, rơi rồi mờ đi, kèm vòng sóng và mảnh vụn ở ô đó; *Mờ dần*: như cũ.
 - **Kết video:** *Tua ngược*: sau nước cuối, cả video chạy ngược về khung đầu trong 1,4 giây (lệch màu, vạch nhiễu như băng từ, nhạc chậm dần rồi tắt như băng dừng, có tiếng tua), khung cuối trùng khung đầu nên video lặp lại liền mạch trên TikTok / Shorts.
@@ -85,8 +87,46 @@ Video được dựng từng khung hình (60fps) bằng WebCodecs và ghép thà
 
 Bản trên GitHub không nhúng sẵn bài hát nào vì lý do bản quyền: hãy chọn file nhạc của bạn trong trang, hoặc xuất video **Không nhạc** rồi gắn sound trên TikTok.
 
+## Camera ván thật
+
+Chế độ **Camera** đọc một ván cờ thật qua webcam hoặc điện thoại theo thời gian thực: tìm bàn cờ, nhận quân, ghi lại từng nước đi, và vẽ nước tốt nhất của Stockfish thành mũi tên nằm trên bàn cờ ngay trong video. Chơi xong, bấm **Dựng video từ ván này** để chuyển ván sang chế độ Nhanh.
+
+Cách hoạt động:
+
+1. Trang gửi khung hình (JPEG, cạnh dài 960 px, tối đa 15 khung/giây) qua WebSocket tới máy chủ trên GPU của Modal. Mỗi lúc có tối đa 3 khung chờ trả lời, nên máy chủ ở xa vẫn nhận đủ hình.
+2. Máy chủ (`live/modal_app.py`, `live/chessvision.py`) chạy hai model YOLO11: model **pose** tìm 4 góc bàn cờ, rồi từ đó tính homography; model **detect** nhận 12 loại quân trong vùng cắt quanh bàn. Mỗi quân thuộc về ô dưới chân nó (đáy khung nhận diện, nâng lên một chút vì camera nhìn chéo). Máy chủ còn làm mượt các góc qua nhiều khung và đo mức thay đổi của bàn so với khung trước.
+3. Trang theo dõi ván: khi bàn đứng yên (không có tay) đủ 4 khung, các khung bỏ phiếu theo từng ô ra một thế cờ. Trang tìm nước đi hợp lệ (hoặc hai nước, hoặc một nước lùi) biến thế của ván thành thế vừa thấy, nên nhận nhầm 1–2 quân không làm hỏng ván. Ván bắt đầu khi camera thấy thế ban đầu, nhìn từ phía nào cũng được. Bàn đang chơi dở thì chọn bên đi rồi bấm **Dùng thế đang thấy**.
+4. Mỗi thế mới được đưa vào Stockfish (chính bản chạy trong trình duyệt của Tự tìm nước hay) để tìm nước tốt nhất.
+
+**Hiện khung nhận diện** vẽ lưới ô, khung từng quân kèm độ tin cậy, và tô đỏ những ô mà máy thấy khác với ván. Nếu bàn bị nhận lệch hướng (a1 sai góc), bấm **Xoay bàn 90°**.
+
+Đặt camera nhìn chéo xuống bàn sao cho thấy đủ 4 góc bàn, đủ sáng, quân không che nhau quá nhiều.
+
+### Cài đặt
+
+**1. Train model trên Kaggle** (GPU miễn phí). Trên Kaggle: *Create → New Notebook → File → Import Notebook*, chọn `live/train_kaggle.ipynb`. Ở *Settings* chọn **Accelerator: GPU T4 x2** và bật **Internet**, rồi *Run All*. Notebook tải bộ dữ liệu [ChessReD](https://data.4tu.nl/datasets/99b5c721-280b-450b-b058-b2900b69a90f) (bản 2K: 2.078 ảnh bàn cờ thật chụp chéo bằng điện thoại, 4,7 GB), train hai model song song (khoảng 1–1,5 giờ), chạy thử cả quy trình trên các ván test (in ra độ chính xác theo ô), rồi đóng gói `chess-live-weights.zip`. Tải file đó ở khung *Output* và giải nén vào `live/weights/` (`board.pt`, `pieces.pt`, `meta.json`).
+
+**2. Đưa máy chủ lên Modal:**
+
+```
+pip install modal
+modal token new                     # nếu máy chưa đăng nhập Modal
+modal secret create chess-live LIVE_KEY=<một chuỗi ngẫu nhiên dài>
+modal deploy live/modal_app.py
+modal run live/modal_app.py --image anh-ban-co.jpg   # thử một ảnh: in ra thế cờ đọc được
+```
+
+`modal deploy` in ra địa chỉ dạng `https://<tên>--chess-live-vision-web.modal.run`. Dán địa chỉ đó và `LIVE_KEY` vào bước 1 của chế độ Camera (trang chỉ lưu chúng trong trình duyệt này).
+
+Máy chủ dùng GPU T4 (rẻ nhất trên Modal); đổi bằng biến môi trường `CHESS_LIVE_GPU=L4` khi deploy. Máy chủ tự tắt sau 2 phút không nhận hình nên chỉ tốn tiền lúc dùng; lần bật đầu tiên mất khoảng nửa phút. Độ trễ chủ yếu là đường mạng tới máy chủ của Modal (ở Mỹ), số khung/giây và độ trễ hiện ngay dưới nút Bật camera.
+
+Sửa `live/chessvision.py` hoặc `live/train_kaggle.py` thì chạy `python live/make_notebook.py` để tạo lại notebook.
+
+Bộ dữ liệu ChessReD dùng giấy phép CC BY-NC-SA 4.0 (không thương mại), nên model train từ nó cũng chỉ nên dùng phi thương mại.
+
 ## Thư viện
 
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2-Clause), nhúng sẵn
 - [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) 5.1.3 (MIT), nhúng sẵn
 - [stockfish.js](https://github.com/niklasf/stockfish.js) 10.0.2 (GPLv3), không nhúng: tải từ jsDelivr khi bấm Tự tìm nước hay
+- Chế độ Camera (máy chủ, không nằm trong trang): [Ultralytics YOLO11](https://github.com/ultralytics/ultralytics) (AGPL-3.0), OpenCV, FastAPI, [Modal](https://modal.com); dữ liệu train [ChessReD](https://data.4tu.nl/datasets/99b5c721-280b-450b-b058-b2900b69a90f) (CC BY-NC-SA 4.0, Masouris & van Gemert 2023)
